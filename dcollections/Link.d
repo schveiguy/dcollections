@@ -139,31 +139,54 @@ class Link(V)
 
 /**
  * This struct uses a Link(V) to keep track of a link-list of values.
+ *
+ * The implementation uses a dummy link node to be the head and tail of the
+ * list.  Basically, the list is circular, with the dummy node marking the
+ * end/beginning.
  */
 struct LinkHead(V)
 {
+    /**
+     * Convenience alias
+     */
     alias Link!(V) node;
 
+    /**
+     * The node that denotes the end of the list
+     */
     node end; // not a valid node
 
+    /**
+     * The number of nodes in the list
+     */
     uint count;
 
     /**
-     * we don't use parameters
+     * we don't use parameters, so alias it to int.
      */
     alias int parameters;
 
+    /**
+     * Get the first valid node in the list
+     */
     node begin()
     {
         return end.next;
     }
 
+    /**
+     * Initialize the list
+     */
     setup(parameters p)
     {
         end = new node;
         node.attach(end, end);
     }
 
+    /**
+     * Remove a node from the list, returning the next node in the list, or
+     * end if the node was the last one in the list. O(1) operation.
+     */
     node remove(node n)
     {
         count--;
@@ -172,6 +195,9 @@ struct LinkHead(V)
         return retval;
     }
 
+    /**
+     * Remove all the nodes from first to last.  This is an O(n) operation.
+     */
     node remove(node first, node last)
     {
         count -= first.count(last);
@@ -179,12 +205,19 @@ struct LinkHead(V)
         return last;
     }
 
+    /**
+     * Insert the given value before the given node.  Use insert(end, v) to
+     * add to the end of the list, or to an empty list. O(1) operation.
+     */
     node insert(node before, V v)
     {
         count++;
         return before.prepend(new node(v)).prev;
     }
 
+    /**
+     * Remove all nodes from the list
+     */
     void clear()
     {
         Node.attach(end, end);

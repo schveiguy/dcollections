@@ -25,11 +25,19 @@ module dcollections.model.Collection;
 
 public import dcollections.model.Iterator;
 
+/**
+ * The collection interface defines the basic API for all collections.
+ *
+ * A basic collection should be able to iterate over its elements, tell if it
+ * contains an element, and remove elements.  Adding elements is not supported
+ * here, because elements are not always simply addable.  For example, a map
+ * needs both the element and the key to add it.
+ */
 interface Collection(V) : Iterator!(V)
 {
-    alias Iterator!(V).opApply opApply;
-
-    /// clear the container of all values
+    /**
+     * clear the container of all values
+     */
     Collection!(V) clear();
 
     /**
@@ -41,11 +49,21 @@ interface Collection(V) : Iterator!(V)
      */
     bool remove(V v);
 
-    /// returns true if the collection contains the value.  can be slow
+    /**
+     * returns true if the collection contains the value.  can be O(n).
+     */
     bool contains(V v);
 
     /**
-     * get a purger that can iterate and remove elements
+     * get a purger that can iterate and remove elements.  Note that the
+     * collection itself cannot be a PurgeIterator because the number of
+     * arguments would match a KeyedCollection's normal iterator.  This would
+     * make code ambiguous:
+     *
+     * -------
+     * foreach(k, v; keyedCollection)
+     * // is k the doPurge variable or the key?
+     * -------
      */
     PurgeIterator!(V) purger();
 }

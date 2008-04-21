@@ -80,7 +80,9 @@ private import dcollections.RBTree;
  */
 class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
 {
-    /// convenience alias.
+    /**
+     * convenience alias.
+     */
     alias ImplTemp!(V) Impl;
 
     private Impl _tree;
@@ -102,7 +104,9 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
     {
         private Impl.node ptr;
 
-        /// get the value in this element
+        /**
+         * get the value in this element
+         */
         V value()
         {
             return ptr.value;
@@ -204,7 +208,9 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         return dgret;
     }
 
-    /// iterate over the collection's values
+    /**
+     * iterate over the collection's values
+     */
     int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
@@ -333,7 +339,9 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         return true;
     }
 
-    /// returns an object that can be used to purge the collection.
+    /**
+     * returns an object that can be used to purge the collection.
+     */
     PurgeIterator!(V) purger()
     {
         return _purger;

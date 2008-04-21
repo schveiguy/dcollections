@@ -26,57 +26,94 @@ module dcollections.RBTree;
 private import dcollections.Functions;
 import tango.io.Stdout;
 
-//
-// this implementation assumes we have a marker node that is the parent of the
-// root node.  This marker node is not a valid node, but marks the end of the
-// collection.  The root is the left child of the marker node, so it is always
-// iterated last.  The marker node is passed in to the setColor function, and
-// the node which has this node as its parent is assumed to be the root node.
-//
 /**
  * Implementation for a Red Black node for use in a Red Black Tree (see below)
+ *
+ * this implementation assumes we have a marker node that is the parent of the
+ * root node.  This marker node is not a valid node, but marks the end of the
+ * collection.  The root is the left child of the marker node, so it is always
+ * last in the collection.  The marker node is passed in to the setColor
+ * function, and the node which has this node as its parent is assumed to be
+ * the root node.
+ *
+ * A Red Black tree should have O(lg(n)) insertion, removal, and search time.
  */
 class RBNode(V)
 {
+    /**
+     * Convenience alias
+     */
     alias RBNode!(V) Node;
 
     private Node _left;
     private Node _right;
     private Node _parent;
 
+    /**
+     * The value held by this node
+     */
+    V value;
+
+    /**
+     * Enumeration determining what color the node is.  Null nodes are assumed
+     * to be black.
+     */
     enum Color : byte
     {
         Red,
         Black
     }
 
+    /**
+     * The color of the node.
+     */
+    Color color;
+
+    /**
+     * Default constructor
+     */
     this()
     {
     }
 
+    /**
+     * Value constructor
+     */
     this(V v)
     {
         value = v;
     }
 
-    Color color;
-    V value;
-
+    /**
+     * Get the left child
+     */
     Node left()
     {
         return _left;
     }
 
+    /**
+     * Get the right child
+     */
     Node right()
     {
         return _right;
     }
 
+    /**
+     * Get the parent
+     */
     Node parent()
     {
         return _parent;
     }
 
+    /**
+     * Set the left child.  Also updates the new child's parent node.  This
+     * does not update the previous child.
+     *
+     * Returns this for chaining.
+     */
     Node left(Node newNode)
     {
         _left = newNode;
@@ -85,6 +122,12 @@ class RBNode(V)
         return this;
     }
 
+    /**
+     * Set the right child.  Also updates the new child's parent node.  This
+     * does not update the previous child.
+     *
+     * Returns this for chaining.
+     */
     Node right(Node newNode)
     {
         _right = newNode;
@@ -106,6 +149,13 @@ class RBNode(V)
     //   / \           / \ 
     //  a   b         b   R 
     //
+    /**
+     * Rotate right.  This performs the following operations:
+     *  - The left child becomes the parent of this node.
+     *  - This node becomes the new parent's right child.
+     *  - The old right child of the new parent becomes the left child of this
+     *    node.
+     */
     Node rotateR()
     in
     {
@@ -142,6 +192,13 @@ class RBNode(V)
     //       / \     / \ 
     //      a   b   L   a 
     //
+    /**
+     * Rotate left.  This performs the following operations:
+     *  - The right child becomes the parent of this node.
+     *  - This node becomes the new parent's left child.
+     *  - The old left child of the new parent becomes the right child of this
+     *    node.
+     */
     Node rotateL()
     in
     {
@@ -165,6 +222,12 @@ class RBNode(V)
     }
 
 
+    /**
+     * Returns true if this node is a left child.
+     *
+     * Note that this should always return a value because the root has a
+     * parent which is the marker node.
+     */
     bool isLeftNode()
     in
     {
@@ -175,6 +238,12 @@ class RBNode(V)
         return _parent._left is this;
     }
 
+    /**
+     * Set the color of the node after it is inserted.  This performs an
+     * update to the whole tree, possibly rotating nodes to keep the Red-Black
+     * properties correct.  This is an O(lg(n)) operation, where n is the
+     * number of nodes in the tree.
+     */
     void setColor(Node end)
     {
         // test against the marker node
@@ -269,10 +338,13 @@ class RBNode(V)
         }
     }
 
-    //
-    // returns next node in the tree if it exists, or end if this was the node
-    // that contained the highest key
-    //
+    /**
+     * Remove this node from the tree.  The 'end' node is used as the marker
+     * which is root's parent.  Note that this cannot be null!
+     *
+     * Returns the next highest valued node in the tree after this one, or end
+     * if this was the highest-valued node.
+     */
     Node remove(Node end)
     {
         //
@@ -444,7 +516,7 @@ class RBNode(V)
         if(removeThis)
         {
             //
-            // clear y out of the tree
+            // clear this node out of the tree
             //
             if(isLeftNode)
                 _parent.left = null;
@@ -455,6 +527,9 @@ class RBNode(V)
         return ret;
     }
 
+    /**
+     * Return the leftmost descendant of this node.
+     */
     Node leftmost()
     {
         Node result = this;
@@ -463,6 +538,9 @@ class RBNode(V)
         return result;
     }
 
+    /**
+     * Return the rightmost descendant of this node
+     */
     Node rightmost()
     {
         Node result = this;
@@ -471,7 +549,12 @@ class RBNode(V)
         return result;
     }
 
-    // this works only if you never call next on the marker node
+    /**
+     * Returns the next valued node in the tree.
+     *
+     * You should never call this on the marker node, as it is assumed that
+     * there is a valid next node.
+     */
     Node next()
     {
         Node n = this;
@@ -485,8 +568,12 @@ class RBNode(V)
             return n.right.leftmost;
     }
 
-    // this works only if you never call prev on the leftmost node of the
-    // tree.
+    /**
+     * Returns the previous valued node in the tree.
+     *
+     * You should never call this on the leftmost node of the tree as it is
+     * assumed that there is a valid previous node.
+     */
     Node prev()
     {
         Node n = this;
@@ -502,34 +589,68 @@ class RBNode(V)
 }
 
 /**
- * Implementation of a red black tree
+ * Implementation of a red black tree.
+ *
+ * This uses RBNode to implement the tree.
+ *
+ * Set allowDuplicates to true to allow duplicate values to be inserted.
  */
 struct RBTree(V, bool allowDuplicates=false)
 {
+    /**
+     * Convenience alias
+     */
     alias RBNode!(V) node;
+
+    /**
+     * The number of nodes in the tree
+     */
     uint count;
 
+    /**
+     * The function used to compare two nodes.
+     */
     CompareFunction!(V) compareFunc;
 
     static if(!allowDuplicates)
     {
+        /**
+         * If duplicates are not allowed, this function updates the value with
+         * a new identical value.
+         *
+         * This is useful if not all of the value is used to determine
+         * equality.  You can decide which pieces should be updated if any.
+         */
         UpdateFunction!(V) updateFunc;
     }
 
+    /**
+     * The marker node.  This is the parent of the root node.
+     */
     node end;
 
+    /**
+     * The parameter structure used to configure this Red-Black tree
+     */
     struct parameters
     {
-        //
-        // these 2 functions must always be present with these member names.
-        //
+        /**
+         * The compare function to use.
+         */
         CompareFunction!(V) compareFunction;
+
         static if(!allowDuplicates)
         {
+            /**
+             * The update function to use
+             */
             UpdateFunction!(V) updateFunction;
         }
     }
 
+    /**
+     * Setup this RBTree with the given parameters.
+     */
     void setup(parameters p)
     {
         compareFunc = p.compareFunction;
@@ -540,6 +661,13 @@ struct RBTree(V, bool allowDuplicates=false)
         end = new node();
     }
 
+    /**
+     * Add a node to the RBTree.  Runs in O(lg(n)) time.
+     *
+     * Returns true if a new node was added, false if it was not.
+     *
+     * This can also be used to update a value if it is already in the tree.
+     */
     bool add(V v)
     {
         node added;
@@ -607,15 +735,24 @@ struct RBTree(V, bool allowDuplicates=false)
         // did add a node
         //
         count++;
-        check();
+        version(RBDoChecks)
+            check();
         return true;
     }
 
+    /**
+     * Return the lowest-valued node in the tree
+     */
     node begin()
     {
         return end.leftmost;
     }
 
+    /**
+     * Remove the node from the tree.  Returns the next node in the tree.
+     *
+     * Do not call this with the marker (end) node.
+     */
     node remove(node z)
     in
     {
@@ -627,10 +764,15 @@ struct RBTree(V, bool allowDuplicates=false)
         //printTree(end.left);
         node result = z.remove(end);
         //printTree(end.left);
-        check();
+        version(RBDoChecks)
+            check();
         return result;
     }
 
+    /**
+     * Find a node in the tree with a given value.  Returns end if no such
+     * node exists.
+     */
     node find(V v)
     {
         static if(allowDuplicates)
@@ -674,12 +816,20 @@ struct RBTree(V, bool allowDuplicates=false)
         }
     }
 
+    /**
+     * clear all the nodes from the tree.
+     */
     void clear()
     {
         end.left = null;
         count = 0;
     }
 
+    /**
+     * Print the tree.  This prints a sideways view of the tree in ASCII form,
+     * with the number of indentations representing the level of the nodes.
+     * It does not print values, only the tree structure and color of nodes.
+     */
     void printTree(node n, int indent = 0)
     {
         if(n !is null)
@@ -700,67 +850,77 @@ struct RBTree(V, bool allowDuplicates=false)
             Stdout.newline();
     }
 
-    void check()
-    {
-        version(doChecks)
-        {
-            //
-            // check implementation of the tree
-            //
-            int recurse(node n, char[] path)
-            {
-                if(n is null)
-                    return 1;
-                if(n.parent.left !is n && n.parent.right !is n)
-                    throw new Exception("node at path " ~ path ~ " has inconsistent pointers");
-                node next = n.next;
-                static if(allowDuplicates)
-                {
-                    if(next !is end && compareFunc(n.value, next.value) > 0)
-                        throw new Exception("ordering invalid at path " ~ path);
-                }
-                else
-                {
-                    if(next !is end && compareFunc(n.value, next.value) >= 0)
-                        throw new Exception("ordering invalid at path " ~ path);
-                }
-                if(n.color == n.color.Red)
-                {
-                    if((n.left !is null && n.left.color == n.color.Red) ||
-                            (n.right !is null && n.right.color == n.color.Red))
-                        throw new Exception("node at path " ~ path ~ " is red with a red child");
-                }
+     version(RBDoChecks)
+     {
+         /**
+          * Check the tree for validity.  This is called after every add or remove.
+          * This should only be enabled to debug the implementation of the RB Tree.
+          */
+         void check()
+         {
+             //
+             // check implementation of the tree
+             //
+             int recurse(node n, char[] path)
+             {
+                 if(n is null)
+                     return 1;
+                 if(n.parent.left !is n && n.parent.right !is n)
+                     throw new Exception("node at path " ~ path ~ " has inconsistent pointers");
+                 node next = n.next;
+                 static if(allowDuplicates)
+                 {
+                     if(next !is end && compareFunc(n.value, next.value) > 0)
+                         throw new Exception("ordering invalid at path " ~ path);
+                 }
+                 else
+                 {
+                     if(next !is end && compareFunc(n.value, next.value) >= 0)
+                         throw new Exception("ordering invalid at path " ~ path);
+                 }
+                 if(n.color == n.color.Red)
+                 {
+                     if((n.left !is null && n.left.color == n.color.Red) ||
+                             (n.right !is null && n.right.color == n.color.Red))
+                         throw new Exception("node at path " ~ path ~ " is red with a red child");
+                 }
 
-                int l = recurse(n.left, path ~ "L");
-                int r = recurse(n.right, path ~ "R");
-                if(l != r)
-                {
-                    Stdout("bad tree at:").newline;
-                    printTree(n);
-                    throw new Exception("node at path " ~ path ~ " has different number of black nodes on left and right paths");
-                }
-                return l + (n.color == n.color.Black ? 1 : 0);
-            }
+                 int l = recurse(n.left, path ~ "L");
+                 int r = recurse(n.right, path ~ "R");
+                 if(l != r)
+                 {
+                     Stdout("bad tree at:").newline;
+                     printTree(n);
+                     throw new Exception("node at path " ~ path ~ " has different number of black nodes on left and right paths");
+                 }
+                 return l + (n.color == n.color.Black ? 1 : 0);
+             }
 
-            try
-            {
-                recurse(end.left, "");
-            }
-            catch(Exception e)
-            {
-                printTree(end.left, 0);
-                throw e;
-            }
-        }
-    }
+             try
+             {
+                 recurse(end.left, "");
+             }
+             catch(Exception e)
+             {
+                 printTree(end.left, 0);
+                 throw e;
+             }
+         }
+     }
 
     static if(allowDuplicates)
     {
+        /**
+         * count all the times v appears in the collection.
+         *
+         * Runs in O(m * lg(n)) where m is the number of v instances in the
+         * collection, and n is the count of the collection.
+         */
         uint countAll(V v)
         {
             node n = find(v);
             uint retval = 0;
-            while(n !is end && n.value == v)
+            while(n !is end && compareFunc(n.value, v) == 0)
             {
                 retval++;
                 n = n.next;
@@ -768,11 +928,17 @@ struct RBTree(V, bool allowDuplicates=false)
             return retval;
         }
 
+        /**
+         * remove all the nodes that match v
+         *
+         * Runs in O(m * lg(n)) where m is the number of v instances in the
+         * collection, and n is the count of the collection.
+         */
         uint removeAll(V v)
         {
             node n = find(v);
             uint retval = 0;
-            while(n !is end && n.value == v)
+            while(n !is end && compareFunc(n.value, v) == 0)
             {
                 n = remove(n);
                 retval++;

@@ -62,7 +62,8 @@ private import dcollections.RBTree;
  *
  * bool add(V v) -> add the given value to the tree according to the order
  * defined by the compare function.  If the element already exists in the
- * tree, the 
+ * tree, the update function should be called, and the function should return
+ * false.
  *
  * node begin -> must be a node that points to the very first valid
  * element in the tree, or end if no elements exist.
@@ -80,14 +81,20 @@ private import dcollections.RBTree;
  */
 class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
 {
-    /// the elements that are passed to the tree
+    /**
+     * the elements that are passed to the tree.  Note that if you define a
+     * custom update or compare function, it should take element structs, not
+     * K or V.
+     */
     struct element
     {
         K key;
         V val;
     }
 
-    /// convenience alias to the implementation
+    /**
+     * convenience alias to the implementation
+     */
     alias ImplTemp!(element) Impl;
     private Impl _tree;
     private Purger _purger;
@@ -109,19 +116,25 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     {
         private Impl.node ptr;
 
-        /// get the value in this element
+        /**
+         * get the value in this element
+         */
         V value()
         {
             return ptr.value.val;
         }
 
-        /// get the key in this element
+        /**
+         * get the key in this element
+         */
         K key()
         {
             return ptr.value.key;
         }
 
-        /// set the value in this element
+        /**
+         * set the value in this element
+         */
         V value(V v)
         {
             ptr.value.val = v;
@@ -233,7 +246,9 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         return dgret;
     }
 
-    /// iterate over the collection's key/value pairs
+    /**
+     * iterate over the collection's key/value pairs
+     */
     int opApply(int delegate(ref K k, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
@@ -244,7 +259,9 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         return _apply(&_dg);
     }
 
-    /// iterate over the collection's values
+    /**
+     * iterate over the collection's values
+     */
     int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
@@ -256,6 +273,14 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
 
     /**
      * Instantiate the tree map using the implementation parameters given.
+     *
+     * Set members of p to their initializer values in order to use the
+     * default values defined by TreeMap.
+     *
+     * The default compare function performs K's compare.
+     *
+     * The default update function sets only the V part of the element, and
+     * leaves the K part alone.
      */
     this(Impl.parameters p)
     {
@@ -486,7 +511,9 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         return origLength - length;
     }
 
-    /// returns an object that can be used to purge the collection.
+    /**
+     * returns an object that can be used to purge the collection.
+     */
     PurgeIterator!(V) purger()
     {
         return _purger;
