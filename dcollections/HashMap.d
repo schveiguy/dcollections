@@ -14,7 +14,7 @@ private import dcollections.Hash;
  * A map implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
  *
- * Adding an element does not invalidate any cursors.
+ * Adding an element might invalidate cursors depending on the implementation.
  *
  * Removing an element only invalidates cursors that were pointing at that
  * element.
@@ -85,6 +85,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
 
     private Impl _hash;
     private Purger _purger;
+    private KeyIterator _keys;
 
     private static final uint hashFunction(ref element e)
     {
@@ -198,7 +199,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
 
     private class Purger : PurgeKeyedIterator!(K, V)
     {
-        int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
         {
             int _dg(ref bool doPurge, ref K k, ref V v)
             {
@@ -207,13 +208,35 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
             return _apply(&_dg);
         }
 
-        int opApply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
         {
             return _apply(dg);
         }
     }
 
-    private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    private class KeyIterator : Iterator!(K)
+    {
+        final bool supportsLength()
+        {
+            return true;
+        }
+
+        final uint length()
+        {
+            return this.outer.length;
+        }
+
+        final int opApply(int delegate(ref K) dg)
+        {
+            int _dg(ref bool doPurge, ref K k, ref V v)
+            {
+                return dg(k);
+            }
+            return _apply(&_dg);
+        }
+    }
+
+    final private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         cursor it = begin;
         bool doPurge;
@@ -239,7 +262,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     /**
      * iterate over the collection's key/value pairs
      */
-    int opApply(int delegate(ref K k, ref V v) dg)
+    final int opApply(int delegate(ref K k, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -252,7 +275,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    final int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -273,6 +296,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
             p.hashFunction = &hashFunction;
         _hash.setup(p);
         _purger = new Purger;
+        _keys = new KeyIterator;
     }
 
     /**
@@ -284,10 +308,20 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
         this(p);
     }
 
+    //
+    // private constructor for dup
+    //
+    private this(ref Impl dupFrom)
+    {
+        dupFrom.copyTo(_hash);
+        _purger = new Purger;
+        _keys = new KeyIterator;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    final HashMap!(K, V, ImplTemp) clear()
     {
         _hash.clear();
         return this;
@@ -304,7 +338,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    final uint length()
     {
         return _hash.count;
     }
@@ -336,9 +370,9 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs on average in O(1) time.
      */
-    cursor remove(cursor it)
+    final cursor remove(cursor it)
     {
-        _hash.remove((it++).position);
+        it.position = _hash.remove(it.position);
         return it;
     }
 
@@ -348,7 +382,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    cursor findValue(cursor it, V v)
+    final cursor findValue(cursor it, V v)
     {
         return _findValue(it, end, v);
     }
@@ -359,12 +393,12 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    cursor findValue(V v)
+    final cursor findValue(V v)
     {
         return _findValue(begin, end, v);
     }
 
-    private cursor _findValue(cursor it, cursor last, V v)
+    final private cursor _findValue(cursor it, cursor last, V v)
     {
         while(it != last && it.value != v)
             it++;
@@ -391,7 +425,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    bool contains(V v)
+    final bool contains(V v)
     {
         return findValue(v) != end;
     }
@@ -402,13 +436,31 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    bool remove(V v)
+    final HashMap!(K, V, ImplTemp) remove(V v)
+    {
+        bool ignored;
+        return remove(v, ignored);
+    }
+
+    /**
+     * Removes the first element that has the value v.  Returns true if the
+     * value was present and was removed.
+     *
+     * Runs in O(n) time.
+     */
+    final HashMap!(K, V, ImplTemp) remove(V v, ref bool wasRemoved)
     {
         cursor it = findValue(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            remove(it);
+            wasRemoved = true;
+        }
+        return this;
     }
 
     /**
@@ -417,13 +469,31 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs on average in O(1) time.
      */
-    bool removeAt(K key)
+    final HashMap!(K, V, ImplTemp) removeAt(K key)
+    {
+        bool ignored;
+        return removeAt(key, ignored);
+    }
+
+    /**
+     * Removes the element that has the given key.  Returns true if the
+     * element was present and was removed.
+     *
+     * Runs on average in O(1) time.
+     */
+    final HashMap!(K, V, ImplTemp) removeAt(K key, ref bool wasRemoved)
     {
         cursor it = find(key);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            remove(it);
+            wasRemoved = true;
+        }
+        return this;
     }
 
     /**
@@ -432,7 +502,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs on average in O(1) time.
      */
-    V opIndex(K key)
+    final V opIndex(K key)
     {
         cursor it = find(key);
         if(it == end)
@@ -446,13 +516,137 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs on average in O(1) time.
      */
-    V opIndexAssign(V value, K key)
+    final V opIndexAssign(V value, K key)
+    {
+        set(key, value);
+        return value;
+    }
+
+    /**
+     * Set a key/value pair.  If the key/value pair doesn't already exist, it
+     * is added.
+     */
+    final HashMap!(K, V, ImplTemp) set(K key, V value)
+    {
+        bool ignored;
+        return set(key, value, ignored);
+    }
+
+    /**
+     * Set a key/value pair.  If the key/value pair doesn't already exist, it
+     * is added, and the wasAdded parameter is set to true.
+     */
+    final HashMap!(K, V, ImplTemp) set(K key, V value, ref bool wasAdded)
     {
         element elem;
         elem.key = key;
         elem.val = value;
-        _hash.add(elem);
-        return value;
+        wasAdded = _hash.add(elem);
+        return this;
+    }
+
+    /**
+     * Set all the values from the iterator in the map.  If any elements did
+     * not previously exist, they are added.
+     */
+    final HashMap!(K, V, ImplTemp) set(KeyedIterator!(K, V) source)
+    {
+        uint ignored;
+        return set(source, ignored);
+    }
+
+    /**
+     * Set all the values from the iterator in the map.  If any elements did
+     * not previously exist, they are added.  numAdded is set to the number of
+     * elements that were added in this operation.
+     */
+    final HashMap!(K, V, ImplTemp) set(KeyedIterator!(K, V) source, ref uint numAdded)
+    {
+        uint origlength = length;
+        bool ignored;
+        foreach(k, v; source)
+        {
+            set(k, v, ignored);
+        }
+        numAdded = length - origlength;
+        return this;
+    }
+
+    /**
+     * Remove all keys from the map which are in subset.
+     */
+    final HashMap!(K, V, ImplTemp) remove(Iterator!(K) subset)
+    {
+        uint ignored;
+        return remove(subset, ignored);
+    }
+
+    /**
+     * Remove all keys from the map which are in subset.  numRemoved is set to
+     * the number of keys that were actually removed.
+     */
+    final HashMap!(K, V, ImplTemp) remove(Iterator!(K) subset, ref uint numRemoved)
+    {
+        uint origlength = length;
+        foreach(k; subset)
+            removeAt(k);
+        numRemoved = origlength - length;
+        return this;
+    }
+
+    final HashMap!(K, V, ImplTemp) intersect(Iterator!(K) subset)
+    {
+        uint ignored;
+        return intersect(subset, ignored);
+    }
+
+    /**
+     * This function only keeps elements that are found in subset.
+     */
+    final HashMap!(K, V, ImplTemp) intersect(Iterator!(K) subset, ref uint numRemoved)
+    {
+        //
+        // this one is a bit trickier than removing.  We want to find each
+        // Hash element, then move it to a new table.  However, we do not own
+        // the implementation and cannot make assumptions about the
+        // implementation.  So we defer the intersection to the hash
+        // implementation.
+        //
+        // If we didn't care about runtime, this could be done with:
+        //
+        // remove((new HashSet!(K)).add(this.keys).remove(subset));
+        //
+
+        //
+        // need to create a wrapper iterator to pass to the implementation,
+        // one that wraps each key in the subset as an element
+        //
+        static class wrapper : Iterator!(element)
+        {
+            Iterator!(K) wrapped;
+            bool supportsLength() { return wrapped.supportsLength;}
+            uint length() { return wrapped.length;}
+            int opApply(int delegate(ref element e) dg)
+            {
+                //
+                // need to wrap each key in the wrapped iterator into an
+                // element.
+                //
+                int retval = 0;
+                foreach(k; wrapped)
+                {
+                    element elem;
+                    elem.key = k;
+                    if((retval = dg(elem)) != 0)
+                        break;
+                }
+                return retval;
+            }
+        }
+        scope wrapper w = new wrapper; // should allocate on the stack
+        w.wrapped = subset;
+        numRemoved = _hash.intersect(w);
+        return this;
     }
 
     /**
@@ -460,7 +654,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs on average in O(1) time.
      */
-    bool containsKey(K key)
+    final bool containsKey(K key)
     {
         return find(key) != end;
     }
@@ -470,7 +664,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    uint count(V v)
+    final uint count(V v)
     {
         uint instances = 0;
         foreach(x; this)
@@ -486,31 +680,49 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    uint removeAll(V v)
+    final HashMap!(K, V, ImplTemp) removeAll(V v)
+    {
+        uint ignored;
+        return removeAll(v, ignored);
+    }
+    /**
+     * Remove all the elements that contain the value v.
+     *
+     * Runs in O(n) time.
+     */
+    final HashMap!(K, V, ImplTemp) removeAll(V v, ref uint numRemoved)
     {
         uint origlength = length;
         foreach(ref b, x; purger)
         {
-            if(x == v)
-                b = true;
+            b = (x == v);
         }
-        return origlength - length;
-    }
-
-    /**
-     * returns an object that can be used to purge the collection.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
+        numRemoved = origlength - length;
+        return this;
     }
 
     /**
      * returns an object that can be used to purge the collection using
      * key/value pairs.
      */
-    PurgeKeyedIterator!(K, V) keyPurger()
+    final PurgeKeyedIterator!(K, V) purger()
     {
         return _purger;
+    }
+
+    /**
+     * return an iterator that can be used to read all the keys
+     */
+    final Iterator!(K) keys()
+    {
+        return _keys;
+    }
+
+    /**
+     * Make a shallow copy of the hash map.
+     */
+    final HashMap!(K, V, ImplTemp) dup()
+    {
+        return new HashMap!(K, V, ImplTemp)(_hash);
     }
 }

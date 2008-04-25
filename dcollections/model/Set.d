@@ -16,4 +16,68 @@ public import dcollections.model.Collection,
  */
 interface Set(V) : Collection!(V), Addable!(V)
 {
+    /**
+     * Remove all values that match the given iterator.
+     */
+    Set!(V) remove(Iterator!(V) subset);
+
+    /**
+     * Remove all values that match the given iterator.
+     */
+    Set!(V) remove(Iterator!(V) subset, ref uint numRemoved);
+
+    /**
+     * Remove all value that are not in the given iterator.
+     */
+    Set!(V) intersect(Iterator!(V) subset);
+
+    /**
+     * Remove all value that are not in the given iterator.
+     */
+    Set!(V) intersect(Iterator!(V) subset, ref uint numRemoved);
+
+    /**
+     * Covariant dup (from Collection)
+     */
+    Set!(V) dup();
+
+    /**
+     * Covariant remove (from Collection)
+     */
+    Set!(V) remove(V v);
+
+    /**
+     * Covariant remove (from Collection)
+     */
+    Set!(V) remove(V v, ref bool wasRemoved);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    Set!(V) add(V v);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    Set!(V) add(V v, ref bool wasAdded);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    Set!(V) add(Iterator!(V) it);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    Set!(V) add(Iterator!(V) it, ref uint numAdded);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    Set!(V) add(V[] array);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    Set!(V) add(V[] array, ref uint numAdded);
 }

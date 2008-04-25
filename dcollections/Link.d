@@ -119,6 +119,30 @@ class Link(V)
         }
         return c;
     }
+
+    Node dup()
+    {
+        //
+        // create a duplicate of this and all nodes after this.
+        //
+        auto n = _next;
+        auto retval = new Node(value);
+        auto cur = retval;
+        while(n !is null && n !is this)
+        {
+            auto x = new Node(n.value);
+            attach(cur, x);
+            cur = x;
+        }
+        if(n is this)
+        {
+            //
+            // circular list, complete the circle
+            //
+            attach(cur, retval);
+        }
+        return retval;
+    }
 }
 
 /**

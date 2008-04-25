@@ -14,7 +14,7 @@ private import dcollections.Hash;
  * A multi-set implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
  *
- * Adding an element does not invalidate any cursors.
+ * Adding an element might invalidate cursors depending on the implementation.
  *
  * Removing an element only invalidates cursors that were pointing at that
  * element.
@@ -65,6 +65,9 @@ private import dcollections.Hash;
  *
  * uint countAll(V v) -> returns the number of instances of the given value in
  * the hash.
+ *
+ * void copyTo(ref Hash h) -> make a duplicate copy of this hash into the
+ * target h.
  */
 class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
 {
@@ -73,10 +76,15 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     alias ImplTemp!(V) Impl;
 
+    /**
+     * convenience alias
+     */
+    alias HashMultiset!(V, ImplTemp) HashMultisetType;
+
     private Impl _hash;
     private Purger _purger;
 
-    private static final uint hashFunction(ref V v)
+    private static uint hashFunction(ref V v)
     {
         return (typeid(V).getHash(&v) & 0x7FFF_FFFF);
     }
@@ -195,7 +203,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    final int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
         {
@@ -225,10 +233,16 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
         this(p);
     }
 
+    private this(ref Impl dupFrom)
+    {
+        dupFrom.copyTo(_hash);
+        _purger = new Purger;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    final HashMultisetType clear()
     {
         _hash.clear();
         return this;
@@ -245,7 +259,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    final uint length()
     {
         return _hash.count;
     }
@@ -277,12 +291,10 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs on average in O(1) time.
      */
-    cursor remove(cursor it)
+    final cursor remove(cursor it)
     {
-        cursor retval = it;
-        retval++;
-        _hash.remove(it.position);
-        return retval;
+        it.position = _hash.remove(it.position);
+        return it;
     }
 
     /**
@@ -291,10 +303,21 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs in average O(1) time.
      */
-    cursor find(V v)
+    final cursor find(V v)
     {
         cursor it;
         it.position = _hash.find(v);
+        return it;
+    }
+
+    /**
+     * find the next cursor that points to a V value.
+     *
+     * Returns end if no more instances of v exist in the collection.
+     */
+    final cursor find(cursor it, V v)
+    {
+        it.position = _hash.find(v, it.position);
         return it;
     }
 
@@ -303,7 +326,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs in average O(1) time.
      */
-    bool contains(V v)
+    final bool contains(V v)
     {
         return find(v) != end;
     }
@@ -314,19 +337,37 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    bool remove(V v)
+    final HashMultisetType remove(V v)
+    {
+        bool ignored;
+        return remove(v, ignored);
+    }
+
+    /**
+     * Removes the first element that has the value v.  Returns true if the
+     * value was present and was removed.
+     *
+     * Runs in O(n) time.
+     */
+    final HashMultisetType remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            wasRemoved = true;
+            remove(it);
+        }
+        return this;
     }
 
     /**
      * returns an object that can be used to purge the collection.
      */
-    PurgeIterator!(V) purger()
+    final PurgeIterator!(V) purger()
     {
         return _purger;
     }
@@ -337,24 +378,51 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs on average in O(1) time.
      */
-    bool add(V v)
+    final HashMultisetType add(V v)
     {
-        return _hash.add(v);
+        _hash.add(v);
+        return this;
     }
 
     /**
-     * Adds all the elements from enumerator to the set.  Returns the number
+     * Adds an element to the set.  Returns true if the element was not
+     * already present.
+     *
+     * Runs on average in O(1) time.
+     */
+    final HashMultisetType add(V v, ref bool wasAdded)
+    {
+        wasAdded = _hash.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the elements from it to the set.  Returns the number
      * of elements added.
      *
      * Runs on average in O(1) + O(m) time, where m is the number of elements
-     * in the enumerator.
+     * in the iterator.
      */
-    uint addAll(Iterator!(V) enumerator)
+    final HashMultisetType add(Iterator!(V) it)
+    {
+        uint ignored;
+        return add(it);
+    }
+
+    /**
+     * Adds all the elements from it to the set.  Returns the number
+     * of elements added.
+     *
+     * Runs on average in O(1) + O(m) time, where m is the number of elements
+     * in the iterator.
+     */
+    final HashMultisetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; enumerator)
+        foreach(v; it)
             _hash.add(v);
-        return length - origlength;
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -363,12 +431,25 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs on average in O(1) * O(m) time, where m is the array length.
      */
-    uint addAll(V[] array)
+    final HashMultisetType add(V[] array)
+    {
+        uint ignored;
+        return add(array, ignored);
+    }
+
+    /**
+     * Adds all the elements from the array to the set.  Returns the number of
+     * elements added.
+     *
+     * Runs on average in O(1) * O(m) time, where m is the array length.
+     */
+    final HashMultisetType add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
             _hash.add(v);
-        return length - origlength;
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -377,7 +458,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      * Runs on average in O(m * 1) time, where m is the number of elements
      * that are v.
      */
-    uint count(V v)
+    final uint count(V v)
     {
         return _hash.countAll(v);
     }
@@ -388,8 +469,29 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      * Runs on average in O(m * 1) time, where m is the number of elements
      * that are v.
      */
-    uint removeAll(V v)
+    final HashMultisetType removeAll(V v)
     {
-        return _hash.removeAll(v);
+        _hash.removeAll(v);
+        return this;
+    }
+
+    /**
+     * Removes all the elements that are equal to v.
+     *
+     * Runs on average in O(m * 1) time, where m is the number of elements
+     * that are v.
+     */
+    final HashMultisetType removeAll(V v, ref uint numRemoved)
+    {
+        numRemoved = _hash.removeAll(v);
+        return this;
+    }
+
+    /**
+     * make a shallow copy of this hash mulitiset.
+     */
+    final HashMultisetType dup()
+    {
+        return new HashMultisetType(_hash);
     }
 }

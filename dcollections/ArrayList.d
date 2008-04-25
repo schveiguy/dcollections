@@ -14,28 +14,46 @@ public import dcollections.model.List,
  * implemenation to implement the List interface
  *
  * Adding or removing any element invalidates all cursors.
+ *
+ * This class serves as the gateway between builtin arrays and dcollection
+ * classes.  You can construct an ArrayList with a builtin array serving as
+ * the storage, and you can access the ArrayList as an array with the asArray
+ * function.  Neither of these make copies of the array, so you can continue
+ * to use the array in both forms.
  */
 class ArrayList(V) : List!(V), Keyed!(uint, V)
 {
     private V[] _array;
     private uint _mutation;
+    //
+    // A note about the parent and ancestor.  The parent is the array list
+    // that this was a slice of.  The ancestor is the highest parent in the
+    // lineage.  If a slice is added to, it now creates its own array, and
+    // becomes its own ancestor.  It is no longer in the lineage.  However, we
+    // do not set _parent to null, because it is needed for any slices that
+    // were subslices of the slice.  Those should not be invalidated, and they
+    // need to have a chain to their ancestor.  So if you add data to a slice,
+    // it becomes an empty link in the original lineage chain.
+    //
+    private ArrayList!(V) _parent;
+    private ArrayList!(V) _ancestor;
 
     private class Purger : PurgeKeyedIterator!(uint, V)
     {
-        int opApply(int delegate(ref bool doRemove, ref V value) dg)
+        final int opApply(int delegate(ref bool doRemove, ref V value) dg)
         {
-            return _apply(dg, begin, end);
+            return _apply(dg, _begin, _end);
         }
 
-        int opApply(int delegate(ref bool doRemove, ref uint key, ref V value) dg)
+        final int opApply(int delegate(ref bool doRemove, ref uint key, ref V value) dg)
         {
-            return _apply(dg, begin, end);
+            return _apply(dg, _begin, _end);
         }
     }
 
     private Purger _purger;
 
-    /***
+    /**
      * The array cursor is exactly like a pointer into the array.  The only
      * difference between an ArrayList cursor and a pointer is that the
      * ArrayList cursor provides the value property which is common
@@ -159,21 +177,45 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     this()
     {
         _purger = new Purger();
+        _ancestor = this;
+        _parent = null;
     }
 
-    private this(V[] storage)
+    /**
+     * Use an array as the backing storage.  This does not duplicate the
+     * array.  Use new ArrayList(storage.dup) to make a distinct copy.
+     */
+    this(V[] storage)
     {
         this();
         _array = storage;
     }
 
+    private this(ArrayList!(V) parent, cursor s, cursor e)
+    {
+        _parent = parent;
+        _ancestor = parent._ancestor;
+        _mutation = parent._mutation;
+        checkMutation();
+        uint ib = s - parent._begin;
+        uint ie = e - s;
+        _array = parent._array[ib..ie];
+    }
+
     /**
      * clear the container of all values
      */
-    Collection!(V) clear()
+    ArrayList!(V) clear()
     {
-        _array = null;
-        _mutation++;
+        if(isAncestor)
+        {
+            _array = null;
+            _mutation++;
+        }
+        else
+        {
+            remove(_begin, _end);
+        }
         return this;
     }
 
@@ -190,13 +232,20 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      */
     uint length()
     {
+        checkMutation();
         return _array.length;
     }
 
     /**
      * return a cursor that points to the first element in the list.
      */
-    cursor begin()
+    final cursor begin()
+    {
+        checkMutation();
+        return _begin;
+    }
+
+    private final cursor _begin()
     {
         cursor it;
         it.ptr = _array.ptr;
@@ -207,99 +256,149 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * return a cursor that points to just beyond the last element in the
      * list.
      */
-    cursor end()
+    final cursor end()
+    {
+        checkMutation();
+        return _end;
+    }
+
+    private final cursor _end()
     {
         cursor it;
         it.ptr = _array.ptr + _array.length;
         return it;
     }
 
-    private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last)
+
+    final private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last)
     {
-        return _apply(dg, start, last, begin);
+        return _apply(dg, start, last, _begin);
     }
 
-    private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last, cursor _begin)
+    final private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last, cursor reference)
     {
-        cursor i = start;
-        cursor nextGood = start;
-        cursor _end = end;
-
-        int dgret;
-        bool doRemove;
-
-        //
-        // loop before removal
-        //
-        for(; dgret == 0 && i < last; i++, nextGood++)
+        if(isAncestor)
         {
-            doRemove = false;
-            uint key = i - _begin;
-            if((dgret = dg(doRemove, key, *i.ptr)) == 0)
-            {
-                if(doRemove)
-                {
-                    //
-                    // first removal
-                    //
-                    _mutation++;
-                    i++;
-                    break;
-                }
-            }
-        }
+            cursor i = start;
+            cursor nextGood = start;
+            cursor endref = _end;
 
-        //
-        // loop after first removal
-        //
-        if(nextGood != i)
-        {
-            for(; i < _end; i++, nextGood++)
+            int dgret;
+            bool doRemove;
+
+            //
+            // loop before removal
+            //
+            for(; dgret == 0 && i < last; i++, nextGood++)
             {
                 doRemove = false;
-                uint key = i - _begin;
-                if(i >= last || dgret != 0 || (dgret = dg(doRemove, key, *i.ptr)) != 0)
+                uint key = i - reference;
+                if((dgret = dg(doRemove, key, *i.ptr)) == 0)
                 {
-                    //
-                    // not calling dg any more
-                    //
-                    nextGood.value = i.value;
-                }
-                else if(doRemove)
-                {
-                    //
-                    // dg requested a removal
-                    //
-                    nextGood--;
-                }
-                else
-                {
-                    //
-                    // dg did not request a removal
-                    //
-                    nextGood.value = i.value;
+                    if(doRemove)
+                    {
+                        //
+                        // first removal
+                        //
+                        _mutation++;
+                        i++;
+                        break;
+                    }
                 }
             }
-        }
 
-        //
-        // shorten the length
-        //
-        if(nextGood != _end)
-        {
-            _array.length = nextGood - begin;
-            return _end - nextGood;
+            //
+            // loop after first removal
+            //
+            if(nextGood != i)
+            {
+                for(; i < endref; i++, nextGood++)
+                {
+                    doRemove = false;
+                    uint key = i - reference;
+                    if(i >= last || dgret != 0 || (dgret = dg(doRemove, key, *i.ptr)) != 0)
+                    {
+                        //
+                        // not calling dg any more
+                        //
+                        nextGood.value = i.value;
+                    }
+                    else if(doRemove)
+                    {
+                        //
+                        // dg requested a removal
+                        //
+                        nextGood--;
+                    }
+                    else
+                    {
+                        //
+                        // dg did not request a removal
+                        //
+                        nextGood.value = i.value;
+                    }
+                }
+            }
+
+            //
+            // shorten the length
+            //
+            if(nextGood != endref)
+            {
+                _array.length = nextGood - _begin;
+                return endref - nextGood;
+            }
+            return dgret;
         }
-        return dgret;
+        else
+        {
+            //
+            // use the ancestor to perform the apply, then adjust the array
+            // accordingly.
+            //
+            checkMutation();
+            auto p = nextParent;
+            auto origLength = p._array.length;
+            p._apply(dg, start, last, _begin);
+            auto numRemoved = origLength - p._array.length;
+            if(numRemoved > 0)
+            {
+                _array = _array[0..$-numRemoved];
+                _mutation = _ancestor._mutation;
+            }
+        }
     }
 
-    private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
+    final private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
     {
         int _dg(ref bool b, ref uint k, ref V v)
         {
             return dg(b, v);
         }
         return _apply(&_dg, start, last);
+    }
+
+    final private void checkMutation()
+    {
+        if(_mutation != _ancestor._mutation)
+            throw new Exception("underlying ArrayList changed");
+    }
+
+    final bool isAncestor()
+    {
+        return _ancestor is this;
+    }
+
+    //
+    // Get the next parent in the lineage.  Skip over any parents that do not
+    // share our ancestor, they are not part of the lineage any more.
+    //
+    final private ArrayList!(V) nextParent()
+    {
+        auto retval = _parent;
+        while(retval._ancestor !is _ancestor)
+            retval = retval._parent;
+        return retval;
     }
 
     /**
@@ -309,14 +408,24 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    cursor remove(cursor start, cursor last)
+    final cursor remove(cursor start, cursor last)
     {
-        int check(ref bool b, ref V)
+        if(isAncestor)
         {
-            b = true;
-            return 0;
+            int check(ref bool b, ref V)
+            {
+                b = true;
+                return 0;
+            }
+            _apply(&check, start, last);
         }
-        _apply(&check, start, last);
+        else
+        {
+            checkMutation();
+            nextParent.remove(start, last);
+            _array = _array[0..($ - (last - start))];
+            _mutation = _ancestor._mutation;
+        }
         return start;
     }
 
@@ -326,7 +435,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time
      */
-    cursor remove(cursor elem)
+    final cursor remove(cursor elem)
     {
         return remove(elem, elem + 1);
     }
@@ -336,28 +445,48 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * operation.  If the collection has duplicate instances, the first
      * element that matches is removed.
      *
-     * returns true if removed.
+     * returns this.
+     *
+     * Sets wasRemoved to true if the element existed and was removed.
      */
-    bool remove(V v)
+    ArrayList!(V) remove(V v, ref bool wasRemoved)
     {
         auto it = find(v);
-        if(it == end)
-            return false;
-        remove(it);
-        return true;
+        if(it == _end)
+            wasRemoved = false;
+        else
+        {
+            remove(it);
+            wasRemoved = true;
+        }
+        return this;
+    }
+
+    /**
+     * remove an element with the specific value.  This is an O(n)
+     * operation.  If the collection has duplicate instances, the first
+     * element that matches is removed.
+     *
+     * returns this.
+     */
+    final ArrayList!(V) remove(V v)
+    {
+        bool ignored;
+        return remove(v, ignored);
     }
 
     /**
      * same as find(v), but start at given position.
      */
-    cursor find(cursor it, V v)
+    final cursor find(cursor it, V v)
     {
-        return _find(it, end, v);
+        return _find(it, _end, v);
     }
 
     // same as find(v), but search only a given range at given position.
-    private cursor _find(cursor it, cursor last,  V v)
+    final private cursor _find(cursor it, cursor last,  V v)
     {
+        checkMutation();
         while(it < last && it.value != v)
             it++;
         return it;
@@ -367,63 +496,92 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * find the first occurrence of an element in the list.  Runs in O(n)
      * time.
      */
-    cursor find(V v)
+    final cursor find(V v)
     {
-        return _find(begin, end, v);
+        return _find(_begin, _end, v);
     }
 
     /**
      * returns true if the collection contains the value.  Runs in O(n) time.
      */
-    bool contains(V v)
+    final bool contains(V v)
     {
-        return find(v) < end;
+        return find(v) < _end;
     }
 
     /**
      * remove the element at the given index.  Runs in O(n) time.
      */
-    bool removeAt(uint key)
+    final ArrayList!(V) removeAt(uint key, ref bool wasRemoved)
     {
         if(key > length)
-            return false;
-        remove(begin + key);
-        return false;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            remove(_begin + key);
+            wasRemoved = true;
+        }
+        return this;
+    }
+
+    /**
+     * remove the element at the given index.  Runs in O(n) time.
+     */
+    final ArrayList!(V) removeAt(uint key)
+    {
+        bool ignored;
+        return removeAt(key, ignored);
     }
 
     /**
      * get the value at the given index.
      */
-    V opIndex(uint key)
+    final V opIndex(uint key)
     {
-        return (begin + key).value;
+        checkMutation();
+        return _array[key];
     }
 
     /**
      * set the value at the given index.
      */
-    V opIndexAssign(V value, uint key)
+    final V opIndexAssign(V value, uint key)
     {
-        return (begin + key).value = value;
+        checkMutation();
+        //
+        // does not change mutation because 
+        return _array[key] = value;
     }
 
-    private int _apply(int delegate(ref uint key, ref V value) dg, cursor start, cursor end)
+    /**
+     * set the value at the given index
+     */
+    ArrayList!(V) set(uint key, V value, ref bool wasAdded)
     {
-        int retval = 0;
-        cursor _begin = begin;
-        for(cursor i = start; i < end; i++)
-        {
-            uint key = i - _begin;
-            if((retval = dg(key, *i.ptr)) != 0)
-                break;
-        }
-        return retval;
+        this[key] = value;
+        wasAdded = false;
+        return this;
     }
 
-    private int _apply(int delegate(ref V value) dg, cursor start, cursor end)
+    /**
+     * set the value at the given index
+     */
+    ArrayList!(V) set(uint key, V value)
+    {
+        this[key] = value;
+        return this;
+    }
+
+    /**
+     * iterate over the collection
+     */
+    final int opApply(int delegate(ref V value) dg)
     {
         int retval;
-        for(cursor i = start; i < end; i++)
+        cursor endref = end; // call checkmutation
+        for(cursor i = _begin; i != endref; i++)
         {
             if((retval = dg(*i.ptr)) != 0)
                 break;
@@ -432,34 +590,27 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     }
 
     /**
-     * iterate over the collection
-     */
-    int opApply(int delegate(ref V value) dg)
-    {
-        return _apply(dg, begin, end);
-    }
-
-    /**
      * iterate over the collection with key and value
      */
-    int opApply(int delegate(ref uint key, ref V value) dg)
+    final int opApply(int delegate(ref uint key, ref V value) dg)
     {
-        return _apply(dg, begin, end);
-    }
-
-    /**
-     * Gives an object that can be use to purge the list.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
+        int retval = 0;
+        auto reference = begin; // call checkmutation
+        auto endref = _end;
+        for(cursor i = reference; i != endref; i++)
+        {
+            uint key = i - reference;
+            if((retval = dg(key, *i.ptr)) != 0)
+                break;
+        }
+        return retval;
     }
 
     /**
      * gives an object that can be used to purge the list that provides index
      * information as well as value information.
      */
-    PurgeKeyedIterator!(uint, V) keyPurger()
+    final PurgeKeyedIterator!(uint, V) purger()
     {
         return _purger;
     }
@@ -469,7 +620,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(1) time
      */
-    bool containsKey(uint key)
+    final bool containsKey(uint key)
     {
         return key < length;
     }
@@ -477,71 +628,188 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * add the given value to the end of the list.  Always returns true.
      */
-    bool add(V v)
+    final ArrayList!(V) add(V v, ref bool wasAdded)
     {
-        _array ~= v;
-        _mutation++;
-        return true;
+        //
+        // append to this array.  Reset the ancestor to this, because now we
+        // are dealing with a new array.
+        //
+        if(isAncestor)
+        {
+            _array ~= v;
+            _mutation++;
+        }
+        else
+        {
+            _ancestor = this;
+            //
+            // ensure that we don't just do an append.
+            //
+            _array = _array ~ v;
+
+            //
+            // no need to change the mutation, we are a new ancestor.
+            //
+        }
+
+        // always succeeds
+        wasAdded = true;
+        return this;
     }
 
     /**
-     * adds all elements from the given collection to the end of the list.
+     * add the given value to the end of the list.
      */
-    uint addAll(Iterator!(V) coll)
+    final ArrayList!(V) add(V v)
     {
-        ArrayList!(V) al = cast(ArrayList!(V))coll;
+        bool ignored;
+        return add(v, ignored);
+    }
+
+    /**
+     * adds all elements from the given iterator to the end of the list.
+     */
+    final ArrayList!(V) add(Iterator!(V) coll)
+    {
+        uint ignored;
+        return add(coll, ignored);
+    }
+
+    /**
+     * adds all elements from the given iterator to the end of the list.
+     */
+    final ArrayList!(V) add(Iterator!(V) coll, ref uint numAdded)
+    {
+        auto al = cast(ArrayList!(V))coll;
         if(al)
         {
-            if(al is this)
-                throw new Exception("Cannot add all from a collection to itself");
             //
             // optimized case
             //
-            return addAll(al._array);
-        }
-        ArraySlice as = cast(ArraySlice)coll;
-        if(as)
-        {
-            if(as.outer is this)
-                throw new Exception("Cannot add all from a collection to itself");
-            //
-            // array slice, we can figure this one out too
-            //
-            return addAll(as._slice);
+            return add(al._array, numAdded);
         }
 
         //
         // generic case
         //
-        uint origlength = length;
+        checkMutation();
         if(coll.supportsLength)
         {
-            uint i = origlength;
-            _array.length = _array.length + coll.length;
-            foreach(v; coll)
-                _array [i++] = v;
+            numAdded = coll.length;
+            if(numAdded > 0)
+            {
+                int i = _array.length;
+                if(isAncestor)
+                {
+                    _array.length = _array.length + numAdded;
+                }
+                else
+                {
+                    _ancestor = this;
+                    auto new_array = new V[_array.length + numAdded];
+                    new_array[0.._array.length] = _array[];
+
+                }
+                foreach(v; coll)
+                    _array [i++] = v;
+                _mutation++;
+            }
         }
         else
         {
+            auto origlength = _array.length;
+            bool firstdone = false;
             foreach(v; coll)
-                _array ~= v;
+            {
+                if(!firstdone)
+                {
+                    //
+                    // trick to get firstdone set to true, because wasAdded is
+                    // always set to true.
+                    //
+                    add(v, firstdone);
+                }
+                else
+                    _array ~= v;
+            }
+            numAdded = _array.length - origlength;
         }
-        if(length != origlength)
-            _mutation++;
-        return length - origlength;
+        return this;
+    }
+
+
+    /**
+     * appends the array to the end of the list
+     */
+    final ArrayList!(V) add(V[] array)
+    {
+        uint ignored;
+        return add(array, ignored);
     }
 
     /**
      * appends the array to the end of the list
      */
-    uint addAll(V[] array)
+    final ArrayList!(V) add(V[] array, ref uint numAdded)
     {
+        checkMutation();
+        numAdded = array.length;
         if(array.length)
         {
-            _array ~= array;
-            _mutation++;
+            if(isAncestor)
+            {
+                _array ~= array;
+                _mutation++;
+            }
+            else
+            {
+                _ancestor = this;
+                _array = _array ~ array;
+            }
         }
-        return array.length;
+        return this;
+    }
+
+    /**
+     * append another list to the end of this list
+     */
+    final ArrayList!(V) opCatAssign(List!(V) rhs)
+    {
+        return add(rhs);
+    }
+
+    /**
+     * append an array to the end of this list
+     */
+    final ArrayList!(V) opCatAssign(V[] array)
+    {
+        return add(array);
+    }
+
+    /**
+     * returns a concatenation of the array list and another list.
+     */
+    final ArrayList!(V) opCat(List!(V) rhs)
+    {
+        return dup.add(rhs);
+    }
+
+    /**
+     * returns a concatenation of the array list and an array.
+     */
+    final ArrayList!(V) opCat(V[] array)
+    {
+        checkMutation();
+        return new ArrayList!(V)(_array ~ array);
+    }
+
+    /**
+     * returns a concatenation of the array list and an array.
+     */
+    final ArrayList!(V) opCat_r(V[] array)
+    {
+        checkMutation();
+        return new ArrayList!(V)(array ~ _array);
     }
 
     /**
@@ -549,7 +817,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    uint count(V v)
+    final uint count(V v)
     {
         uint instances = 0;
         foreach(x; this)
@@ -563,16 +831,26 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    uint removeAll(V v)
+    final ArrayList!(V) removeAll(V v, ref uint numRemoved)
     {
         auto origLength = length;
-        int check(ref V x)
+        foreach(ref b, x; _purger)
         {
-            return x == v ? 1 : 0;
+            b = (x == v);
         }
+        numRemoved = length - origLength;
+        return this;
+    }
 
-        _apply(&check, begin, end);
-        return origLength - length;
+    /**
+     * removes all the instances of the given element value
+     *
+     * Runs in O(n) time.
+     */
+    final ArrayList!(V) removeAll(V v)
+    {
+        uint ignored;
+        return removeAll(v, ignored);
     }
 
     /**
@@ -582,397 +860,42 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * The returned slice begins at index b and ends at, but does not include,
      * index e.
      */
-    ArraySlice opSlice(uint b, uint e)
+    final ArrayList!(V) opSlice(uint b, uint e)
     {
-        return opSlice(begin + b, begin + e);
+        return opSlice(_begin + b, _begin + e);
     }
 
     /**
      * Slice an array given the cursors
      */
-    ArraySlice opSlice(cursor b, cursor e)
+    final ArrayList!(V) opSlice(cursor b, cursor e)
     {
-        if(e > end || b < begin)
+        if(e > end || b < _begin) // call checkMutation once
             throw new Exception("slice values out of range");
-        return new ArraySlice(b, e);
+
+        //
+        // make an array list that is a slice of this array list
+        //
+        return new ArrayList!(V)(this, b, e);
     }
 
     /**
      * Returns a copy of an array list
      */
-    ArrayList!(V) dup()
+    final ArrayList!(V) dup()
     {
         return new ArrayList!(V)(_array.dup);
     }
 
     /**
-     * returns a concatenation of two array lists.
-     */
-    ArrayList!(V) opCat(ArrayList!(V) al)
-    {
-        return new ArrayList!(V)(_array ~ al._array);
-    }
-
-    /**
-     * returns a concatenation of an array list and a slice.  The slice can be
-     * part of the array list.
-     */
-    ArrayList!(V) opCat(ArraySlice as)
-    {
-        return new ArrayList!(V)(_array ~ as._slice);
-    }
-
-    /**
      * get the array that this array represents.  This is NOT a copy of the
-     * array, so modifying elements of this array will modify elements of the
-     * original ArrayList.  Appending or removing elements from this array
-     * will not affect the original array list just like appending to a slice
-     * of an array will not affect the original array.
+     * data, so modifying elements of this array will modify elements of the
+     * original ArrayList.  Appending elements from this array will not affect
+     * the original array list just like appending to an array will not affect
+     * the original.
      */
-    V[] asArray()
+    final V[] asArray()
     {
         return _array;
-    }
-
-    /**
-     * An array slice is a slice into an arraylist.  An ArraySlice is just
-     * like a native array slice, except it implements the necessary
-     * interfaces to be considered a Keyed Collection.
-     *
-     * If an underlying array list structure is changed not through this
-     * slice, then the slice becomes invalid, and any usage of the slice will
-     * throw an exception.
-     *
-     * Cursors obtained from this slice can be used on the main array list,
-     * and cursors obtained from the main array list can be used on this
-     * slice, as long as the cursors in question are within the bounds of
-     * the array slice.
-     *
-     * As with ArrayList, all cursors into this slice and into the
-     * underlying array list are invalidated when an element is removed.
-     */
-    public class ArraySlice : Collection!(V), Keyed!(uint, V), Multi!(V)
-    {
-        private cursor _start, _end;
-        private uint _mutation;
-        private Purger _purger;
-
-        private this(cursor start, cursor end)
-        {
-            this._mutation = this.outer._mutation;
-            this._start = start;
-            this._end = end;
-            _purger = new Purger;
-        }
-
-        private void checkMutation()
-        {
-            if(_mutation != this.outer._mutation)
-                throw new Exception("underlying collection changed");
-        }
-
-        /**
-         * clear the container of all values
-         */
-        Collection!(V) clear()
-        {
-            checkMutation();
-            remove(_start, _end);
-            _end = _start;
-            _mutation = this.outer._mutation;
-            return this;
-        }
-
-        /**
-         * returns true
-         */
-        bool supportsLength()
-        {
-            return true;
-        }
-
-        /**
-         * return the number of elements in the slice
-         */
-        uint length()
-        {
-            checkMutation();
-            return _end - _start;
-        }
-
-        /**
-         * return a cursor for the slice
-         */
-        cursor begin()
-        {
-            checkMutation();
-            return _start;
-        }
-
-        /**
-         * return a cursor that points to the end of the slice.
-         */
-        cursor end()
-        {
-            checkMutation();
-            return _end;
-        }
-
-        private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last)
-        {
-            checkMutation();
-            if(start < _start || last > _end)
-                throw new Exception("invalid range");
-            uint origLength = this.outer.length;
-            uint dgret = this.outer._apply(dg, start, last, _start);
-            _end -= (origLength - this.outer.length);
-            _mutation = this.outer._mutation;
-            return dgret;
-        }
-
-        private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
-        {
-            int _dg(ref bool b, ref uint k, ref V v)
-            {
-                return dg(b, v);
-            }
-            return _apply(&_dg, start, last);
-        }
-
-        /**
-         * remove an element with the specific value.  If there is more than
-         * one instance of the element, only the first is removed.
-         *
-         * returns true if removed.
-         */
-        bool remove(V v)
-        {
-            checkMutation();
-            auto it = _find(_start, _end, v);
-            if(it >= _end)
-                return false;
-            remove(it);
-            _mutation = this.outer._mutation;
-            return true;
-        }
-
-        /**
-         * Removes all the elements from start to last, not including last.
-         *
-         * Returns a valid cursor that points to the element last pointed
-         * to.
-         *
-         * Runs in O(n) time
-         */
-        cursor remove(cursor start, cursor last)
-        {
-            int check(ref bool b, ref V v)
-            {
-                b = true;
-                return 0;
-            }
-            _apply(&check, start, last);
-            return start;
-        }
-
-        /**
-         * Remove the element pointed to by elem.
-         *
-         * Equivalent to remove(elem, elem + 1);
-         *
-         * Runs in O(n) time.
-         */
-        cursor remove(cursor elem)
-        {
-            return remove(elem, elem + 1);
-        }
-
-        /**
-         * iterate over the collection
-         */
-        int opApply(int delegate(ref V value) dg)
-        {
-            checkMutation();
-            return this.outer._apply(dg, _start, _end);
-        }
-
-        /**
-         * cursor over the collection with key and value.
-         */
-        int opApply(int delegate(ref uint key, ref V value) dg)
-        {
-            checkMutation();
-            return this.outer._apply(dg, _start, _end);
-        }
-
-        private class Purger : PurgeKeyedIterator!(uint, V)
-        {
-            int opApply(int delegate(ref bool, ref V) dg)
-            {
-                return _apply(dg, _start, _end);
-            }
-
-            int opApply(int delegate(ref bool, ref uint, ref V) dg)
-            {
-                return _apply(dg, _start, _end);
-            }
-        }
-
-        /**
-         * returns an object that can be used to purge the collection.
-         */
-        PurgeIterator!(V) purger()
-        {
-            return _purger;
-        }
-
-        /**
-         * returns an object that can be used to purge the collection with
-         * index and value.
-         */
-        PurgeKeyedIterator!(uint, V) keyPurger()
-        {
-            return _purger;
-        }
-
-        /**
-         * returns cursor to the first element in the list that matches v,
-         * or end if it doesn't exist.
-         *
-         * Runs in O(n).
-         */
-        cursor find(V v)
-        {
-            checkMutation();
-            return _find(_start, _end, v);
-        }
-
-        /**
-         * returns true if the collection contains the value.
-         *
-         * Runs in O(n).
-         */
-        bool contains(V v)
-        {
-            checkMutation();
-            return _find(_start, _end, v) < _end;
-        }
-
-        /**
-         * Removes the element at the given index.  If the index isn't valid
-         * for this collection, returns false.  Otherwise, removes the element
-         * and returns true.
-         *
-         * Runs in O(n).
-         */
-        bool removeAt(uint key)
-        {
-            if(key > length)
-                return false;
-            remove(_start + key);
-            return false;
-        }
-
-        /**
-         * Returns the element at the given index.
-         *
-         * Runs in O(1).
-         */
-        V opIndex(uint key)
-        {
-            checkMutation();
-            return (_start + key).value;
-        }
-
-        /**
-         * Assigns the value to the element at the given index.
-         *
-         * Runs in O(1).
-         */
-        V opIndexAssign(V value, uint key)
-        {
-            checkMutation();
-            return (_start + key).value = value;
-        }
-
-        /**
-         * Returns true if the given index is valid
-         */
-        bool containsKey(uint key)
-        {
-            return key < length;
-        }
-
-        /**
-         * Returns a new array list that has the same elements as this slice.
-         */
-        ArrayList!(V) dup()
-        {
-            return new ArrayList!(V)(_slice.dup);
-        }
-
-        /**
-         * Returns a slice into this slice.  Note that this new slice is
-         * independent of the original slice.  So if you remove an element
-         * through the new slice, the original slice is invalidated.
-         */
-        ArraySlice opSlice(uint b, uint e)
-        {
-            return opSlice(_start + b, _start + e);
-        }
-
-        /**
-         * Returns a slice into this slice, based on cursors.
-         */
-        ArraySlice opSlice(cursor b, cursor e)
-        {
-            checkMutation();
-            if(e > _end || b < _start)
-                throw new Exception("slice values out of range");
-            return new ArraySlice(b, e);
-        }
-
-
-        /**
-         * Return the slice as an array.  Note that this is NOT a copy, it is
-         * the actual array data from the underlying array.  Modifying
-         * elements of this array will modify the original slice.  Appending
-         * or removing elements will not affect the original slice just like
-         * appending or removing elements to a native slice would not affect
-         * the original elements of an array.
-         */
-        V[] asArray()
-        {
-            uint s, e;
-            s = _start - this.outer.begin;
-            e = _end - this.outer.begin;
-            return _array[s..e];
-        }
-
-        /**
-         * Returns the number of elements that are the same as v
-         */
-        uint count(V v)
-        {
-            uint instances = 0;
-            foreach(x; this)
-                if(v == x)
-                    instances++;
-            return instances;
-        }
-
-        /**
-         * Removes all elements from the slice that are the same as v.
-         */
-        uint removeAll(V v)
-        {
-            uint originalLength = length;
-            foreach(ref bool b, V x; _purger)
-            {
-                if(x == v)
-                    b = true;
-            }
-            return originalLength - length;
-        }
     }
 }

@@ -136,13 +136,13 @@ class ArrayMultiset(V) : Multiset!(V)
 
     private class Purger : PurgeIterator!(V)
     {
-        int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
         {
             return _apply(dg);
         }
     }
 
-    private int _apply(int delegate(ref bool doPurge, ref V v) dg)
+    final private int _apply(int delegate(ref bool doPurge, ref V v) dg)
     {
         cursor it = begin;
         bool doPurge;
@@ -164,7 +164,7 @@ class ArrayMultiset(V) : Multiset!(V)
     /**
      * Iterate over the collection
      */
-    int opApply(int delegate(ref V v) dg)
+    final int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
         {
@@ -189,7 +189,7 @@ class ArrayMultiset(V) : Multiset!(V)
     /**
      * Clear the collection of all values
      */
-    Collection!(V) clear()
+    final ArrayMultiset!(V) clear()
     {
         node.attach(_head, _head);
         return this;
@@ -198,7 +198,7 @@ class ArrayMultiset(V) : Multiset!(V)
     /**
      * Returns true
      */
-    bool supportsLength()
+    final bool supportsLength()
     {
         return true;
     }
@@ -206,7 +206,7 @@ class ArrayMultiset(V) : Multiset!(V)
     /**
      * Returns the number of elements in the collection
      */
-    uint length()
+    final uint length()
     {
         return _count;
     }
@@ -214,7 +214,7 @@ class ArrayMultiset(V) : Multiset!(V)
     /**
      * Returns a cursor that points to the first element of the collection.
      */
-    cursor begin()
+    final cursor begin()
     {
         cursor it;
         it.ptr = _head.next;
@@ -226,7 +226,7 @@ class ArrayMultiset(V) : Multiset!(V)
      * Returns a cursor that points just past the last element of the
      * collection.
      */
-    cursor end()
+    final cursor end()
     {
         cursor it;
         it.ptr = _head;
@@ -241,7 +241,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(1) time.
      */
-    cursor remove(cursor it)
+    final cursor remove(cursor it)
     {
         node last = _head.prev;
         if(it.ptr is last && it.idx is last.value.length - 1)
@@ -264,7 +264,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    cursor find(V v)
+    final cursor find(V v)
     {
         cursor it = begin;
         cursor _end = end;
@@ -278,7 +278,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    bool contains(V v)
+    final bool contains(V v)
     {
         return find(v) != end;
     }
@@ -291,19 +291,37 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    bool remove(V v)
+    final ArrayMultiset!(V) remove(V v)
+    {
+        bool ignored;
+        return remove(v, ignored);
+    }
+
+    /**
+     * remove the given element from the set.  This removes the first
+     * occurrence only.
+     *
+     * Returns true if the element was found and removed.
+     *
+     * Runs in O(n) time.
+     */
+    final ArrayMultiset!(V) remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+            wasRemoved = false;
+        else
+        {
+            remove(it);
+            wasRemoved = true;
+        }
+        return this;
     }
 
     /**
      * Returns an object that can be used to purge the collection.
      */
-    PurgeIterator!(V) purger()
+    final PurgeIterator!(V) purger()
     {
         return _purger;
     }
@@ -315,7 +333,19 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(1) time.
      */
-    bool add(V v)
+    final ArrayMultiset!(V) add(V v)
+    {
+        bool ignored;
+        return add(v, ignored);
+    }
+    /**
+     * Adds the given element to the set.
+     *
+     * Returns true.
+     *
+     * Runs in O(1) time.
+     */
+    final ArrayMultiset!(V) add(V v, ref bool wasAdded)
     {
         node last = _head.prev;
         if(last is _head || last.value.length == _growSize)
@@ -330,8 +360,9 @@ class ArrayMultiset(V) : Multiset!(V)
         }
 
         last.value ~= v;
+        wasAdded = true;
         _count++;
-        return true;
+        return this;
     }
 
     //
@@ -339,16 +370,28 @@ class ArrayMultiset(V) : Multiset!(V)
     //
 
     /**
-     * Adds all the values from the given enumerator into the set.
+     * Adds all the values from the given iterator into the set.
      *
      * Returns the number of elements added.
      */
-    uint addAll(Iterator!(V) enumerator)
+    final ArrayMultiset!(V) add(Iterator!(V) it)
+    {
+        uint ignored;
+        return add(it, ignored);
+    }
+
+    /**
+     * Adds all the values from the given iterator into the set.
+     *
+     * Returns the number of elements added.
+     */
+    final ArrayMultiset!(V) add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; enumerator)
+        foreach(v; it)
             add(v);
-        return length - origlength;
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -356,12 +399,24 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Returns the number of elements added.
      */
-    uint addAll(V[] array)
+    final ArrayMultiset!(V) add(V[] array)
+    {
+        uint ignored;
+        return add(array, ignored);
+    }
+
+    /**
+     * Adds all the values from the given array into the set.
+     *
+     * Returns the number of elements added.
+     */
+    final ArrayMultiset!(V) add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
             add(v);
-        return length - origlength;
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -369,7 +424,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    uint count(V v)
+    final uint count(V v)
     {
         uint retval = 0;
         foreach(x; this)
@@ -384,7 +439,18 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    uint removeAll(V v)
+    final ArrayMultiset!(V) removeAll(V v)
+    {
+        uint ignored;
+        return removeAll(v, ignored);
+    }
+    /**
+     * Remove all the occurrences of v.  Returns the number of instances that
+     * were removed.
+     *
+     * Runs in O(n) time.
+     */
+    final ArrayMultiset!(V) removeAll(V v, ref uint numRemoved)
     {
         uint origlength = length;
         foreach(ref dp, x; _purger)
@@ -392,6 +458,33 @@ class ArrayMultiset(V) : Multiset!(V)
             if(v == x)
                 dp = true;
         }
-        return origlength - length;
+        numRemoved = origlength - length;
+        return this;
+    }
+
+    /**
+     * duplicate this container.  This does not do a 'deep' copy of the
+     * elements.
+     */
+    final ArrayMultiset!(V) dup()
+    {
+        auto retval = new ArrayMultiset!(V)(_growSize);
+        node n = _head.next;
+        while(n !is _head)
+        {
+            node x;
+            if(n.value.length == _growSize)
+                x = new node(n.value.dup);
+            else
+            {
+                auto array = new V[_growSize];
+                array.length = n.value.length;
+                array[0..$] = n.value[];
+                x = new node(array);
+            }
+            retval._head.prepend(x);
+        }
+        retval._count = _count;
+        return retval;
     }
 }

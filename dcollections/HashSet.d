@@ -14,7 +14,7 @@ private import dcollections.Hash;
  * A set implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
  *
- * Adding an element does not invalidate any cursors.
+ * Adding an element can invalidate cursors depending on the implementation.
  *
  * Removing an element only invalidates cursors that were pointing at that
  * element.
@@ -66,15 +66,20 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      */
     alias ImplTemp!(V) Impl;
 
+    /**
+     * convenience alias
+     */
+    alias HashSet!(V, ImplTemp) HashSetType;
+
     private Impl _hash;
     private Purger _purger;
 
-    private static final uint hashFunction(ref V v)
+    private static uint hashFunction(ref V v)
     {
         return (typeid(V).getHash(&v) & 0x7FFF_FFFF);
     }
 
-    private static final void updateFunction(ref V orig, ref V newelem)
+    private static void updateFunction(ref V orig, ref V newelem)
     {
         // don't copy anything, the values already match
     }
@@ -193,7 +198,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    final int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
         {
@@ -225,10 +230,19 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
         this(p);
     }
 
+    //
+    // private constructor for dup
+    //
+    private this(ref Impl dupFrom)
+    {
+        dupFrom.copyTo(_hash);
+        _purger = new Purger;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    final HashSetType clear()
     {
         _hash.clear();
         return this;
@@ -245,7 +259,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    final uint length()
     {
         return _hash.count;
     }
@@ -277,12 +291,10 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) time.
      */
-    cursor remove(cursor it)
+    final cursor remove(cursor it)
     {
-        cursor retval = it;
-        retval++;
-        _hash.remove(it.position);
-        return retval;
+        it.position = _hash.remove(it.position);
+        return it;
     }
 
     /**
@@ -291,7 +303,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in average O(1) time.
      */
-    cursor find(V v)
+    final cursor find(V v)
     {
         cursor it;
         it.position = _hash.find(v);
@@ -303,7 +315,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in average O(1) time.
      */
-    bool contains(V v)
+    final bool contains(V v)
     {
         return find(v) != end;
     }
@@ -314,19 +326,59 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in O(n) time.
      */
-    bool remove(V v)
+    final HashSetType remove(V v)
+    {
+        cursor it = find(v);
+        if(it != end)
+            remove(it);
+        return this;
+    }
+
+    /**
+     * Removes the first element that has the value v.  Returns true if the
+     * value was present and was removed.
+     *
+     * Runs in O(n) time.
+     */
+    final HashSetType remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
-            return false;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            wasRemoved = true;
+            remove(it);
+        }
+        return this;
+    }
+
+    final HashSetType remove(Iterator!(V) it)
+    {
+        
+        for(cursor cu = begin; cu != end; cu++)
+    }
+
+    /**
+     * Remove all the elements that appear in the iterator.  Sets numRemoved
+     * to the number of elements removed.
+     *
+     * Returns this.
+     */
+    final HashSetType remove(Iterator!(V) it, ref uint numRemoved)
+    {
+        uint origlength = length;
         remove(it);
-        return true;
+        numRemoved = origlength - length;
+        return this;
     }
 
     /**
      * returns an object that can be used to purge the collection.
      */
-    PurgeIterator!(V) purger()
+    final PurgeIterator!(V) purger()
     {
         return _purger;
     }
@@ -337,24 +389,38 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) time.
      */
-    bool add(V v)
+    final HashSetType add(V v)
     {
-        return _hash.add(v);
+        _hash.add(v);
+        return this;
     }
 
     /**
-     * Adds all the elements from enumerator to the set.  Returns the number
+     * Adds an element to the set.  Returns true if the element was not
+     * already present.
+     *
+     * Runs on average in O(1) time.
+     */
+    final HashSetType add(V v, ref bool wasAdded)
+    {
+        wasAdded = _hash.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the elements from the iterator to the set.  Returns the number
      * of elements added.
      *
      * Runs on average in O(1) + O(m) time, where m is the number of elements
-     * in the enumerator.
+     * in the iterator.
      */
-    uint addAll(Iterator!(V) enumerator)
+    final HashSetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; enumerator)
+        foreach(v; it)
             _hash.add(v);
-        return length - origlength;
+        numAdded length - origlength;
+        return this;
     }
 
     /**
@@ -363,11 +429,20 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) + O(m) time, where m is the array length.
      */
-    uint addAll(V[] array)
+    final HashSetType add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
             _hash.add(v);
-        return length - origlength;
+        numAdded = length - origlength;
+        return this;
+    }
+
+    /**
+     * duplicate this hash set
+     */
+    final HashSetType dup()
+    {
+        return new HashSetType(_hash);
     }
 }

@@ -9,6 +9,7 @@ module dcollections.Hash;
 
 public import dcollections.Functions;
 private import dcollections.Link;
+private import dcollections.model.Iterator;
 
 /**
  * Default Hash implementation.  This is used in the Hash* containers by
@@ -150,7 +151,7 @@ struct Hash(V, bool allowDuplicates=false)
         {
             static if(!allowDuplicates)
             {
-                elem = findInBucket(tail, v);
+                elem = findInBucket(tail, v, tail.next);
             }
         }
 
@@ -260,7 +261,7 @@ struct Hash(V, bool allowDuplicates=false)
     }
 
     // private function used to implement common pieces
-    private Node findInBucket(Node bucket, V v)
+    private Node findInBucket(Node bucket, V v, Node startFrom)
     in
     {
         assert(bucket !is null);
@@ -268,27 +269,31 @@ struct Hash(V, bool allowDuplicates=false)
     body
     {
         Node n;
-        for(n = bucket.next; n !is bucket && n.value != v; n = n.next)
+        for(n = startFrom; n !is bucket && n.value != v; n = n.next)
         {
         }
         return n;
     }
 
     /**
-     * Find a given value in the hash.
+     * Find the first instance of a value
      */
     position find(V v)
     {
         auto h = hashFunc(v) % table.length;
-        if(table[h])
-        {
-            position p;
-            p.idx = h;
-            p.owner = this;
-            if((p.ptr = findInBucket(table[h], v)) !is table[h])
-                return p;
-        }
-        return end;
+        // if bucket is empty, or doesn't contain v, return end
+        Node ptr;
+        if(table[h] is null || (ptr = findInBucket(table[h], v, table[h].next)) == table[h])
+            return end;
+        position p;
+        p.owner = this;
+        p.idx = h;
+        p.ptr = ptr;
+        return p;
+    }
+
+    static if(allowDuplicates)
+    {
     }
 
     /**
@@ -328,6 +333,44 @@ struct Hash(V, bool allowDuplicates=false)
 
         if(p.loadFactor != p.loadFactor)
             loadFactor = defaultLoadFactor;
+    }
+
+    /**
+     * keep only elements that appear in subset
+     *
+     * returns the number of elements removed
+     */
+    uint intersect(Iterator!(V) subset)
+    {
+        //
+        // start out removing all nodes, then filter out ones that are in the
+        // set.
+        //
+        uint result = count;
+        auto tmp = new Node[table.length];
+
+        foreach(ref v; subset)
+        {
+            position p = find(v);
+            if(p.idx != table.length)
+            {
+                //
+                // found the node in the current table, add it to the new
+                // table.
+                //
+                Node head = tmp[p.idx];
+                if(head is null)
+                {
+                    head = tmp[p.idx] = new Node;
+                    Node.attach(head, head);
+                }
+                head.prepend(p.ptr.unlink);
+                result--;
+            }
+        }
+        table = tmp;
+        count -= result;
+        return result;
     }
 
     static if(allowDuplicates)
@@ -374,6 +417,57 @@ struct Hash(V, bool allowDuplicates=false)
         uint removeAll(V v)
         {
             return _applyAll(v, true);
+        }
+
+        /**
+         * Find a given value in the hash, starting from the given position.
+         * If the position is beyond the last instance of v (which can be
+         * determined if the position's bucket is beyond the bucket where v
+         * should go).
+         */
+        position find(V v, position startFrom)
+        {
+            auto h = hashFunc(v) % table.length;
+            if(startFrom.idx < h)
+            {
+                // if bucket is empty, return end
+                if(table[h] is null || table[h].next is table[h])
+                    return end;
+
+                // start from the bucket that the value would live in
+                startFrom.idx = h;
+                startFrom.ptr = table[h];
+                startFrom = startFrom.next;
+            }
+            else if(startFrom.idx > h)
+                // beyond the bucket, return end
+                return end;
+
+            if((startFrom.ptr = findInBucket(table[h], v, startFrom.ptr)) !is
+                    table[h])
+                return startFrom;
+            return end;
+        }
+    }
+
+    /**
+     * copy all the elements from this hash to target.
+     */
+    void copyTo(ref Hash!(V, allowDuplicates) target)
+    {
+        //
+        // copy all local values
+        //
+        target = *this;
+
+        //
+        // reallocate all the nodes in the table
+        //
+        target.table = new Node[table.length];
+        foreach(i, n; table)
+        {
+            if(n !is null)
+                target.table[i] = n.dup;
         }
     }
 }

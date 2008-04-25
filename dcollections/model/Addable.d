@@ -15,18 +15,38 @@ public import dcollections.model.Collection;
 interface Addable(V)
 {
     /**
-     * returns true if the value was added
+     * returns this.
      */
-    bool add(V v);
+    Addable!(V) add(V v);
+
+    /**
+     * returns this.
+     *
+     * wasAdded is set to true if the value is added.
+     */
+    Addable!(V) add(V v, ref bool wasAdded);
 
     /**
      * add all values retrieved from the collection using the iterator's
-     * opApply.
+     * opApply.  Returns this.
      */
-    uint addAll(Iterator!(V) it);
+    Addable!(V) add(Iterator!(V) it);
 
     /**
-     * add all the values from the array
+     * add all values retrieved from the collection using the iterator's
+     * opApply. numAdded is set to the number of elements added.
      */
-    uint addAll(V[] array);
+    Addable!(V) add(Iterator!(V) it, ref uint numAdded);
+
+    /**
+     * add all the values from the array.  Returns this.
+     */
+    Addable!(V) add(V[] array);
+
+    /**
+     * add all the values from the array.  Returns this.
+     *
+     * numAdded is set to the number of elements added.
+     */
+    Addable!(V) add(V[] array, ref uint numAdded);
 }

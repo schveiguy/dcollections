@@ -29,14 +29,31 @@ interface Collection(V) : Iterator!(V)
      * operation.  If the collection is keyed, the first element whose value
      * matches will be removed.
      *
-     * returns true if removed.
+     * returns this.
      */
-    bool remove(V v);
+    Collection!(V) remove(V v);
+
+    /**
+     * remove an element with the specific value.  This may be an O(n)
+     * operation.  If the collection is keyed, the first element whose value
+     * matches will be removed.
+     *
+     * returns this.
+     *
+     * sets wasRemoved to true if the element existed and was removed.
+     */
+    Collection!(V) remove(V v, ref bool wasRemoved);
 
     /**
      * returns true if the collection contains the value.  can be O(n).
      */
     bool contains(V v);
+
+    /**
+     * make a copy of this collection.  This does not do a deep copy of the
+     * elements if they are reference or pointer types.
+     */
+    Collection!(V) dup();
 
     /**
      * get a purger that can iterate and remove elements.  Note that the

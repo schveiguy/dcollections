@@ -23,5 +23,12 @@ interface Multi(V)
     /**
      * remove all instances of the given element
      */
-    uint removeAll(V v);
+    Multi!(V) removeAll(V v);
+
+    /**
+     * remove all instances of the given element.
+     *
+     * sets numRemoved to number of elements removed.
+     */
+    Multi!(V) removeAll(V v, ref uint numRemoved);
 }
