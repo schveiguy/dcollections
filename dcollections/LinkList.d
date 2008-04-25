@@ -64,6 +64,11 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     alias LinkHead!(V) Impl;
 
+    /**
+     * convenience alias
+     */
+    alias LinkList!(V, ImplTemp) LinkListType;
+
     private Impl _link;
     private Purger _purger;
 
@@ -173,10 +178,19 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         this(p);
     }
 
+    //
+    // private constructor for dup
+    //
+    private this(ref Impl dupFrom, bool copyNodes)
+    {
+      dupFrom.copyTo(_link, copyNodes);
+      _purger = new Purger;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    LinkListType clear()
     {
         _link.clear();
         return this;
@@ -185,7 +199,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * returns true
      */
-    final bool supportsLength()
+    bool supportsLength()
     {
         return true;
     }
@@ -201,7 +215,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    final cursor begin()
+    cursor begin()
     {
         cursor it;
         it.ptr = _link.begin;
@@ -212,7 +226,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    final cursor end()
+    cursor end()
     {
         cursor it;
         it.ptr = _link.end;
@@ -249,13 +263,31 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Runs in O(n) time.
      */
-    bool remove(V v)
+    LinkListType remove(V v)
+    {
+        bool ignored;
+        return remove(v, ignored);
+    }
+
+    /**
+     * Removes the first element that has the value v.  Returns true if the
+     * value was present and was removed.
+     *
+     * Runs in O(n) time.
+     */
+    LinkListType remove(V v, ref bool wasRemoved)
     {
         auto it = find(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            wasRemoved = true;
+            remove(it);
+        }
+        return this;
     }
 
     /**
@@ -350,15 +382,40 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     }
 
     /**
-     * Adds an element to the set.  Returns true if the element was not
+     * Adds an element to the list.  Returns true if the element was not
      * already present.
      *
      * Runs in O(1) time.
      */
-    bool add(V v)
+    LinkListType add(V v)
     {
         _link.insert(_link.end, v);
-        return true;
+        return this;
+    }
+
+    /**
+     * Adds an element to the list.  Returns true if the element was not
+     * already present.
+     *
+     * Runs in O(1) time.
+     */
+    LinkListType add(V v, ref bool wasAdded)
+    {
+        _link.insert(_link.end, v);
+        wasAdded = true;
+        return this;
+    }
+
+    /**
+     * Adds all the values from the given iterator into the list.
+     *
+     * Returns this.
+     */
+    LinkListType add(Iterator!(V) coll)
+    {
+        foreach(v; coll)
+            add(v);
+        return this;
     }
 
     /**
@@ -366,15 +423,12 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns the number of elements added.
      */
-    uint addAll(Iterator!(V) coll)
+    LinkListType add(Iterator!(V) coll, ref uint numAdded)
     {
-        uint retval = 0;
-        foreach(v; coll)
-        {
-            add(v);
-            retval++;
-        }
-        return retval;
+        uint origLength = length;
+        add(coll);
+        numAdded = length - origLength;
+        return this;
     }
 
     /**
@@ -382,11 +436,24 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns the number of elements added.
      */
-    uint addAll(V[] array)
+    LinkListType add(V[] array)
     {
         foreach(v; array)
             add(v);
-        return array.length;
+        return this;
+    }
+
+    /**
+     * Adds all the values from the given array into the list.
+     *
+     * Returns the number of elements added.
+     */
+    LinkListType add(V[] array, ref uint numAdded)
+    {
+        foreach(v; array)
+            add(v);
+        numAdded = array.length;
+        return this;
     }
 
     /**
@@ -409,18 +476,27 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Runs in O(n) time.
      */
-    uint removeAll(V v)
+    LinkListType removeAll(V v)
     {
-        uint result;
         foreach(ref dp, x; purger)
         {
-            if(x == v)
-            {
-                dp = true;
-                result++;
-            }
+            dp = (x == v);
         }
-        return result;
+        return this;
+    }
+
+    /**
+     * Remove all the occurrences of v.  Returns the number of instances that
+     * were removed.
+     *
+     * Runs in O(n) time.
+     */
+    LinkListType removeAll(V v, ref uint numRemoved)
+    {
+        uint origLength;
+        removeAll(v);
+        numRemoved = origLength - length;
+        return this;
     }
 
     //
@@ -491,5 +567,54 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         auto retval = back;
         _link.remove(_link.end.prev);
         return retval;
+    }
+
+    /**
+     * Create a new list with this and the rhs concatenated together
+     */
+    LinkListType opCat(List!(V) rhs)
+    {
+        return dup.add(rhs);
+    }
+
+    /**
+     * Create a new list with this and the array concatenated together
+     */
+    LinkListType opCat(V[] array)
+    {
+        return dup.add(array);
+    }
+
+    /**
+     * Create a new list with the array and this list concatenated together.
+     */
+    LinkListType opCat_r(V[] array)
+    {
+        auto result = new LinkListType(_link, false);
+        return result.add(array).add(this);
+    }
+
+    /**
+     * Append the given list to the end of this list.
+     */
+    LinkListType opCatAssign(List!(V) rhs)
+    {
+        return add(rhs);
+    }
+
+    /**
+     * Append the given array to the end of this list.
+     */
+    LinkListType opCatAssign(V[] array)
+    {
+        return add(array);
+    }
+
+    /**
+     * duplicate the list
+     */
+    LinkListType dup()
+    {
+        return new LinkListType(_link, true);
     }
 }

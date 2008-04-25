@@ -185,10 +185,11 @@ struct LinkHead(V)
     /**
      * Initialize the list
      */
-    void setup(parameters p)
+    void setup(parameters p = 0)
     {
         end = new node;
         node.attach(end, end);
+        count = 0;
     }
 
     /**
@@ -228,7 +229,23 @@ struct LinkHead(V)
      */
     void clear()
     {
-        Node.attach(end, end);
+        node.attach(end, end);
         count = 0;
+    }
+
+    void copyTo(ref LinkHead!(V) target, bool copyNodes=true)
+    {
+      target = *this;
+      if(copyNodes)
+      {
+        target.end = end.dup;
+      }
+      else
+      {
+        //
+        // set up target like this one
+        //
+        target.setup();
+      }
     }
 }

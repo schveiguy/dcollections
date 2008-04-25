@@ -142,7 +142,7 @@ class ArrayMultiset(V) : Multiset!(V)
         }
     }
 
-    final private int _apply(int delegate(ref bool doPurge, ref V v) dg)
+    private int _apply(int delegate(ref bool doPurge, ref V v) dg)
     {
         cursor it = begin;
         bool doPurge;

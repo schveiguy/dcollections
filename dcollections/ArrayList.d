@@ -245,7 +245,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
         return _begin;
     }
 
-    private final cursor _begin()
+    private cursor _begin()
     {
         cursor it;
         it.ptr = _array.ptr;
@@ -262,7 +262,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
         return _end;
     }
 
-    private final cursor _end()
+    private cursor _end()
     {
         cursor it;
         it.ptr = _array.ptr + _array.length;
@@ -270,12 +270,12 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     }
 
 
-    final private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last)
+    private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last)
     {
         return _apply(dg, start, last, _begin);
     }
 
-    final private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last, cursor reference)
+    private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last, cursor reference)
     {
         if(isAncestor)
         {
@@ -369,7 +369,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
         }
     }
 
-    final private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
+    private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
     {
         int _dg(ref bool b, ref uint k, ref V v)
         {
@@ -378,7 +378,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
         return _apply(&_dg, start, last);
     }
 
-    final private void checkMutation()
+    private void checkMutation()
     {
         if(_mutation != _ancestor._mutation)
             throw new Exception("underlying ArrayList changed");
@@ -393,7 +393,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     // Get the next parent in the lineage.  Skip over any parents that do not
     // share our ancestor, they are not part of the lineage any more.
     //
-    final private ArrayList!(V) nextParent()
+    private ArrayList!(V) nextParent()
     {
         auto retval = _parent;
         while(retval._ancestor !is _ancestor)
@@ -484,7 +484,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     }
 
     // same as find(v), but search only a given range at given position.
-    final private cursor _find(cursor it, cursor last,  V v)
+    private cursor _find(cursor it, cursor last,  V v)
     {
         checkMutation();
         while(it < last && it.value != v)

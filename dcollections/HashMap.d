@@ -87,12 +87,12 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     private Purger _purger;
     private KeyIterator _keys;
 
-    private static final uint hashFunction(ref element e)
+    private static uint hashFunction(ref element e)
     {
         return (typeid(K).getHash(&e.key) & 0x7FFF_FFFF);
     }
 
-    private static final void updateFunction(ref element orig, ref element newelem)
+    private static void updateFunction(ref element orig, ref element newelem)
     {
         //
         // only copy the value, leave the key alone
@@ -236,7 +236,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
         }
     }
 
-    final private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         cursor it = begin;
         bool doPurge;
@@ -398,7 +398,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
         return _findValue(begin, end, v);
     }
 
-    final private cursor _findValue(cursor it, cursor last, V v)
+    private cursor _findValue(cursor it, cursor last, V v)
     {
         while(it != last && it.value != v)
             it++;
@@ -624,6 +624,10 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
         static class wrapper : Iterator!(element)
         {
             Iterator!(K) wrapped;
+            this(Iterator!(K) wrapped)
+            {
+              this.wrapped = wrapped;
+            }
             bool supportsLength() { return wrapped.supportsLength;}
             uint length() { return wrapped.length;}
             int opApply(int delegate(ref element e) dg)
@@ -643,8 +647,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
                 return retval;
             }
         }
-        scope wrapper w = new wrapper; // should allocate on the stack
-        w.wrapped = subset;
+        scope w = new wrapper(subset); // should allocate on the stack
         numRemoved = _hash.intersect(w);
         return this;
     }
