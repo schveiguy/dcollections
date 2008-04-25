@@ -71,10 +71,15 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      */
     alias ImplTemp!(V) Impl;
 
+    /**
+     * convenience alias
+     */
+    alias TreeMultiset!(V, ImplTemp) TreeMultisetType;
+
     private Impl _tree;
     private Purger _purger;
 
-    private static final int compareFunction(ref V e, ref V e2)
+    private static int compareFunction(ref V e, ref V e2)
     {
         return typeid(V).compare(&e, &e2);
     }
@@ -161,7 +166,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
 
     private class Purger : PurgeIterator!(V)
     {
-        int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
         {
             return _apply(dg);
         }
@@ -225,10 +230,19 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
         this(p);
     }
 
+    //
+    // for dup
+    //
+    private this(ref Impl dupFrom)
+    {
+        dupFrom.copyTo(_tree);
+        _purger = new Purger;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    TreeMultisetType clear()
     {
         _tree.clear();
         return this;
@@ -237,7 +251,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
     /**
      * returns true
      */
-    final bool supportsLength()
+    bool supportsLength()
     {
         return true;
     }
@@ -253,7 +267,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    final cursor begin()
+    cursor begin()
     {
         cursor it;
         it.ptr = _tree.begin;
@@ -264,7 +278,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    final cursor end()
+    cursor end()
     {
         cursor it;
         it.ptr = _tree.end;
@@ -312,13 +326,33 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    bool remove(V v)
+    TreeMultisetType remove(V v)
+    {
+        cursor it = find(v);
+        if(it != end)
+            remove(it);
+        return this;
+    }
+
+    /**
+     * Removes the first element that has the value v.  Returns true if the
+     * value was present and was removed.
+     *
+     * Runs in O(lg(n)) time.
+     */
+    TreeMultisetType remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            remove(it);
+            wasRemoved = true;
+        }
+        return this;
     }
 
     /**
@@ -331,27 +365,56 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
 
     /**
      * Adds a value to the collection.
-     * Returns true.
+     * Returns this.
      *
      * Runs in O(lg(n)) time.
      */
-    bool add(V v)
+    TreeMultisetType add(V v)
     {
-        return _tree.add(v);
+        _tree.add(v);
+        return this;
     }
 
     /**
-     * Adds all the values from enumerator to the collection.
+     * Adds a value to the collection. Sets wasAdded to true if the value was
+     * added.
+     *
+     * Returns this.
+     *
+     * Runs in O(lg(n)) time.
+     */
+    TreeMultisetType add(V v, ref bool wasAdded)
+    {
+        wasAdded = _tree.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the values from the iterator to the collection.
      *
      * Runs in O(m lg(n)) time, where m is the number of elements in
-     * enumerator.
+     * the iterator.
      */
-    uint addAll(Iterator!(V) enumerator)
+    TreeMultisetType add(Iterator!(V) it)
+    {
+        foreach(v; it)
+            _tree.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the values from the iterator to the collection. Sets numAdded
+     * to the number of values added from the iterator.
+     *
+     * Runs in O(m lg(n)) time, where m is the number of elements in
+     * the iterator.
+     */
+    TreeMultisetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; enumerator)
-            _tree.add(v);
-        return length - origlength;
+        add(it);
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -360,12 +423,26 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * array.
      */
-    uint addAll(V[] array)
+    TreeMultisetType add(V[] array)
     {
-        uint origlength = length;
         foreach(v; array)
             _tree.add(v);
-        return length - origlength;
+        return this;
+    }
+
+    /**
+     * Adds all the values from array to the collection.  Sets numAdded to the
+     * number of elements added from the array.
+     *
+     * Runs in O(m lg(n)) time, where m is the number of elements in
+     * array.
+     */
+    TreeMultisetType add(V[] array, ref uint numAdded)
+    {
+        uint origlength = length;
+        add(array);
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -383,8 +460,29 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      *
      * Runs in O(m lg(n)) time, where m is the number of elements that are v.
      */
-    uint removeAll(V v)
+    TreeMultiset removeAll(V v)
     {
-        return _tree.removeAll(v);
+        _tree.removeAll(v);
+        return this;
+    }
+    
+    /**
+     * Removes all the elements that are equal to v.  Sets numRemoved to the
+     * number of elements removed from the multiset.
+     *
+     * Runs in O(m lg(n)) time, where m is the number of elements that are v.
+     */
+    TreeMultiset removeAll(V v, ref uint numRemoved)
+    {
+        numRemoved = _tree.removeAll(v);
+        return this;
+    }
+
+    /**
+     * duplicate this tree multiset
+     */
+    TreeMultiset dup()
+    {
+        return new TreeMultiset(_tree);
     }
 }

@@ -8,7 +8,11 @@
 module dcollections.RBTree;
 
 private import dcollections.Functions;
-import tango.io.Stdout;
+private import dcollections.model.Iterator;
+version(RBDoChecks)
+{
+    import tango.io.Stdout;
+}
 
 /**
  * Implementation for a Red Black node for use in a Red Black Tree (see below)
@@ -96,28 +100,28 @@ class RBNode(V)
      * Set the left child.  Also updates the new child's parent node.  This
      * does not update the previous child.
      *
-     * Returns this for chaining.
+     * Returns newNode
      */
     Node left(Node newNode)
     {
         _left = newNode;
         if(newNode !is null)
             newNode._parent = this;
-        return this;
+        return newNode;
     }
 
     /**
      * Set the right child.  Also updates the new child's parent node.  This
      * does not update the previous child.
      *
-     * Returns this for chaining.
+     * Returns newNode
      */
     Node right(Node newNode)
     {
         _right = newNode;
         if(newNode !is null)
             newNode._parent = this;
-        return this;
+        return newNode;
     }
 
     // assume _left is not null
@@ -570,6 +574,23 @@ class RBNode(V)
         else
             return n.left.rightmost;
     }
+
+    Node dup()
+    {
+        //
+        // duplicate this and all child nodes
+        //
+        // The recursion should be lg(n), so we shouldn't have to worry about
+        // stack size.
+        //
+        Node copy = new Node(value);
+        copy.color = color;
+        if(_left !is null)
+            copy.left = _left.dup;
+        if(_right !is null)
+            copy.right = _right.dup;
+        return copy;
+    }
 }
 
 /**
@@ -809,88 +830,88 @@ struct RBTree(V, bool allowDuplicates=false)
         count = 0;
     }
 
-    /**
-     * Print the tree.  This prints a sideways view of the tree in ASCII form,
-     * with the number of indentations representing the level of the nodes.
-     * It does not print values, only the tree structure and color of nodes.
-     */
-    void printTree(node n, int indent = 0)
+    version(RBDoChecks)
     {
-        if(n !is null)
+        /**
+         * Print the tree.  This prints a sideways view of the tree in ASCII form,
+         * with the number of indentations representing the level of the nodes.
+         * It does not print values, only the tree structure and color of nodes.
+         */
+        void printTree(node n, int indent = 0)
         {
-            printTree(n.right, indent + 2);
-            for(int i = 0; i < indent; i++)
-                Stdout(".");
-            Stdout(n.color == n.color.Black ? "B" : "R").newline;
-            printTree(n.left, indent + 2);
+            if(n !is null)
+            {
+                printTree(n.right, indent + 2);
+                for(int i = 0; i < indent; i++)
+                    Stdout(".");
+                Stdout(n.color == n.color.Black ? "B" : "R").newline;
+                printTree(n.left, indent + 2);
+            }
+            else
+            {
+                for(int i = 0; i < indent; i++)
+                    Stdout(".");
+                Stdout("N").newline;
+            }
+            if(indent is 0)
+                Stdout.newline();
         }
-        else
+
+        /**
+         * Check the tree for validity.  This is called after every add or remove.
+         * This should only be enabled to debug the implementation of the RB Tree.
+         */
+        void check()
         {
-            for(int i = 0; i < indent; i++)
-                Stdout(".");
-            Stdout("N").newline;
+            //
+            // check implementation of the tree
+            //
+            int recurse(node n, char[] path)
+            {
+                if(n is null)
+                    return 1;
+                if(n.parent.left !is n && n.parent.right !is n)
+                    throw new Exception("node at path " ~ path ~ " has inconsistent pointers");
+                node next = n.next;
+                static if(allowDuplicates)
+                {
+                    if(next !is end && compareFunc(n.value, next.value) > 0)
+                        throw new Exception("ordering invalid at path " ~ path);
+                }
+                else
+                {
+                    if(next !is end && compareFunc(n.value, next.value) >= 0)
+                        throw new Exception("ordering invalid at path " ~ path);
+                }
+                if(n.color == n.color.Red)
+                {
+                    if((n.left !is null && n.left.color == n.color.Red) ||
+                            (n.right !is null && n.right.color == n.color.Red))
+                        throw new Exception("node at path " ~ path ~ " is red with a red child");
+                }
+
+                int l = recurse(n.left, path ~ "L");
+                int r = recurse(n.right, path ~ "R");
+                if(l != r)
+                {
+                    Stdout("bad tree at:").newline;
+                    printTree(n);
+                    throw new Exception("node at path " ~ path ~ " has different number of black nodes on left and right paths");
+                }
+                return l + (n.color == n.color.Black ? 1 : 0);
+            }
+
+            try
+            {
+                recurse(end.left, "");
+            }
+            catch(Exception e)
+            {
+                printTree(end.left, 0);
+                throw e;
+            }
         }
-        if(indent is 0)
-            Stdout.newline();
     }
-
-     version(RBDoChecks)
-     {
-         /**
-          * Check the tree for validity.  This is called after every add or remove.
-          * This should only be enabled to debug the implementation of the RB Tree.
-          */
-         void check()
-         {
-             //
-             // check implementation of the tree
-             //
-             int recurse(node n, char[] path)
-             {
-                 if(n is null)
-                     return 1;
-                 if(n.parent.left !is n && n.parent.right !is n)
-                     throw new Exception("node at path " ~ path ~ " has inconsistent pointers");
-                 node next = n.next;
-                 static if(allowDuplicates)
-                 {
-                     if(next !is end && compareFunc(n.value, next.value) > 0)
-                         throw new Exception("ordering invalid at path " ~ path);
-                 }
-                 else
-                 {
-                     if(next !is end && compareFunc(n.value, next.value) >= 0)
-                         throw new Exception("ordering invalid at path " ~ path);
-                 }
-                 if(n.color == n.color.Red)
-                 {
-                     if((n.left !is null && n.left.color == n.color.Red) ||
-                             (n.right !is null && n.right.color == n.color.Red))
-                         throw new Exception("node at path " ~ path ~ " is red with a red child");
-                 }
-
-                 int l = recurse(n.left, path ~ "L");
-                 int r = recurse(n.right, path ~ "R");
-                 if(l != r)
-                 {
-                     Stdout("bad tree at:").newline;
-                     printTree(n);
-                     throw new Exception("node at path " ~ path ~ " has different number of black nodes on left and right paths");
-                 }
-                 return l + (n.color == n.color.Black ? 1 : 0);
-             }
-
-             try
-             {
-                 recurse(end.left, "");
-             }
-             catch(Exception e)
-             {
-                 printTree(end.left, 0);
-                 throw e;
-             }
-         }
-     }
 
     static if(allowDuplicates)
     {
@@ -929,6 +950,144 @@ struct RBTree(V, bool allowDuplicates=false)
             }
             return retval;
         }
+    }
+
+    uint intersect(Iterator!(V) subset)
+    {
+        // build a new RBTree, only inserting nodes that we already have.
+        scope newend = new node();
+        auto origcount = count;
+        count = 0;
+        foreach(v; subset)
+        {
+            //
+            // find if the node is in the current tree
+            //
+            auto z = find(v);
+            if(z !is end)
+            {
+                //
+                // remove the element from the tree, but worry about satisfing
+                // the Red-black rules.  we don't care because this tree is
+                // going away.
+                //
+                if(z.left is null)
+                {
+                    //
+                    // no left node, so this is a single parentage line,
+                    // move the right node to be where we are
+                    //
+                    if(z.isLeftNode)
+                        z.parent.left = z.right;
+                    else
+                        z.parent.right = z.right;
+                }
+                else if(z.right is null)
+                {
+                    //
+                    // no right node, single parentage line.
+                    //
+                    if(z.isLeftNode)
+                        z.parent.left = z.left;
+                    else
+                        z.parent.right = z.left;
+                }
+                else
+                {
+                    //
+                    // z has both left and right nodes, swap it with the next
+                    // node.  Next node's left is guaranteed to be null
+                    // because it must be a right child of z, and if it had a
+                    // left node, then it would not be the next node.
+                    //
+                    node n = z.next;
+                    if(n.parent !is z)
+                    {
+                        //
+                        // n is a descendant of z, but not the immediate
+                        // child, we need to link n's parent to n's right
+                        // child.  Note that n must be a left child or else
+                        // n's parent would have been the next node.
+                        //
+                        n.parent.left = n.right;
+                        n.right = z.right;
+                    }
+                    // else, n is the direct child of z, which means there is
+                    // no need to update n's parent, or n's right node (as n
+                    // is the right node of z).
+
+                    if(z.isLeftNode)
+                        z.parent.left = n;
+                    else
+                        z.parent.right = n;
+                    n.left = z.left;
+                }
+                //
+                // reinitialize z
+                //
+                z.color = z.color.init;
+                z.left = z.right = null;
+
+                //
+                // put it into the new tree.
+                //
+                if(newend.left is null)
+                    newend.left = z;
+                else
+                {
+                    //
+                    // got to find the right place for z
+                    //
+                    node newParent = newend.left;
+                    while(true)
+                    {
+                        auto cmpvalue = compareFunc(newParent.value, z.value);
+
+                        // <= handles all cases, including when
+                        // allowDuplicates is true.
+                        if(cmpvalue <= 0)
+                        {
+                            node nxt = newParent.right;
+                            if(nxt is null)
+                            {
+                                newParent.right = z;
+                                break;
+                            }
+                            else
+                                newParent = nxt;
+                        }
+                        else
+                        {
+                            node nxt = newParent.left;
+                            if(nxt is null)
+                            {
+                                newParent.left = z;
+                                break;
+                            }
+                            else
+                                newParent = nxt;
+                        }
+                    }
+                }
+
+                z.setColor(newend);
+                count++;
+            }
+        }
+        //
+        // replace newend with end.  If we don't do this, cursors pointing
+        // to end will be invalidated.
+        //
+        end.left = newend.left;
+        return origcount - count;
+    }
+
+    void copyTo(RBTree!(V, allowDuplicates) target)
+    {
+        target = *this;
+
+        // make shallow copy of RBNodes
+        target.end = end.dup;
     }
 }
 

@@ -80,15 +80,22 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      * convenience alias to the implementation
      */
     alias ImplTemp!(element) Impl;
+
+    /**
+     * convenience alias to the type
+     */
+    alias TreeMap!(K, V, ImplTemp) TreeMapType;
+
     private Impl _tree;
     private Purger _purger;
+    private KeyIterator _keys;
 
-    private static final int compareFunction(ref element e, ref element e2)
+    private static int compareFunction(ref element e, ref element e2)
     {
         return typeid(K).compare(&e.key, &e2.key);
     }
 
-    private static final void updateFunction(ref element orig, ref element newv)
+    private static void updateFunction(ref element orig, ref element newv)
     {
         orig.val = newv.val;
     }
@@ -192,7 +199,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
 
     private class Purger : PurgeKeyedIterator!(K, V)
     {
-        int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
         {
             int _dg(ref bool doPurge, ref K k, ref V v)
             {
@@ -201,11 +208,34 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
             return _apply(&_dg);
         }
 
-        int opApply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
         {
             return _apply(dg);
         }
     }
+
+    private class KeyIterator : Iterator!(K)
+    {
+        final bool supportsLength()
+        {
+            return true;
+        }
+
+        final uint length()
+        {
+            return this.outer.length;
+        }
+
+        final int opApply(int delegate(ref K) dg)
+        {
+            int _dg(ref bool doPurge, ref K k, ref V v)
+            {
+                return dg(k);
+            }
+            return _apply(&_dg);
+        }
+    }
+
 
     private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
@@ -275,6 +305,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
             p.compareFunction = &compareFunction;
         _tree.setup(p);
         _purger = new Purger;
+        _keys = new KeyIterator;
     }
 
     /**
@@ -286,10 +317,20 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         this(p);
     }
 
+    //
+    // private constructor for dup
+    //
+    private this(ref Impl dupFrom)
+    {
+        dupFrom.copyTo(_tree);
+        _purger = new Purger;
+        _keys = new KeyIterator;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    TreeMapType clear()
     {
         _tree.clear();
         return this;
@@ -298,7 +339,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     /**
      * returns true
      */
-    final bool supportsLength()
+    bool supportsLength()
     {
         return true;
     }
@@ -314,7 +355,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    final cursor begin()
+    cursor begin()
     {
         cursor it;
         it.ptr = _tree.begin;
@@ -325,7 +366,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    final cursor end()
+    cursor end()
     {
         cursor it;
         it.ptr = _tree.end;
@@ -404,13 +445,31 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    bool remove(V v)
+    TreeMapType remove(V v)
+    {
+        bool ignored;
+        return remove(v, ignored);
+    }
+
+    /**
+     * Removes the first element that has the value v.  Returns true if the
+     * value was present and was removed.
+     *
+     * Runs in O(n) time.
+     */
+    TreeMapType remove(V v, ref bool wasRemoved)
     {
         cursor it = findValue(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            wasRemoved = true;
+            remove(it);
+        }
+        return this;
     }
 
     /**
@@ -419,13 +478,120 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(lg(n)) time.
      */
-    bool removeAt(K key)
+    TreeMapType removeAt(K key)
+    {
+        cursor it = find(key);
+        if(it != end)
+            remove(it);
+        return this;
+    }
+
+    /**
+     * Removes the element that has the given key.  Returns true if the
+     * element was present and was removed.
+     *
+     * Runs in O(lg(n)) time.
+     */
+    TreeMapType removeAt(K key, ref bool wasRemoved)
     {
         cursor it = find(key);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            wasRemoved = true;
+            remove(it);
+        }
+        return this;
+    }
+
+    /**
+     * Removes all the elements whose keys are in the subset.
+     * 
+     * returns this.
+     */
+    TreeMapType remove(Iterator!(K) subset)
+    {
+        foreach(k; subset)
+            remove(k);
+        return this;
+    }
+
+    /**
+     * Removes all the elements whose keys are in the subset.  Sets numRemoved
+     * to the number of key/value pairs removed.
+     * 
+     * returns this.
+     */
+    TreeMapType remove(Iterator!(K) subset, ref uint numRemoved)
+    {
+        uint origLength = length;
+        remove(subset);
+        numRemoved = origLength - length;
+        return this;
+    }
+
+    /**
+     * removes all elements in the map whose keys are NOT in subset.
+     *
+     * returns this.
+     */
+    TreeMapType intersect(Iterator!(K) subset, ref uint numRemoved)
+    {
+        //
+        // create a wrapper iterator that generates elements from keys.  Then
+        // defer the intersection operation to the implementation.
+        //
+        static class wrapper : Iterator!(element)
+        {
+            Iterator!(K) wrapped;
+            this(Iterator!(K) wrapped)
+            {
+              this.wrapped = wrapped;
+            }
+            bool supportsLength() { return wrapped.supportsLength;}
+            uint length() { return wrapped.length;}
+            int opApply(int delegate(ref element e) dg)
+            {
+                //
+                // need to wrap each key in the wrapped iterator into an
+                // element.
+                //
+                int retval = 0;
+                foreach(k; wrapped)
+                {
+                    element elem;
+                    elem.key = k;
+                    if((retval = dg(elem)) != 0)
+                        break;
+                }
+                return retval;
+            }
+        }
+
+        scope w = new wrapper(subset);
+        numRemoved = _tree.intersect(w);
+        return this;
+    }
+
+    /**
+     * removes all elements in the map whose keys are NOT in subset.  Sets
+     * numRemoved to the number of elements removed.
+     *
+     * returns this.
+     */
+    TreeMapType intersect(Iterator!(K) subset)
+    {
+        uint ignored;
+        intersect(subset, ignored);
+        return this;
+    }
+
+    Iterator!(K) keys()
+    {
+        return _keys;
     }
 
     /**
@@ -450,11 +616,62 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      */
     V opIndexAssign(V value, K key)
     {
+        set(key, value);
+        return value;
+    }
+
+    /**
+     * set a key and value pair.  If the pair didn't already exist, add it.
+     *
+     * returns this.
+     */
+    TreeMapType set(K key, V value)
+    {
+        bool ignored;
+        return set(key, value, ignored);
+    }
+
+    /**
+     * set a key and value pair.  If the pair didn't already exist, add it.
+     * wasAdded is set to true if the pair was added.
+     *
+     * returns this.
+     */
+    TreeMapType set(K key, V value, ref bool wasAdded)
+    {
         element elem;
         elem.key = key;
         elem.val = value;
-        _tree.add(elem);
-        return value;
+        wasAdded = _tree.add(elem);
+        return this;
+    }
+
+    /**
+     * set all the elements from the given keyed iterator in the map.  Any key
+     * that already exists will be overridden.
+     *
+     * Returns this.
+     */
+    TreeMapType set(KeyedIterator!(K, V) source)
+    {
+        foreach(k, v; source)
+            set(k, v);
+        return this;
+    }
+
+    /**
+     * set all the elements from the given keyed iterator in the map.  Any key
+     * that already exists will be overridden.  numAdded is set to the number
+     * of key/value pairs that were added.
+     *
+     * Returns this.
+     */
+    TreeMapType set(KeyedIterator!(K, V) source, ref uint numAdded)
+    {
+        uint origLength = length;
+        set(source);
+        numAdded = length - origLength;
+        return this;
     }
 
     /**
@@ -486,29 +703,40 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(n + m lg(n)) time, where m is the number of elements removed.
      */
-    uint removeAll(V v)
+    TreeMapType removeAll(V v)
     {
-        uint origLength = length;
         foreach(ref b, x; purger)
-            if(x == v)
-                b = true;
-        return origLength - length;
+            b = (x == v);
+        return this;
     }
 
     /**
-     * returns an object that can be used to purge the collection.
+     * Remove all the elements that contain the value v.
+     *
+     * Runs in O(n + m lg(n)) time, where m is the number of elements removed.
      */
-    PurgeIterator!(V) purger()
+    TreeMapType removeAll(V v, ref uint numRemoved)
     {
-        return _purger;
+        uint origLength = length;
+        removeAll(v);
+        numRemoved = origLength - length;
+        return this;
     }
 
     /**
      * returns an object that can be used to purge the collection using
      * key/value pairs.
      */
-    PurgeKeyedIterator!(K, V) keyPurger()
+    PurgeKeyedIterator!(K, V) purger()
     {
         return _purger;
+    }
+
+    /**
+     * Get a duplicate of this tree map
+     */
+    TreeMapType dup()
+    {
+        return new TreeMapType(_tree);
     }
 }

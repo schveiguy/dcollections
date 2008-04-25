@@ -166,7 +166,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
 
     private class Purger : PurgeIterator!(V)
     {
-        int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
         {
             return _apply(dg);
         }
@@ -198,7 +198,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * iterate over the collection's values
      */
-    final int opApply(int delegate(ref V v) dg)
+    int opApply(int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
         {
@@ -242,7 +242,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * Clear the collection of all elements
      */
-    final HashSetType clear()
+    HashSetType clear()
     {
         _hash.clear();
         return this;
@@ -251,7 +251,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * returns true
      */
-    final bool supportsLength()
+    bool supportsLength()
     {
         return true;
     }
@@ -259,7 +259,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * returns number of elements in the collection
      */
-    final uint length()
+    uint length()
     {
         return _hash.count;
     }
@@ -267,7 +267,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    final cursor begin()
+    cursor begin()
     {
         cursor it;
         it.position = _hash.begin();
@@ -278,7 +278,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    final cursor end()
+    cursor end()
     {
         cursor it;
         it.position = _hash.end();
@@ -291,7 +291,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) time.
      */
-    final cursor remove(cursor it)
+    cursor remove(cursor it)
     {
         it.position = _hash.remove(it.position);
         return it;
@@ -303,7 +303,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in average O(1) time.
      */
-    final cursor find(V v)
+    cursor find(V v)
     {
         cursor it;
         it.position = _hash.find(v);
@@ -315,7 +315,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in average O(1) time.
      */
-    final bool contains(V v)
+    bool contains(V v)
     {
         return find(v) != end;
     }
@@ -326,7 +326,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in O(n) time.
      */
-    final HashSetType remove(V v)
+    HashSetType remove(V v)
     {
         cursor it = find(v);
         if(it != end)
@@ -340,7 +340,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in O(n) time.
      */
-    final HashSetType remove(V v, ref bool wasRemoved)
+    HashSetType remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
@@ -355,10 +355,11 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
         return this;
     }
 
-    final HashSetType remove(Iterator!(V) it)
+    HashSetType remove(Iterator!(V) it)
     {
-        
-        for(cursor cu = begin; cu != end; cu++)
+        foreach(v; it)
+            remove(v);
+        return this;
     }
 
     /**
@@ -367,7 +368,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Returns this.
      */
-    final HashSetType remove(Iterator!(V) it, ref uint numRemoved)
+    HashSetType remove(Iterator!(V) it, ref uint numRemoved)
     {
         uint origlength = length;
         remove(it);
@@ -378,7 +379,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * returns an object that can be used to purge the collection.
      */
-    final PurgeIterator!(V) purger()
+    PurgeIterator!(V) purger()
     {
         return _purger;
     }
@@ -389,7 +390,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) time.
      */
-    final HashSetType add(V v)
+    HashSetType add(V v)
     {
         _hash.add(v);
         return this;
@@ -401,7 +402,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) time.
      */
-    final HashSetType add(V v, ref bool wasAdded)
+    HashSetType add(V v, ref bool wasAdded)
     {
         wasAdded = _hash.add(v);
         return this;
@@ -414,12 +415,12 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
-    final HashSetType add(Iterator!(V) it, ref uint numAdded)
+    HashSetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; it)
             _hash.add(v);
-        numAdded length - origlength;
+        numAdded = length - origlength;
         return this;
     }
 
@@ -429,7 +430,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) + O(m) time, where m is the array length.
      */
-    final HashSetType add(V[] array, ref uint numAdded)
+    HashSetType add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
@@ -441,7 +442,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * duplicate this hash set
      */
-    final HashSetType dup()
+    HashSetType dup()
     {
         return new HashSetType(_hash);
     }

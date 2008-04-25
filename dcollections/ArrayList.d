@@ -239,7 +239,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * return a cursor that points to the first element in the list.
      */
-    final cursor begin()
+    cursor begin()
     {
         checkMutation();
         return _begin;
@@ -256,7 +256,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * return a cursor that points to just beyond the last element in the
      * list.
      */
-    final cursor end()
+    cursor end()
     {
         checkMutation();
         return _end;
@@ -384,7 +384,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
             throw new Exception("underlying ArrayList changed");
     }
 
-    final bool isAncestor()
+    private bool isAncestor()
     {
         return _ancestor is this;
     }
@@ -408,7 +408,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    final cursor remove(cursor start, cursor last)
+    cursor remove(cursor start, cursor last)
     {
         if(isAncestor)
         {
@@ -435,7 +435,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time
      */
-    final cursor remove(cursor elem)
+    cursor remove(cursor elem)
     {
         return remove(elem, elem + 1);
     }
@@ -469,7 +469,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * returns this.
      */
-    final ArrayList!(V) remove(V v)
+    ArrayList!(V) remove(V v)
     {
         bool ignored;
         return remove(v, ignored);
@@ -478,7 +478,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * same as find(v), but start at given position.
      */
-    final cursor find(cursor it, V v)
+    cursor find(cursor it, V v)
     {
         return _find(it, _end, v);
     }
@@ -496,7 +496,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * find the first occurrence of an element in the list.  Runs in O(n)
      * time.
      */
-    final cursor find(V v)
+    cursor find(V v)
     {
         return _find(_begin, _end, v);
     }
@@ -504,7 +504,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * returns true if the collection contains the value.  Runs in O(n) time.
      */
-    final bool contains(V v)
+    bool contains(V v)
     {
         return find(v) < _end;
     }
@@ -512,7 +512,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * remove the element at the given index.  Runs in O(n) time.
      */
-    final ArrayList!(V) removeAt(uint key, ref bool wasRemoved)
+    ArrayList!(V) removeAt(uint key, ref bool wasRemoved)
     {
         if(key > length)
         {
@@ -529,7 +529,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * remove the element at the given index.  Runs in O(n) time.
      */
-    final ArrayList!(V) removeAt(uint key)
+    ArrayList!(V) removeAt(uint key)
     {
         bool ignored;
         return removeAt(key, ignored);
@@ -538,7 +538,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * get the value at the given index.
      */
-    final V opIndex(uint key)
+    V opIndex(uint key)
     {
         checkMutation();
         return _array[key];
@@ -547,7 +547,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * set the value at the given index.
      */
-    final V opIndexAssign(V value, uint key)
+    V opIndexAssign(V value, uint key)
     {
         checkMutation();
         //
@@ -577,7 +577,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * iterate over the collection
      */
-    final int opApply(int delegate(ref V value) dg)
+    int opApply(int delegate(ref V value) dg)
     {
         int retval;
         cursor endref = end; // call checkmutation
@@ -592,7 +592,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * iterate over the collection with key and value
      */
-    final int opApply(int delegate(ref uint key, ref V value) dg)
+    int opApply(int delegate(ref uint key, ref V value) dg)
     {
         int retval = 0;
         auto reference = begin; // call checkmutation
@@ -610,7 +610,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * gives an object that can be used to purge the list that provides index
      * information as well as value information.
      */
-    final PurgeKeyedIterator!(uint, V) purger()
+    PurgeKeyedIterator!(uint, V) purger()
     {
         return _purger;
     }
@@ -620,7 +620,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(1) time
      */
-    final bool containsKey(uint key)
+    bool containsKey(uint key)
     {
         return key < length;
     }
@@ -628,7 +628,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * add the given value to the end of the list.  Always returns true.
      */
-    final ArrayList!(V) add(V v, ref bool wasAdded)
+    ArrayList!(V) add(V v, ref bool wasAdded)
     {
         //
         // append to this array.  Reset the ancestor to this, because now we
@@ -660,7 +660,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * add the given value to the end of the list.
      */
-    final ArrayList!(V) add(V v)
+    ArrayList!(V) add(V v)
     {
         bool ignored;
         return add(v, ignored);
@@ -669,7 +669,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * adds all elements from the given iterator to the end of the list.
      */
-    final ArrayList!(V) add(Iterator!(V) coll)
+    ArrayList!(V) add(Iterator!(V) coll)
     {
         uint ignored;
         return add(coll, ignored);
@@ -678,7 +678,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * adds all elements from the given iterator to the end of the list.
      */
-    final ArrayList!(V) add(Iterator!(V) coll, ref uint numAdded)
+    ArrayList!(V) add(Iterator!(V) coll, ref uint numAdded)
     {
         auto al = cast(ArrayList!(V))coll;
         if(al)
@@ -741,7 +741,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * appends the array to the end of the list
      */
-    final ArrayList!(V) add(V[] array)
+    ArrayList!(V) add(V[] array)
     {
         uint ignored;
         return add(array, ignored);
@@ -750,7 +750,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * appends the array to the end of the list
      */
-    final ArrayList!(V) add(V[] array, ref uint numAdded)
+    ArrayList!(V) add(V[] array, ref uint numAdded)
     {
         checkMutation();
         numAdded = array.length;
@@ -773,7 +773,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * append another list to the end of this list
      */
-    final ArrayList!(V) opCatAssign(List!(V) rhs)
+    ArrayList!(V) opCatAssign(List!(V) rhs)
     {
         return add(rhs);
     }
@@ -781,7 +781,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * append an array to the end of this list
      */
-    final ArrayList!(V) opCatAssign(V[] array)
+    ArrayList!(V) opCatAssign(V[] array)
     {
         return add(array);
     }
@@ -789,7 +789,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * returns a concatenation of the array list and another list.
      */
-    final ArrayList!(V) opCat(List!(V) rhs)
+    ArrayList!(V) opCat(List!(V) rhs)
     {
         return dup.add(rhs);
     }
@@ -797,7 +797,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * returns a concatenation of the array list and an array.
      */
-    final ArrayList!(V) opCat(V[] array)
+    ArrayList!(V) opCat(V[] array)
     {
         checkMutation();
         return new ArrayList!(V)(_array ~ array);
@@ -806,7 +806,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * returns a concatenation of the array list and an array.
      */
-    final ArrayList!(V) opCat_r(V[] array)
+    ArrayList!(V) opCat_r(V[] array)
     {
         checkMutation();
         return new ArrayList!(V)(array ~ _array);
@@ -817,7 +817,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    final uint count(V v)
+    uint count(V v)
     {
         uint instances = 0;
         foreach(x; this)
@@ -831,7 +831,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    final ArrayList!(V) removeAll(V v, ref uint numRemoved)
+    ArrayList!(V) removeAll(V v, ref uint numRemoved)
     {
         auto origLength = length;
         foreach(ref b, x; _purger)
@@ -847,7 +847,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      *
      * Runs in O(n) time.
      */
-    final ArrayList!(V) removeAll(V v)
+    ArrayList!(V) removeAll(V v)
     {
         uint ignored;
         return removeAll(v, ignored);
@@ -860,7 +860,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * The returned slice begins at index b and ends at, but does not include,
      * index e.
      */
-    final ArrayList!(V) opSlice(uint b, uint e)
+    ArrayList!(V) opSlice(uint b, uint e)
     {
         return opSlice(_begin + b, _begin + e);
     }
@@ -868,7 +868,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * Slice an array given the cursors
      */
-    final ArrayList!(V) opSlice(cursor b, cursor e)
+    ArrayList!(V) opSlice(cursor b, cursor e)
     {
         if(e > end || b < _begin) // call checkMutation once
             throw new Exception("slice values out of range");
@@ -882,7 +882,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     /**
      * Returns a copy of an array list
      */
-    final ArrayList!(V) dup()
+    ArrayList!(V) dup()
     {
         return new ArrayList!(V)(_array.dup);
     }
@@ -894,7 +894,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * the original array list just like appending to an array will not affect
      * the original.
      */
-    final V[] asArray()
+    V[] asArray()
     {
         return _array;
     }

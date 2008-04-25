@@ -69,15 +69,20 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      */
     alias ImplTemp!(V) Impl;
 
+    /**
+     * convenience alias.
+     */
+    alias TreeSet!(V, ImplTemp) TreeSetType;
+
     private Impl _tree;
     private Purger _purger;
 
-    private static final int compareFunction(ref V e, ref V e2)
+    private static int compareFunction(ref V e, ref V e2)
     {
         return typeid(V).compare(&e, &e2);
     }
 
-    private static final void updateFunction(ref V orig, ref V newv)
+    private static void updateFunction(ref V orig, ref V newv)
     {
     }
 
@@ -163,7 +168,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
 
     private class Purger : PurgeIterator!(V)
     {
-        int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
         {
             return _apply(dg);
         }
@@ -227,10 +232,19 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         this(p);
     }
 
+    //
+    // for dup
+    //
+    private this(ref Impl dupFrom)
+    {
+        dupFrom.copyTo(_tree);
+        _purger = new Purger;
+    }
+
     /**
      * Clear the collection of all elements
      */
-    Collection!(V) clear()
+    TreeSetType clear()
     {
         _tree.clear();
         return this;
@@ -239,7 +253,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
     /**
      * returns true
      */
-    final bool supportsLength()
+    bool supportsLength()
     {
         return true;
     }
@@ -255,7 +269,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    final cursor begin()
+    cursor begin()
     {
         cursor it;
         it.ptr = _tree.begin;
@@ -266,7 +280,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    final cursor end()
+    cursor end()
     {
         cursor it;
         it.ptr = _tree.end;
@@ -314,13 +328,33 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    bool remove(V v)
+    TreeSetType remove(V v)
+    {
+        cursor it = find(v);
+        if(it !is end)
+            remove(it);
+        return this;
+    }
+
+    /**
+     * Removes the element that has the value v.  Returns true if the value
+     * was present and was removed.
+     *
+     * Runs in O(lg(n)) time.
+     */
+    TreeSetType remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
-            return false;
-        remove(it);
-        return true;
+        {
+            wasRemoved = false;
+        }
+        else
+        {
+            remove(it);
+            wasRemoved = true;
+        }
+        return this;
     }
 
     /**
@@ -337,9 +371,22 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    bool add(V v)
+    TreeSetType add(V v)
     {
-        return _tree.add(v);
+        _tree.add(v);
+        return this;
+    }
+
+    /**
+     * Adds a value to the collection.
+     * Returns true.
+     *
+     * Runs in O(lg(n)) time.
+     */
+    TreeSetType add(V v, ref bool wasAdded)
+    {
+        wasAdded = _tree.add(v);
+        return this;
     }
 
     /**
@@ -348,12 +395,25 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * enumerator.
      */
-    uint addAll(Iterator!(V) enumerator)
+    TreeSetType add(Iterator!(V) it)
+    {
+        foreach(v; it)
+            _tree.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the values from enumerator to the collection.
+     *
+     * Runs in O(m lg(n)) time, where m is the number of elements in
+     * enumerator.
+     */
+    TreeSetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; enumerator)
-            _tree.add(v);
-        return length - origlength;
+        add(it);
+        numAdded = length - origlength;
+        return this;
     }
 
     /**
@@ -362,11 +422,81 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * array.
      */
-    uint addAll(V[] array)
+    TreeSetType add(V[] array)
+    {
+        foreach(v; array)
+            _tree.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the values from array to the collection.
+     *
+     * Runs in O(m lg(n)) time, where m is the number of elements in
+     * array.
+     */
+    TreeSetType add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
             _tree.add(v);
-        return length - origlength;
+        numAdded = length - origlength;
+        return this;
+    }
+
+    /**
+     * Return a duplicate treeset containing all the elements in this tree
+     * set.
+     */
+    TreeSetType dup()
+    {
+        return new TreeSetType(_tree);
+    }
+
+    /**
+     * Remove all the elements that match in the subset
+     */
+    TreeSetType remove(Iterator!(V) subset)
+    {
+        foreach(v; subset)
+            remove(v);
+        return this;
+    }
+
+    /**
+     * Remove all the elements that match in the subset.  Sets numRemoved to
+     * number of elements removed.
+     *
+     * returns this.
+     */
+    TreeSetType remove(Iterator!(V) subset, ref uint numRemoved)
+    {
+        uint origLength = length;
+        remove(subset);
+        numRemoved = origLength - length;
+        return this;
+    }
+
+    /**
+     * Remove all the elements that do NOT match in the subset.
+     *
+     * returns this.
+     */
+    TreeSetType intersect(Iterator!(V) subset)
+    {
+        _tree.intersect(subset);
+        return this;
+    }
+
+    /**
+     * Remove all the elements that do NOT match in the subset.  Sets
+     * numRemoved to number of elements removed.
+     *
+     * returns this.
+     */
+    TreeSetType intersect(Iterator!(V) subset, ref uint numRemoved)
+    {
+        numRemoved = _tree.intersect(subset);
+        return this;
     }
 }
