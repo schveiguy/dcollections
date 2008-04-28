@@ -898,4 +898,80 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     {
         return _array;
     }
+
+    /**
+     * operator to compare two objects.
+     *
+     * If o is a List!(V), then this does a list compare.
+     * If o is null, then this is equivalent to asArray == null.
+     */
+    int opEquals(Object o)
+    {
+        if(o !is null)
+        {
+            auto al = cast(ArrayList!(V))o;
+            if(al !is null)
+                return _array == al._array;
+            auto li = cast(List!(V))o;
+            if(li !is null)
+            {
+                if(li.supportsLength)
+                {
+                    if(li.length != length)
+                        return 0;
+                }
+
+                int i = 0;
+                foreach(elem; li)
+                {
+                    if(i >= _array.length || elem != _array[i++])
+                        return 0;
+                }
+                if(i != length)
+                    return 0;
+
+                //
+                // equal
+                //
+                return 1;
+            }
+            //
+            // no comparison possible.
+            //
+            return 0;
+        }
+        else
+        {
+            return _array == null;
+        }
+    }
+
+    /**
+     * Compare to a V array.
+     *
+     * equivalent to asArray == array.
+     */
+    int opEquals(V[] array)
+    {
+        return _array == array;
+    }
+}
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto al = new ArrayList!(uint);
+        al.add([0U, 1, 2, 3, 4, 5]);
+        assert(al.length == 6);
+        al.add(al[0..3]);
+        assert(al.length == 9);
+        foreach(ref dp, uint idx, uint val; al.purger)
+            dp = (val % 2 == 1);
+        assert(al.length == 5);
+        assert(al == [0U, 2, 4, 0, 2]);
+        assert(al == new ArrayList!(uint)([0U, 2, 4, 0, 2].dup));
+        assert(al.begin.ptr is al.asArray.ptr);
+        assert(al.end.ptr is al.asArray.ptr + al.length);
+    }
 }
