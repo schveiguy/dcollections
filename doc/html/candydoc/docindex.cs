@@ -89,7 +89,6 @@ the D Programming Language</div>
 
 <script type="text/javascript">searchHighlight()</script>
 
- </div>
  
  <div id="sitefooter">
   <p class="left">&copy; Copyright 2004-2008 - The Sankaty Group, Inc.
