@@ -52,19 +52,6 @@ the D Programming Language</div>
   <div id="nav_all">
    <div id="mainnav" class="nav"><ul><li class="active first"><a accesskey="1" href="/projects/dcollections/wiki">Wiki</a></li><li><a accesskey="2" href="/projects/dcollections/timeline">Timeline</a></li><li><a accesskey="3" href="/projects/dcollections/roadmap">Roadmap</a></li><li><a href="/projects/dcollections/browser">Browse Source</a></li><li><a href="/projects/dcollections/report">View Tickets</a></li><li><a accesskey="7" href="/projects/dcollections/newticket">New Ticket</a></li><li><a accesskey="4" href="/projects/dcollections/search">Search</a></li><li class="last"><a href="/projects/dcollections/admin">Admin</a></li></ul></div>
 
-   <div id="metanav" class="nav"><ul><li class="first">logged in as schveiguy</li><li><a href="/forums/login.php?logout=true&amp;sid=&amp;redirect=../projects/dcollections/wiki">Logout</a></li><li><a accesskey="6" href="/projects/dcollections/wiki/TracGuide">Help/Guide</a></li><li class="last"><a href="/projects/dcollections/about">About Trac</a></li></ul></div>
-   <div id="searchnav">
-   <form id="search" action="/projects/dcollections/search" method="get">
-    <div>
-     <label for="proj-search">Search:</label>
-     <input type="text" id="proj-search" name="q" size="10" accesskey="f" value="" />
-
-     <input type="submit" value="Search" />
-     <input type="hidden" name="wiki" value="on" />
-     <input type="hidden" name="changeset" value="on" />
-     <input type="hidden" name="ticket" value="on" />
-    </div>
-   </form>
    </div>
   </div>
 
@@ -72,18 +59,6 @@ the D Programming Language</div>
 
 
 
-
-<div id="ctxtnav" class="nav">
- <h2>Wiki Navigation</h2>
- <ul>
-   <li><a href="/projects/dcollections/wiki">Start Page</a></li>
-   <li><a href="/projects/dcollections/wiki/TitleIndex">Index by Title</a></li>
-
-   <li><a href="/projects/dcollections/wiki/RecentChanges">Index by Date</a></li>
-   <li class="last"><a href="/projects/dcollections/wiki/WikiStart?action=diff&amp;version=10">Last Change</a></li>
- </ul>
- <hr />
-</div>
 
 <div id="content" class="wiki">
 
@@ -115,8 +90,6 @@ the D Programming Language</div>
 </div>
 
 <script type="text/javascript">searchHighlight()</script>
-
-<div id="altlinks"><h3>Download in other formats:</h3><ul><li class="first"><a href="/projects/dcollections/wiki/WikiStart?format=txt">Plain Text</a></li><li><a href="/projects/dcollections/wiki/WikiStart?format=txt">Plain Text</a></li><li class="last"><a href="/projects/dcollections/wiki/WikiStart?format=txt">Plain Text</a></li></ul></div>
 
   </div>
  </div>
