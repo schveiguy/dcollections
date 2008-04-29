@@ -89,7 +89,6 @@ the D Programming Language</div>
 
 <script type="text/javascript">searchHighlight()</script>
 
-  </div>
  </div>
  
  <div id="sitefooter">
