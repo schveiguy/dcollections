@@ -86,7 +86,6 @@ the D Programming Language</div>
      <!--CONTENTEND-->
     </div>
    </div>
-</div>
 
 <script type="text/javascript">searchHighlight()</script>
 
