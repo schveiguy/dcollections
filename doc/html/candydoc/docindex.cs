@@ -52,7 +52,6 @@ the D Programming Language</div>
   <div id="nav_all">
    <div id="mainnav" class="nav"><ul><li class="active first"><a accesskey="1" href="/projects/dcollections/wiki">Wiki</a></li><li><a accesskey="2" href="/projects/dcollections/timeline">Timeline</a></li><li><a accesskey="3" href="/projects/dcollections/roadmap">Roadmap</a></li><li><a href="/projects/dcollections/browser">Browse Source</a></li><li><a href="/projects/dcollections/report">View Tickets</a></li><li><a accesskey="7" href="/projects/dcollections/newticket">New Ticket</a></li><li><a accesskey="4" href="/projects/dcollections/search">Search</a></li><li class="last"><a href="/projects/dcollections/admin">Admin</a></li></ul></div>
 
-   </div>
   </div>
 
   <div id="main">
