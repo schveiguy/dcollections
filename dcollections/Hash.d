@@ -243,6 +243,8 @@ struct Hash(V, bool allowDuplicates=false)
      */
     position begin()
     {
+        if(table.length == 0)
+            return end;
         position result;
         result.ptr = table[0];
         result.owner = this;

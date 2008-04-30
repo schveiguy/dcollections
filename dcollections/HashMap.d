@@ -257,7 +257,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
             if((dgret = dg(doPurge, tmpkey, it.position.ptr.value.val)) != 0)
                 break;
             if(doPurge)
-                remove(it++);
+                it = remove(it);
             else
                 it++;
         }
@@ -732,5 +732,58 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     HashMapType dup()
     {
         return new HashMapType(_hash);
+    }
+
+    /**
+     * Compare this HashMap with another Map
+     *
+     * Returns 0 if o is not a Map object, or the HashMap does not contain the
+     * same key/value pairs as the given map.
+     * Returns 1 if exactly the key/value pairs contained in the given map are
+     * in this HashMap.
+     */
+    int opEquals(Object o)
+    {
+        if(o is this)
+            return 1;
+
+        //
+        // try casting to map, otherwise, don't compare
+        //
+        auto m = cast(Map!(K, V))o;
+        if(m !is null)
+        {
+            if(m.length != length)
+                return 0;
+            auto _end = end;
+            foreach(K k, V v; m)
+            {
+                auto cu = find(k);
+                if(cu is _end || cu.value != v)
+                    return 0;
+            }
+            return 1;
+        }
+
+        return 0;
+    }
+}
+
+version(UnitTest)
+{
+    unittest
+    {
+        HashMap!(uint, uint) hm = new HashMap!(uint, uint);
+        Map!(uint, uint) m = hm;
+        for(int i = 0; i < 10; i++)
+            hm[i * i + 1] = i;
+        assert(hm.length == 10);
+        foreach(ref doPurge, k, v; hm.purger)
+        {
+            doPurge = (v % 2 == 1);
+        }
+        assert(hm.length == 5);
+        assert(hm.contains(6));
+        assert(hm.containsKey(6 * 6 + 1));
     }
 }

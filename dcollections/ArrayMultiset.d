@@ -488,3 +488,20 @@ class ArrayMultiset(V) : Multiset!(V)
         return retval;
     }
 }
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto ms = new ArrayMultiset!(uint);
+        ms.add([0U, 1, 2, 3, 4, 5]);
+        assert(ms.length == 6);
+        ms.remove(1);
+        assert(ms.length == 5);
+        assert(ms._head.next.value == [0U, 5, 2, 3, 4]);
+        foreach(ref dopurge, v; ms.purger)
+            dopurge = (v % 2 == 1);
+        assert(ms.length == 3);
+        assert(ms._head.next.value == [0U, 4, 2]);
+    }
+}
