@@ -499,6 +499,65 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         numRemoved = _tree.intersect(subset);
         return this;
     }
+
+    /**
+     * Compare this set with another set.  Returns true if both sets have the
+     * same length and every element in one set exists in the other set.
+     *
+     * If o is null or not a Set, return 0.
+     */
+    int opEquals(Object o)
+    {
+        if(o !is null)
+        {
+            auto s = cast(Set!(V))o;
+            if(s !is null && s.length == length)
+            {
+                auto ts = cast(TreeSetType)o;
+                auto _end = end;
+                if(ts !is null)
+                {
+                    if(length != ts.length)
+                        return 0;
+
+                    //
+                    // since we know treesets are sorted, compare elements
+                    // using cursors.  This makes opEquals O(n) operation,
+                    // versus O(n lg(n)) for other set types.
+                    //
+                    auto c1 = begin;
+                    auto c2 = ts.begin;
+                    while(c1 != _end)
+                    {
+                        if(c1++.value != c2++.value)
+                            return 0;
+                    }
+                    return 1;
+                }
+                else
+                {
+                    foreach(elem; s)
+                    {
+                        //
+                        // less work then calling contains(), which builds end
+                        // each time
+                        //
+                        if(find(elem) == _end)
+                            return 0;
+                    }
+
+                    //
+                    // equal
+                    //
+                    return 1;
+                }
+            }
+        }
+        //
+        // no comparison possible.
+        //
+        return 0;
+    }
 }
 
 version(UnitTest)

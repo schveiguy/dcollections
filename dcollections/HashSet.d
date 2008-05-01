@@ -504,6 +504,31 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     {
         return new HashSetType(_hash);
     }
+
+    int opEquals(Object o)
+    {
+        if(o !is null)
+        {
+            auto s = cast(Set!(V))o;
+            if(s !is null && s.length == length)
+            {
+                foreach(elem; s)
+                {
+                    if(!contains(elem))
+                        return 0;
+                }
+
+                //
+                // equal
+                //
+                return 1;
+            }
+        }
+        //
+        // no comparison possible.
+        //
+        return 0;
+    }
 }
 
 version(UnitTest)

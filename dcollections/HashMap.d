@@ -737,24 +737,19 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     /**
      * Compare this HashMap with another Map
      *
-     * Returns 0 if o is not a Map object, or the HashMap does not contain the
-     * same key/value pairs as the given map.
+     * Returns 0 if o is not a Map object, is null, or the HashMap does not
+     * contain the same key/value pairs as the given map.
      * Returns 1 if exactly the key/value pairs contained in the given map are
      * in this HashMap.
      */
     int opEquals(Object o)
     {
-        if(o is this)
-            return 1;
-
         //
         // try casting to map, otherwise, don't compare
         //
         auto m = cast(Map!(K, V))o;
-        if(m !is null)
+        if(m !is null && m.length == length)
         {
-            if(m.length != length)
-                return 0;
             auto _end = end;
             foreach(K k, V v; m)
             {

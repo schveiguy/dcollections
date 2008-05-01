@@ -235,17 +235,17 @@ struct LinkHead(V)
 
     void copyTo(ref LinkHead!(V) target, bool copyNodes=true)
     {
-      target = *this;
-      if(copyNodes)
-      {
-        target.end = end.dup;
-      }
-      else
-      {
-        //
-        // set up target like this one
-        //
-        target.setup();
-      }
+        target = *this;
+        if(copyNodes)
+        {
+            target.end = end.dup;
+        }
+        else
+        {
+            //
+            // set up target like this one
+            //
+            target.setup();
+        }
     }
 }

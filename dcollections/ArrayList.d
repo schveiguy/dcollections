@@ -903,47 +903,39 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
      * operator to compare two objects.
      *
      * If o is a List!(V), then this does a list compare.
-     * If o is null, then this is equivalent to asArray == null.
+     * If o is null or not an ArrayList, then the return value is 0.
      */
     int opEquals(Object o)
     {
         if(o !is null)
         {
-            auto al = cast(ArrayList!(V))o;
-            if(al !is null)
-                return _array == al._array;
             auto li = cast(List!(V))o;
-            if(li !is null)
+            if(li !is null && li.length == length)
             {
-                if(li.supportsLength)
+                auto al = cast(ArrayList!(V))o;
+                if(al !is null)
+                    return _array == al._array;
+                else
                 {
-                    if(li.length != length)
-                        return 0;
-                }
+                    int i = 0;
+                    foreach(elem; li)
+                    {
+                        if(elem != _array[i++])
+                            return 0;
+                    }
 
-                int i = 0;
-                foreach(elem; li)
-                {
-                    if(i >= _array.length || elem != _array[i++])
-                        return 0;
+                    //
+                    // equal
+                    //
+                    return 1;
                 }
-                if(i != length)
-                    return 0;
-
-                //
-                // equal
-                //
-                return 1;
             }
-            //
-            // no comparison possible.
-            //
-            return 0;
+
         }
-        else
-        {
-            return _array == null;
-        }
+        //
+        // no comparison possible.
+        //
+        return 0;
     }
 
     /**

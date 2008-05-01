@@ -128,4 +128,12 @@ interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
      * covariant set (from Keyed)
      */
     Map!(K, V) set(K key, V value, ref bool wasAdded);
+
+    /**
+     * compare two maps.  Returns true if both maps have the same number of
+     * elements, and both maps have elements whose keys and values are equal.
+     *
+     * If o is not a map, then 0 is returned.
+     */
+    int opEquals(Object o);
 }

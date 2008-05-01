@@ -80,4 +80,12 @@ interface Set(V) : Collection!(V), Addable!(V)
      * Covariant add (from Addable)
      */
     Set!(V) add(V[] array, ref uint numAdded);
+
+    /**
+     * Compare two sets.  Returns true if both sets have the same number of
+     * elements, and all elements in one set exist in the other set.
+     *
+     * if o is not a Set, return false.
+     */
+    int opEquals(Object o);
 }

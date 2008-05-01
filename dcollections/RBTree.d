@@ -1082,7 +1082,7 @@ struct RBTree(V, bool allowDuplicates=false)
         return origcount - count;
     }
 
-    void copyTo(RBTree!(V, allowDuplicates) target)
+    void copyTo(ref RBTree!(V, allowDuplicates) target)
     {
         target = *this;
 

@@ -106,4 +106,12 @@ interface List(V) : Collection!(V), Addable!(V), Multi!(V)
      * covariant removeAll (from Multi)
      */
     List!(V) removeAll(V v, ref uint numRemoved);
+
+    /**
+     * compare this list to another list.  Returns true if they have the same
+     * number of elements and all the elements are equal.
+     *
+     * If o is not a list, then 0 is returned.
+     */
+    int opEquals(Object o);
 }

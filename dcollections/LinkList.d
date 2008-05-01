@@ -617,6 +617,31 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         return new LinkListType(_link, true);
     }
+
+    /**
+     * Compare this list with another list.  Returns true if both lists have
+     * the same length and all the elements are the same.
+     *
+     * If o is null or not a List, return 0.
+     */
+    int opEquals(Object o)
+    {
+        if(o !is null)
+        {
+            auto li = cast(List!(V))o;
+            if(li !is null && li.length == length)
+            {
+                auto c = begin;
+                foreach(elem; li)
+                {
+                    if(elem != c++.value)
+                        return 0;
+                }
+                return 1;
+            }
+        }
+        return 0;
+    }
 }
 
 version(UnitTest)

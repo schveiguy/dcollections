@@ -739,6 +739,52 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     {
         return new TreeMapType(_tree);
     }
+
+    /**
+     * Compare this TreeMap with another Map
+     *
+     * Returns 0 if o is not a Map object, is null, or the TreeMap does not
+     * contain the same key/value pairs as the given map.
+     * Returns 1 if exactly the key/value pairs contained in the given map are
+     * in this TreeMap.
+     */
+    int opEquals(Object o)
+    {
+        //
+        // try casting to map, otherwise, don't compare
+        //
+        auto m = cast(Map!(K, V))o;
+        if(m !is null && m.length == length)
+        {
+            auto _end = end;
+            auto tm = cast(TreeMapType)o;
+            if(tm !is null)
+            {
+                //
+                // special case, we know that a tree map is sorted.
+                //
+                auto c1 = begin;
+                auto c2 = tm.begin;
+                while(c1 != _end)
+                {
+                    if(c1.key != c2.key || c1++.value != c2++.value)
+                        return 0;
+                }
+            }
+            else
+            {
+                foreach(K k, V v; m)
+                {
+                    auto cu = find(k);
+                    if(cu is _end || cu.value != v)
+                        return 0;
+                }
+            }
+            return 1;
+        }
+
+        return 0;
+    }
 }
 
 version(UnitTest)
