@@ -500,3 +500,18 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         return this;
     }
 }
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto ts = new TreeSet!(uint);
+        Set!(uint) s = ts;
+        s.add([0U, 1, 2, 3, 4, 5, 5]);
+        assert(s.length == 6);
+        foreach(ref doPurge, i; s.purger)
+            doPurge = (i % 2 == 1);
+        assert(s.length == 3);
+        assert(s.contains(4));
+    }
+}

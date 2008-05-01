@@ -415,12 +415,38 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
+    HashSetType add(Iterator!(V) it)
+    {
+        foreach(v; it)
+            _hash.add(v);
+        return this;
+    }
+
+    /**
+     * Adds all the elements from the iterator to the set.  Returns the number
+     * of elements added.
+     *
+     * Runs on average in O(1) + O(m) time, where m is the number of elements
+     * in the iterator.
+     */
     HashSetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; it)
-            _hash.add(v);
+        add(it);
         numAdded = length - origlength;
+        return this;
+    }
+
+    /**
+     * Adds all the elements from the array to the set.  Returns the number of
+     * elements added.
+     *
+     * Runs on average in O(1) + O(m) time, where m is the array length.
+     */
+    HashSetType add(V[] array)
+    {
+        foreach(v; array)
+            _hash.add(v);
         return this;
     }
 
@@ -433,9 +459,41 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     HashSetType add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; array)
-            _hash.add(v);
+        add(array);
         numAdded = length - origlength;
+        return this;
+    }
+
+    /**
+     * Remove all the values from the set that are not in the given subset
+     *
+     * returns this.
+     */
+    HashSetType intersect(Iterator!(V) subset)
+    {
+        //
+        // intersection is more difficult than removal, because we do not have
+        // insight into the implementation details.  Therefore, make the
+        // implementation do it.
+        //
+        _hash.intersect(subset);
+        return this;
+    }
+
+    /**
+     * Remove all the values from the set that are not in the given subset.
+     * Sets numRemoved to the number of elements removed.
+     *
+     * returns this.
+     */
+    HashSetType intersect(Iterator!(V) subset, ref uint numRemoved)
+    {
+        //
+        // intersection is more difficult than removal, because we do not have
+        // insight into the implementation details.  Therefore, make the
+        // implementation do it.
+        //
+        numRemoved = _hash.intersect(subset);
         return this;
     }
 
@@ -445,5 +503,20 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     HashSetType dup()
     {
         return new HashSetType(_hash);
+    }
+}
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto hs = new HashSet!(uint);
+        Set!(uint) s = hs;
+        s.add([0U, 1, 2, 3, 4, 5, 5]);
+        assert(s.length == 6);
+        foreach(ref doPurge, i; s.purger)
+            doPurge = (i % 2 == 1);
+        assert(s.length == 3);
+        assert(s.contains(4));
     }
 }

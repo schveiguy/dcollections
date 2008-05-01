@@ -740,3 +740,22 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         return new TreeMapType(_tree);
     }
 }
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto tm = new TreeMap!(uint, uint);
+        Map!(uint, uint) m = tm;
+        for(int i = 0; i < 10; i++)
+            m[i * i + 1] = i;
+        assert(m.length == 10);
+        foreach(ref doPurge, k, v; m.purger)
+        {
+            doPurge = (v % 2 == 1);
+        }
+        assert(m.length == 5);
+        assert(m.contains(6));
+        assert(m.containsKey(6 * 6 + 1));
+    }
+}

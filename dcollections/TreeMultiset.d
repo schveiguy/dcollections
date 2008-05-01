@@ -486,3 +486,19 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
         return new TreeMultiset(_tree);
     }
 }
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto tms = new TreeMultiset!(uint);
+        Multiset!(uint) ms = tms;
+        ms.add([0U, 1, 2, 3, 4, 5, 5]);
+        assert(ms.length == 7);
+        assert(ms.count(5U) == 2);
+        foreach(ref doPurge, i; ms.purger)
+            doPurge = (i % 2 == 1);
+        assert(ms.count(5U) == 0);
+        assert(ms.length == 3);
+    }
+}

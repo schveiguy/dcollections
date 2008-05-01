@@ -495,3 +495,19 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
         return new HashMultisetType(_hash);
     }
 }
+
+version(UnitTest)
+{
+    unittest
+    {
+        auto hms = new HashMultiset!(uint);
+        Multiset!(uint) ms = hms;
+        hms.add([0U, 1, 2, 3, 4, 5, 5]);
+        assert(hms.length == 7);
+        assert(ms.count(5U) == 2);
+        foreach(ref doPurge, i; ms.purger)
+            doPurge = (i % 2 == 1);
+        assert(ms.count(5U) == 0);
+        assert(ms.length == 3);
+    }
+}
