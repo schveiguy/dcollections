@@ -133,6 +133,7 @@ class Link(V)
             auto x = new Node(n.value);
             attach(cur, x);
             cur = x;
+            n = n.next;
         }
         if(n is this)
         {

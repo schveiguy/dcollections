@@ -558,6 +558,29 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         //
         return 0;
     }
+
+    /**
+     * get the most convenient element in the set.  This is the element that
+     * would be iterated first.  Therefore, calling remove(get()) is
+     * guaranteed to be less than an O(n) operation.
+     */
+    V get()
+    {
+        return begin.value;
+    }
+
+    /**
+     * Remove the most convenient element from the set, and return its value.
+     * This is equivalent to remove(get()), except that only one lookup is
+     * performed.
+     */
+    V take()
+    {
+        auto c = begin;
+        auto retval = c.value;
+        remove(c);
+        return retval;
+    }
 }
 
 version(UnitTest)

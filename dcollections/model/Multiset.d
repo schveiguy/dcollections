@@ -81,4 +81,22 @@ interface Multiset(V) : Collection!(V), Addable!(V), Multi!(V)
      * covariant removeAll (from Multi)
      */
     Multiset!(V) removeAll(V v, ref uint numRemoved);
+
+    /**
+     * gets the most convenient element in the multiset.  Note that no
+     * particular order of elements is assumed, so this might be the last
+     * element added, might be the first, might be one in the middle.  This
+     * element would be the first iterated if the multiset is used as an
+     * iterator.  Therefore, the removal of this element via remove(get())
+     * would be less than the normal O(n) runtime.
+     */
+    V get();
+
+    /**
+     * Remove the most convenient element in the multiset and return its
+     * value.  This is equivalent to remove(get()), but only does one lookup.
+     *
+     * Undefined if called on an empty multiset.
+     */
+    V take();
 }

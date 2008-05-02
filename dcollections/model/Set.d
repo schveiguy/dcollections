@@ -88,4 +88,18 @@ interface Set(V) : Collection!(V), Addable!(V)
      * if o is not a Set, return false.
      */
     int opEquals(Object o);
+
+    /**
+     * get the most convenient element in the set.  This is the element that
+     * would be iterated first.  Therefore, calling remove(get()) is
+     * guaranteed to be less than an O(n) operation.
+     */
+    V get();
+
+    /**
+     * Remove the most convenient element from the set, and return its value.
+     * This is equivalent to remove(get()), except that only one lookup is
+     * performed.
+     */
+    V take();
 }

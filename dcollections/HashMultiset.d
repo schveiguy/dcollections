@@ -405,8 +405,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     HashMultisetType add(Iterator!(V) it)
     {
-        uint ignored;
-        return add(it);
+        foreach(v; it)
+            _hash.add(v);
+        return this;
     }
 
     /**
@@ -419,8 +420,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     HashMultisetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
-        foreach(v; it)
-            _hash.add(v);
+        add(it);
         numAdded = length - origlength;
         return this;
     }
@@ -493,6 +493,29 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     HashMultisetType dup()
     {
         return new HashMultisetType(_hash);
+    }
+
+    /**
+     * get the most convenient element in the set.  This is the element that
+     * would be iterated first.  Therefore, calling remove(get()) is
+     * guaranteed to be less than an O(n) operation.
+     */
+    V get()
+    {
+        return begin.value;
+    }
+
+    /**
+     * Remove the most convenient element from the set, and return its value.
+     * This is equivalent to remove(get()), except that only one lookup is
+     * performed.
+     */
+    V take()
+    {
+        auto c = begin;
+        auto retval = c.value;
+        remove(c);
+        return retval;
     }
 }
 

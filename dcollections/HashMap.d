@@ -582,8 +582,9 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
      */
     HashMapType remove(Iterator!(K) subset)
     {
-        uint ignored;
-        return remove(subset, ignored);
+        foreach(k; subset)
+            removeAt(k);
+        return this;
     }
 
     /**
@@ -593,8 +594,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
     HashMapType remove(Iterator!(K) subset, ref uint numRemoved)
     {
         uint origlength = length;
-        foreach(k; subset)
-            removeAt(k);
+        remove(subset);
         numRemoved = origlength - length;
         return this;
     }

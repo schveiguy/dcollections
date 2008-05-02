@@ -515,7 +515,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     TreeMapType remove(Iterator!(K) subset)
     {
         foreach(k; subset)
-            remove(k);
+            removeAt(k);
         return this;
     }
 

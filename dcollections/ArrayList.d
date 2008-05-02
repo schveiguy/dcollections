@@ -21,7 +21,7 @@ public import dcollections.model.List,
  * function.  Neither of these make copies of the array, so you can continue
  * to use the array in both forms.
  */
-class ArrayList(V) : List!(V), Keyed!(uint, V)
+class ArrayList(V) : Keyed!(uint, V), List!(V) 
 {
     private V[] _array;
     private uint _mutation;
@@ -198,8 +198,9 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
         _mutation = parent._mutation;
         checkMutation();
         uint ib = s - parent._begin;
-        uint ie = e - s;
+        uint ie = e - parent._begin;
         _array = parent._array[ib..ie];
+        _purger = new Purger();
     }
 
     /**
@@ -277,19 +278,19 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
 
     private int _apply(int delegate(ref bool, ref uint, ref V) dg, cursor start, cursor last, cursor reference)
     {
+        int dgret;
         if(isAncestor)
         {
             cursor i = start;
             cursor nextGood = start;
             cursor endref = _end;
 
-            int dgret;
             bool doRemove;
 
             //
             // loop before removal
             //
-            for(; dgret == 0 && i < last; i++, nextGood++)
+            for(; dgret == 0 && i != last; i++, nextGood++)
             {
                 doRemove = false;
                 uint key = i - reference;
@@ -348,7 +349,6 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
                 _array.length = nextGood - _begin;
                 return endref - nextGood;
             }
-            return dgret;
         }
         else
         {
@@ -359,7 +359,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
             checkMutation();
             auto p = nextParent;
             auto origLength = p._array.length;
-            p._apply(dg, start, last, _begin);
+            dgret = p._apply(dg, start, last, _begin);
             auto numRemoved = origLength - p._array.length;
             if(numRemoved > 0)
             {
@@ -367,6 +367,7 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
                 _mutation = _ancestor._mutation;
             }
         }
+        return dgret;
     }
 
     private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
@@ -946,6 +947,46 @@ class ArrayList(V) : List!(V), Keyed!(uint, V)
     int opEquals(V[] array)
     {
         return _array == array;
+    }
+
+    /**
+     *  Look at the element at the front of the ArrayList.
+     */
+    V front()
+    {
+        return begin.value;
+    }
+
+    /**
+     * Look at the element at the end of the ArrayList.
+     */
+    V back()
+    {
+        return (end - 1).value;
+    }
+
+    /**
+     * Remove the element at the front of the ArrayList and return its value.
+     * This is an O(n) operation.
+     */
+    V takeFront()
+    {
+        auto c = begin;
+        auto retval = c.value;
+        remove(c);
+        return retval;
+    }
+
+    /**
+     * Remove the element at the end of the ArrayList and return its value.
+     * This can be an O(n) operation.
+     */
+    V takeBack()
+    {
+        auto c = end - 1;
+        auto retval = c.value;
+        remove(c);
+        return retval;
     }
 }
 

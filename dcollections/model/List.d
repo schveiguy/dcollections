@@ -114,4 +114,28 @@ interface List(V) : Collection!(V), Addable!(V), Multi!(V)
      * If o is not a list, then 0 is returned.
      */
     int opEquals(Object o);
+
+    /**
+     * Returns the element at the front of the list, or the oldest element
+     * added.  If the list is empty, calling front is undefined.
+     */
+    V front();
+
+    /**
+     * Returns the element at the end of the list, or the most recent element
+     * added.  If the list is empty, calling back is undefined.
+     */
+    V back();
+
+    /**
+     * Takes the element at the front of the list, and return its value.  This
+     * operation can be as high as O(n).
+     */
+    V takeFront();
+
+    /**
+     * Takes the element at the end of the list, and return its value.  This
+     * operation can be as high as O(n).
+     */
+    V takeBack();
 }
