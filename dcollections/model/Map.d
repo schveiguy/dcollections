@@ -38,6 +38,24 @@ interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
     Map!(K, V) set(KeyedIterator!(K, V) source, ref uint numAdded);
 
     /**
+     * set all the elements from the given associative array in the map.  Any
+     * key that already exists wil be overridden.
+     *
+     * Returns this.
+     */
+    Map!(K, V) set(K[V] source);
+
+    /**
+     * set all the elements from the given associative array in the map.  Any
+     * key that already exists wil be overridden.
+     *
+     * Returns this.
+     *
+     * numAdded is set to the number of elements added.
+     */
+    Map!(K, V) set(K[V] source, ref uint numAdded);
+
+    /**
      * Remove all the given keys from the map.
      *
      * return this.
@@ -68,6 +86,22 @@ interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
      * returns this.
      */
     Map!(K, V) intersect(Iterator!(K) subset, ref uint numRemoved);
+
+    /**
+     * Remove all the keys that are not in the given array.
+     *
+     * returns this.
+     */
+    Map!(K, V) intersect(K[] subset);
+
+    /**
+     * Remove all the keys that are not in the given array.
+     *
+     * sets numRemoved to the number of elements removed.
+     *
+     * returns this.
+     */
+    Map!(K, V) intersect(K[] subset, ref uint numRemoved);
 
     /**
      * Get a set of the keys that the map contains.  This is not a copy of the
