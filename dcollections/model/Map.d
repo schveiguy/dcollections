@@ -43,7 +43,7 @@ interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
      *
      * Returns this.
      */
-    Map!(K, V) set(K[V] source);
+    Map!(K, V) set(V[K] source);
 
     /**
      * set all the elements from the given associative array in the map.  Any
@@ -53,7 +53,7 @@ interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
      *
      * numAdded is set to the number of elements added.
      */
-    Map!(K, V) set(K[V] source, ref uint numAdded);
+    Map!(K, V) set(V[K] source, ref uint numAdded);
 
     /**
      * Remove all the given keys from the map.
