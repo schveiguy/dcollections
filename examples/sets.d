@@ -11,7 +11,7 @@ import dcollections.TreeSet;
 import dcollections.ArrayList;
 import tango.io.Stdout;
 
-void print(Set!(int) s, char[] message)
+void print(Iterator!(int) s, char[] message)
 {
     Stdout(message ~ " [");
     foreach(i; s)
