@@ -4,7 +4,8 @@
 
    License: $(LICENSE)
 
-   This is a collection of useful iterators.
+   This is a collection of useful iterators, and iterator
+   functions.
 **********************************************************/
 module dcollections.Iterators;
 
@@ -18,28 +19,48 @@ class TransformIterator(V, U=V) : Iterator!(V)
     private V delegate(ref U) _dg;
     private V function(ref U) _fn;
 
+    /**
+     * Construct a transform iterator using a transform delegate.
+     *
+     * The transform function transforms a type U object into a type V object.
+     */
     this(Iterator!(U) source, V delegate(ref U) dg)
     {
         _src = source;
         _dg = dg;
     }
 
+    /**
+     * Construct a transform iterator using a transform function pointer.
+     *
+     * The transform function transforms a type U object into a type V object.
+     */
     this(Iterator!(U) source, V function(ref U) fn)
     {
         _src = source;
         _fn = fn;
     }
 
+    /**
+     * Returns true if the source iterator suports length.
+     */
     bool supportsLength()
     {
         return _src.supportsLength;
     }
 
+    /**
+     * Returns the length that the source provides.
+     */
     uint length()
     {
         return _src.length;
     }
 
+    /**
+     * Iterate through the source iterator, working with temporary copies of a
+     * transformed V element.
+     */
     int opApply(int delegate(ref V v) dg)
     {
         int privateDG(ref U u)
@@ -62,12 +83,20 @@ class TransformIterator(V, U=V) : Iterator!(V)
 }
 
 /**
- * A Chain iterator iterates through a chain of iterators.
+ * A Chain iterator chains several iterators together.
  */
 class ChainIterator(V) : Iterator!(V)
 {
     private Iterator!(V)[] _chain;
     private bool _supLength;
+
+    /**
+     * Constructor.  Pass in the iterators you wish to chain together in the
+     * order you wish them to be chained.
+     *
+     * If all of the iterators support length, then this iterator supports
+     * length.  If one doesn't, then the length is not supported.
+     */
     this(Iterator!(V)[] chain ...)
     {
         _chain = chain.dup;
@@ -80,19 +109,33 @@ class ChainIterator(V) : Iterator!(V)
             }
     }
 
-    bool supportsLength
+    /**
+     * Returns true if all the iterators in the chain support length.
+     */
+    bool supportsLength()
     {
         return _supLength;
     }
 
+    /**
+     * Returns the sum of all the iterator lengths in the chain.
+     *
+     * returns 0 if supportsLength is false.
+     */
     uint length()
     {
         uint result = 0;
-        foreach(it; _chain)
-            result += it.length;
+        if(_supLength)
+        {
+            foreach(it; _chain)
+                result += it.length;
+        }
         return result;
     }
 
+    /**
+     * Iterate through the chain of iterators.
+     */
     int opApply(int delegate(ref V v) dg)
     {
         int result = 0;
@@ -115,18 +158,34 @@ class FilterIterator(V) : Iterator!(V)
     private bool delegate(ref V) _dg;
     private bool function(ref V) _fn;
 
+    /**
+     * Construct a filter iterator with the given delegate deciding whether an
+     * element will be iterated or not.
+     *
+     * The delegate should return true for elements that should be iterated.
+     */
     this(Iterator!(V) source, bool delegate(ref V) dg)
     {
         _src = source;
         _dg = dg;
     }
 
+    /**
+     * Construct a filter iterator with the given function deciding whether an
+     * element will be iterated or not.
+     *
+     * the function should return true for elements that should be iterated.
+     */
     this(Iterator!(V) source, bool function(ref V) fn)
     {
         _src = source;
         _fn = fn;
     }
 
+    /**
+     * Always returns false.  It is impossible to tell how many elements from
+     * the underlying iterator will pass the filter function.
+     */
     bool supportsLength()
     {
         //
@@ -135,6 +194,9 @@ class FilterIterator(V) : Iterator!(V)
         return false;
     }
 
+    /**
+     * Returns 0
+     */
     uint length()
     {
         //
@@ -143,6 +205,10 @@ class FilterIterator(V) : Iterator!(V)
         return 0;
     }
 
+    /**
+     * Iterate through the source iterator, only accepting elements where the
+     * delegate/function returns true.
+     */
     int opApply(int delegate(ref V v) dg)
     {
         int privateDG(ref V v)
@@ -167,7 +233,9 @@ class FilterIterator(V) : Iterator!(V)
 }
 
 /**
- * Convert an iterator to an array
+ * Function that converts an iterator to an array.
+ *
+ * More optimized for iterators that support a length.
  */
 V[] toArray(V)(Iterator!(V) it)
 {
@@ -190,7 +258,7 @@ V[] toArray(V)(Iterator!(V) it)
 }
 
 /**
- * Convert a keyed iterator to an associative array
+ * Convert a keyed iterator to an associative array.
  */
 V[K] toAA(K, V)(KeyedIterator!(K, V) it)
 {
