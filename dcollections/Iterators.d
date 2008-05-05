@@ -18,15 +18,15 @@ public import dcollections.model.Iterator;
 class TransformIterator(V, U=V) : Iterator!(V)
 {
     private Iterator!(U) _src;
-    private V delegate(ref U) _dg;
-    private V function(ref U) _fn;
+    private void delegate(ref U, ref V) _dg;
+    private void function(ref U, ref V) _fn;
 
     /**
      * Construct a transform iterator using a transform delegate.
      *
      * The transform function transforms a type U object into a type V object.
      */
-    this(Iterator!(U) source, V delegate(ref U) dg)
+    this(Iterator!(U) source, void delegate(ref U, ref V) dg)
     {
         _src = source;
         _dg = dg;
@@ -37,7 +37,7 @@ class TransformIterator(V, U=V) : Iterator!(V)
      *
      * The transform function transforms a type U object into a type V object.
      */
-    this(Iterator!(U) source, V function(ref U) fn)
+    this(Iterator!(U) source, void function(ref U, ref V) fn)
     {
         _src = source;
         _fn = fn;
@@ -67,14 +67,121 @@ class TransformIterator(V, U=V) : Iterator!(V)
     {
         int privateDG(ref U u)
         {
-            auto v = _dg(u);
+            V v;
+            _dg(u, v);
             return dg(v);
         }
 
         int privateFN(ref U u)
         {
-            auto v = _fn(u);
+            V v;
+            _fn(u, v);
             return dg(v);
+        }
+
+        if(_dg is null)
+            return _src.opApply(&privateFN);
+        else
+            return _src.opApply(&privateDG);
+    }
+}
+
+/**
+ * Transform for a keyed iterator
+ */
+class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
+{
+    private KeyedIterator!(J, U) _src;
+    private void delegate(ref J, ref U, ref K, ref V) _dg;
+    private void function(ref J, ref U, ref K, ref V) _fn;
+
+    /**
+     * Construct a transform iterator using a transform delegate.
+     *
+     * The transform function transforms a J, U pair into a K, V pair.
+     */
+    this(KeyedIterator!(J, U) source, void delegate(ref J, ref U, ref K, ref V) dg)
+    {
+        _src = source;
+        _dg = dg;
+    }
+
+    /**
+     * Construct a transform iterator using a transform function pointer.
+     *
+     * The transform function transforms a J, U pair into a K, V pair.
+     */
+    this(KeyedIterator!(J, U) source, void function(ref J, ref U, ref K, ref V) fn)
+    {
+        _src = source;
+        _fn = fn;
+    }
+
+    /**
+     * Returns true if the source iterator suports length.
+     */
+    bool supportsLength()
+    {
+        return _src.supportsLength;
+    }
+
+    /**
+     * Returns the length that the source provides.
+     */
+    uint length()
+    {
+        return _src.length;
+    }
+
+    /**
+     * Iterate through the source iterator, working with temporary copies of a
+     * transformed V element.  Note that K can be ignored if this is the only
+     * use for the iterator.
+     */
+    int opApply(int delegate(ref V v) dg)
+    {
+        int privateDG(ref J j, ref U u)
+        {
+            K k;
+            V v;
+            _dg(j, u, k, v);
+            return dg(v);
+        }
+
+        int privateFN(ref J j, ref U u)
+        {
+            K k;
+            V v;
+            _fn(j, u, k, v);
+            return dg(v);
+        }
+
+        if(_dg is null)
+            return _src.opApply(&privateFN);
+        else
+            return _src.opApply(&privateDG);
+    }
+
+    /**
+     * Iterate through the source iterator, working with temporary copies of a
+     * transformed K,V pair.
+     */
+    int opApply(int delegate(ref K k, ref V v) dg)
+    {
+        int privateDG(ref J j, ref U u)
+        {
+            K k;
+            V v;
+            _dg(j, u, k, v);
+            return dg(k, v);
+        }
+
+        int privateFN(ref J j, ref U u)
+        {
+            K k;
+            V v;
+            _fn(j, u, k, v);
+            return dg(k, v);
         }
 
         if(_dg is null)
@@ -139,6 +246,86 @@ class ChainIterator(V) : Iterator!(V)
      * Iterate through the chain of iterators.
      */
     int opApply(int delegate(ref V v) dg)
+    {
+        int result = 0;
+        foreach(it; _chain)
+        {
+            if((result = it.opApply(dg)) != 0)
+                break;
+        }
+        return result;
+    }
+}
+
+/**
+ * A Chain iterator chains several iterators together.
+ */
+class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
+{
+    private KeyedIterator!(K, V)[] _chain;
+    private bool _supLength;
+
+    /**
+     * Constructor.  Pass in the iterators you wish to chain together in the
+     * order you wish them to be chained.
+     *
+     * If all of the iterators support length, then this iterator supports
+     * length.  If one doesn't, then the length is not supported.
+     */
+    this(KeyedIterator!(K, V)[] chain ...)
+    {
+        _chain = chain.dup;
+        _supLength = true;
+        foreach(it; _chain)
+            if(!it.supportsLength)
+            {
+                _supLength = false;
+                break;
+            }
+    }
+
+    /**
+     * Returns true if all the iterators in the chain support length.
+     */
+    bool supportsLength()
+    {
+        return _supLength;
+    }
+
+    /**
+     * Returns the sum of all the iterator lengths in the chain.
+     *
+     * returns 0 if supportsLength is false.
+     */
+    uint length()
+    {
+        uint result = 0;
+        if(_supLength)
+        {
+            foreach(it; _chain)
+                result += it.length;
+        }
+        return result;
+    }
+
+    /**
+     * Iterate through the chain of iterators using values only.
+     */
+    int opApply(int delegate(ref V v) dg)
+    {
+        int result = 0;
+        foreach(it; _chain)
+        {
+            if((result = it.opApply(dg)) != 0)
+                break;
+        }
+        return result;
+    }
+
+    /**
+     * Iterate through the chain of iterators using keys and values.
+     */
+    int opApply(int delegate(ref K, ref V) dg)
     {
         int result = 0;
         foreach(it; _chain)
@@ -224,6 +411,116 @@ class FilterIterator(V) : Iterator!(V)
         {
             if(_fn(v))
                 return dg(v);
+            return 0;
+        }
+
+        if(_dg is null)
+            return _src.opApply(&privateFN);
+        else
+            return _src.opApply(&privateDG);
+    }
+}
+
+/**
+ * A Filter iterator filters out unwanted elements based on a function or
+ * delegate.  This version filters on a keyed iterator.
+ */
+class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
+{
+    private KeyedIterator!(K, V) _src;
+    private bool delegate(ref K, ref V) _dg;
+    private bool function(ref K, ref V) _fn;
+
+    /**
+     * Construct a filter iterator with the given delegate deciding whether a
+     * key/value pair will be iterated or not.
+     *
+     * The delegate should return true for elements that should be iterated.
+     */
+    this(KeyedIterator!(K, V) source, bool delegate(ref K, ref V) dg)
+    {
+        _src = source;
+        _dg = dg;
+    }
+
+    /**
+     * Construct a filter iterator with the given function deciding whether a
+     * key/value pair will be iterated or not.
+     *
+     * the function should return true for elements that should be iterated.
+     */
+    this(KeyedIterator!(K, V) source, bool function(ref K, ref V) fn)
+    {
+        _src = source;
+        _fn = fn;
+    }
+
+    /**
+     * Always returns false.  It is impossible to tell how many elements from
+     * the underlying iterator will pass the filter function.
+     */
+    bool supportsLength()
+    {
+        //
+        // cannot know what the filter delegate/function will decide.
+        //
+        return false;
+    }
+
+    /**
+     * Returns 0
+     */
+    uint length()
+    {
+        //
+        // cannot know what the filter delegate/function will decide.
+        //
+        return 0;
+    }
+
+    /**
+     * Iterate through the source iterator, only iterating elements where the
+     * delegate/function returns true.
+     */
+    int opApply(int delegate(ref V v) dg)
+    {
+        int privateDG(ref K k, ref V v)
+        {
+            if(_dg(k, v))
+                return dg(v);
+            return 0;
+        }
+
+        int privateFN(ref K k, ref V v)
+        {
+            if(_fn(k, v))
+                return dg(v);
+            return 0;
+        }
+
+        if(_dg is null)
+            return _src.opApply(&privateFN);
+        else
+            return _src.opApply(&privateDG);
+    }
+
+    /**
+     * Iterate through the source iterator, only iterating elements where the
+     * delegate/function returns true.
+     */
+    int opApply(int delegate(ref K k, ref V v) dg)
+    {
+        int privateDG(ref K k, ref V v)
+        {
+            if(_dg(k, v))
+                return dg(k, v);
+            return 0;
+        }
+
+        int privateFN(ref K k, ref V v)
+        {
+            if(_fn(k, v))
+                return dg(k, v);
             return 0;
         }
 
