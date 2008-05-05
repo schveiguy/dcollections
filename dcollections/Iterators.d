@@ -9,6 +9,8 @@
 **********************************************************/
 module dcollections.Iterators;
 
+public import dcollections.model.Iterator;
+
 /**
  * This iterator transforms every element from another iterator using a
  * transformation function.
@@ -233,6 +235,94 @@ class FilterIterator(V) : Iterator!(V)
 }
 
 /**
+ * Simple iterator wrapper for an array.
+ */
+class ArrayIterator(V) : Iterator!(V)
+{
+    private V[] _array;
+
+    /**
+     * Wrap a given array.  Note that this does not make a copy.
+     */
+    this(V[] array)
+    {
+        _array = array;
+    }
+
+    /**
+     * Always returns true, because arrays always have a length field.
+     */
+    bool supportsLength()
+    {
+        return true;
+    }
+
+    /**
+     * Returns the array length
+     */
+    uint length()
+    {
+        return _array.length;
+    }
+
+    /**
+     * Iterate over the array.
+     */
+    int opApply(int delegate(ref V) dg)
+    {
+        int retval = 0;
+        foreach(ref x; _array)
+            if((retval = dg(x)) != 0)
+                break;
+        return retval;
+    }
+}
+
+/**
+ * Wrapper iterator for an associative array
+ */
+class AAIterator(K, V) : KeyedIterator!(K, V)
+{
+    private V[K] _array;
+
+    /**
+     * Construct an iterator wrapper for the given array
+     */
+    this(V[K] array)
+    {
+        _array = array;
+    }
+
+    /**
+     * always supports length, because AA's support length
+     */
+    bool supportsLength()
+    {
+        return true;
+    }
+
+    /**
+     * Returns the length of the wrapped AA
+     */
+    uint length()
+    {
+        return _array.length;
+    }
+
+    /**
+     * Iterate over the AA
+     */
+    int opApply(int delegate(ref K, ref V) dg)
+    {
+        int retval;
+        foreach(k, ref v; _array)
+            if((retval = dg(k, v)) != 0)
+                break;
+        return retval;
+    }
+}
+
+/**
  * Function that converts an iterator to an array.
  *
  * More optimized for iterators that support a length.
@@ -255,6 +345,7 @@ V[] toArray(V)(Iterator!(V) it)
         foreach(v; it)
             result ~= v;
     }
+    return result;
 }
 
 /**

@@ -72,6 +72,22 @@ interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
     Map!(K, V) remove(Iterator!(K) subset, ref uint numRemoved);
 
     /**
+     * Remove all the given keys from the map.
+     *
+     * return this.
+     */
+    Map!(K, V) remove(K[] subset);
+
+    /**
+     * Remove all the given keys from the map.
+     *
+     * return this.
+     *
+     * numRemoved is set to the number of elements removed.
+     */
+    Map!(K, V) remove(K[] subset, ref uint numRemoved);
+
+    /**
      * Remove all the keys that are not in the given iterator.
      *
      * returns this.

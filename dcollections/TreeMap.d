@@ -10,6 +10,7 @@ module dcollections.TreeMap;
 public import dcollections.model.Map;
 
 private import dcollections.RBTree;
+private import dcollections.Iterators;
 
 /**
  * Implementation of the Map interface using Red-Black trees.  this allows for
@@ -544,7 +545,10 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         // create a wrapper iterator that generates elements from keys.  Then
         // defer the intersection operation to the implementation.
         //
-        static class wrapper : Iterator!(element)
+        // scope allocates on the stack.
+        //
+        scope w = new TransformIterator!(element, K)(subset, function element(ref K k) { element e; e.key = k; return e;});
+        /*static class wrapper : Iterator!(element)
         {
             Iterator!(K) wrapped;
             this(Iterator!(K) wrapped)
@@ -571,7 +575,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
             }
         }
 
-        scope w = new wrapper(subset);
+        scope w = new wrapper(subset);*/
         numRemoved = _tree.intersect(w);
         return this;
     }
@@ -785,6 +789,87 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
 
         return 0;
     }
+
+    /**
+     * Set all the elements from the given associative array in the map.  Any
+     * key that already exists will be overridden.
+     *
+     * returns this.
+     */
+    TreeMapType set(V[K] source)
+    {
+        foreach(K k, V v; source)
+            this[k] = v;
+        return this;
+    }
+
+    /**
+     * Set all the elements from the given associative array in the map.  Any
+     * key that already exists will be overridden.
+     *
+     * sets numAdded to the number of key value pairs that were added.
+     *
+     * returns this.
+     */
+    TreeMapType set(V[K] source, ref uint numAdded)
+    {
+        uint origLength = length;
+        set(source);
+        numAdded = length - origLength;
+        return this;
+    }
+
+    /**
+     * Remove all the given keys from the map.
+     *
+     * return this.
+     */
+    TreeMapType remove(K[] subset)
+    {
+        foreach(k; subset)
+            removeAt(k);
+        return this;
+    }
+
+    /**
+     * Remove all the given keys from the map.
+     *
+     * return this.
+     *
+     * numRemoved is set to the number of elements removed.
+     */
+    TreeMapType remove(K[] subset, ref uint numRemoved)
+    {
+        uint origLength = length;
+        remove(subset);
+        numRemoved = origLength - length;
+        return this;
+    }
+
+    /**
+     * Remove all the keys that are not in the given array.
+     *
+     * returns this.
+     */
+    TreeMapType intersect(K[] subset)
+    {
+        scope iter = new ArrayIterator!(K)(subset);
+        return intersect(iter);
+    }
+
+    /**
+     * Remove all the keys that are not in the given array.
+     *
+     * sets numRemoved to the number of elements removed.
+     *
+     * returns this.
+     */
+    TreeMapType intersect(K[] subset, ref uint numRemoved)
+    {
+        scope iter = new ArrayIterator!(K)(subset);
+        return intersect(iter, numRemoved);
+    }
+
 }
 
 version(UnitTest)
