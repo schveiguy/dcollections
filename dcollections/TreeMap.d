@@ -547,7 +547,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         //
         // scope allocates on the stack.
         //
-        scope w = new TransformIterator!(element, K)(subset, function element(ref K k) { element e; e.key = k; return e;});
+        scope w = new TransformIterator!(element, K)(subset, function void(ref K k, ref element e) { e.key = k;});
         /*static class wrapper : Iterator!(element)
         {
             Iterator!(K) wrapped;
