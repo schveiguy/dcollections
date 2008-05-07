@@ -45,7 +45,7 @@ class Link(V)
      *
      * returns this to allow for chaining.
      */
-    Node prepend(Node n)
+    final Node prepend(Node n)
     {
         attach(_prev, n);
         attach(n, this);
@@ -58,7 +58,7 @@ class Link(V)
      *
      * returns this to allow for chaining.
      */
-    Node append(Node n)
+    final Node append(Node n)
     {
         attach(n, _next);
         attach(this, n);
@@ -71,7 +71,7 @@ class Link(V)
      *
      * returns this to allow for chaining.
      */
-    Node unlink()
+    final Node unlink()
     {
         attach(_prev, _next);
         _next = _prev = null;
@@ -81,7 +81,7 @@ class Link(V)
     /**
      * return the next node in the sequence.
      */
-    Node next()
+    final Node next()
     {
         return _next;
     }
@@ -89,7 +89,7 @@ class Link(V)
     /**
      * return the previous node in the sequence.
      */
-    Node prev()
+    final Node prev()
     {
         return _prev;
     }
@@ -108,7 +108,7 @@ class Link(V)
     /**
      * count how many nodes until endNode.
      */
-    uint count(Node endNode = null)
+    final uint count(Node endNode = null)
     {
         Node x = this;
         uint c = 0;
@@ -120,7 +120,7 @@ class Link(V)
         return c;
     }
 
-    Node dup()
+    final Node dup()
     {
         //
         // create a duplicate of this and all nodes after this.

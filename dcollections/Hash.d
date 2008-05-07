@@ -39,6 +39,12 @@ struct Hash(V, bool allowDuplicates=false)
      * used to determine when to rehash
      */
     float loadFactor;
+
+    /**
+     * used to determine starting table size
+     */
+    uint startingTableSize;
+
     static const float defaultLoadFactor = .75;
     static const uint defaultTableSize = 31;
 
@@ -76,6 +82,11 @@ struct Hash(V, bool allowDuplicates=false)
          * load factor parameter, this is optional.
          */
         float loadFactor;
+
+        /**
+         * initial table size, this is optional.
+         */
+        uint startingTableSize;
     }
 
     /**
@@ -94,15 +105,35 @@ struct Hash(V, bool allowDuplicates=false)
         {
             position p = *this;
             auto table = owner.table;
-            while(p.idx < table.length && (p.ptr is null || p.ptr.next is table[p.idx]))
+
+            if(p.ptr !is null)
+            {
+                if(p.ptr.next is table[p.idx])
+                    //
+                    // special case, at the end of a bucket, go to the next
+                    // bucket.
+                    //
+                    p.ptr = null;
+                else
+                {
+                    //
+                    // still in the bucket
+                    //
+                    p.ptr = p.ptr.next;
+                    return p;
+                }
+            }
+
+            //
+            // iterated past the bucket, go to the next valid bucket
+            //
+            while(p.idx < cast(int)table.length && p.ptr is null)
             {
                 if(++p.idx < table.length)
                     p.ptr = table[p.idx];
                 else
                     p.ptr = null;
             }
-            if(p.ptr)
-                p.ptr = p.ptr.next;
             return p;
         }
 
@@ -113,14 +144,23 @@ struct Hash(V, bool allowDuplicates=false)
         {
             position p = *this;
             auto table = owner.table;
-            while(p.idx >= 0 && (p.ptr is null || p.ptr.prev is table[p.idx]))
+            if(p.ptr !is null)
             {
-                if(--p.idx < 0)
-                    p.ptr = table[p.idx];
-                else
+                if(p.ptr is table[p.idx])
                     p.ptr = null;
+                else
+                {
+                    p.ptr = p.ptr.prev;
+                    return p;
+                }
             }
+
+            while(p.idx > 0 && p.ptr is null)
+                p.ptr = table[--p.idx];
             if(p.ptr)
+                //
+                // go to the end of the new bucket
+                //
                 p.ptr = p.ptr.prev;
             return p;
         }
@@ -133,59 +173,52 @@ struct Hash(V, bool allowDuplicates=false)
     bool add(V v)
     {
         if(table is null)
-            resize(defaultTableSize);
+            resize(startingTableSize);
 
         auto h = hashFunc(v) % table.length;
         Node tail = table[h];
-        Node elem;
         if(tail is null)
         {
             //
-            // initialize the table tail node
+            // no node yet, add the new node here
             //
-            tail = table[h] = new Node();
+            tail = table[h] = new Node(v);
             Node.attach(tail, tail);
-            elem = tail;
+            count++;
+            return true;
         }
         else
         {
             static if(!allowDuplicates)
             {
-                elem = findInBucket(tail, v, tail.next);
-            }
-        }
-
-        static if(allowDuplicates)
-        {
-            count++;
-            tail.prepend(new Node(v));
-            if(tail.prev !is tail.next)
-            {
-                // not single element, need to check load factor
-                checkLoadFactor();
-            }
-            return true;
-        }
-        else
-        {
-            if(elem is tail)
-            {
-                count++;
-                tail.prepend(new Node(v));
-                if(tail.prev !is tail.next)
+                Node elem = findInBucket(tail, v, tail);
+                if(elem is null)
                 {
+                    count++;
+                    tail.prepend(new Node(v));
                     // not single element, need to check load factor
                     checkLoadFactor();
+                    return true;
                 }
-                return true;
+                else
+                {
+                    //
+                    // found the node, set the value instead
+                    //
+                    updateFunc(elem.value, v);
+                    return false;
+                }
             }
             else
             {
                 //
-                // found the node, set the value instead
+                // always add, even if the node already exists.
                 //
-                updateFunc(elem.value, v);
-                return false;
+                count++;
+                tail.prepend(new Node(v));
+                // not single element, need to check load factor
+                checkLoadFactor();
+                return true;
             }
         }
     }
@@ -204,21 +237,28 @@ struct Hash(V, bool allowDuplicates=false)
             {
                 if(head)
                 {
-                    for(Node cur = head.next; cur !is head;)
+                    //
+                    // make the last node point to null, to mark the end of
+                    // the bucket
+                    //
+                    Node.attach(head.prev, null);
+                    for(Node cur = head, next = head.next; cur !is null;
+                            cur = next)
                     {
-                        Node next = cur.next;
+                        next = cur.next;
                         auto h = hashFunc(cur.value) % newTable.length;
                         Node newHead = newTable[h];
                         if(newHead is null)
                         {
-                            newTable[h] = newHead = new Node;
-                            Node.attach(newHead, newHead);
+                            newTable[h] = cur;
+                            Node.attach(cur, cur);
                         }
-                        newHead.prepend(cur);
-                        cur = next;
+                        else
+                            newHead.prepend(cur);
                     }
                 }
             }
+            delete table;
             table = newTable;
         }
     }
@@ -246,8 +286,12 @@ struct Hash(V, bool allowDuplicates=false)
         if(table.length == 0)
             return end;
         position result;
-        result.ptr = table[0];
+        result.ptr = null;
         result.owner = this;
+        result.idx = -1;
+        //
+        // this finds the first valid node
+        //
         return result.next;
     }
 
@@ -270,11 +314,13 @@ struct Hash(V, bool allowDuplicates=false)
     }
     body
     {
+        if(startFrom.value == v)
+            return startFrom;
         Node n;
-        for(n = startFrom; n !is bucket && n.value != v; n = n.next)
+        for(n = startFrom.next; n !is bucket && n.value != v; n = n.next)
         {
         }
-        return n;
+        return (n is bucket ? null : n);
     }
 
     /**
@@ -285,7 +331,7 @@ struct Hash(V, bool allowDuplicates=false)
         auto h = hashFunc(v) % table.length;
         // if bucket is empty, or doesn't contain v, return end
         Node ptr;
-        if(table[h] is null || (ptr = findInBucket(table[h], v, table[h].next)) == table[h])
+        if(table[h] is null || (ptr = findInBucket(table[h], v, table[h])) is null)
             return end;
         position p;
         p.owner = this;
@@ -294,16 +340,19 @@ struct Hash(V, bool allowDuplicates=false)
         return p;
     }
 
-    static if(allowDuplicates)
-    {
-    }
-
     /**
      * Remove a given position from the hash.
      */
     position remove(position pos)
     {
         position retval = pos.next;
+        if(pos.ptr is table[pos.idx])
+        {
+            if(pos.ptr.next is pos.ptr)
+                table[pos.idx] = null;
+            else
+                table[pos.idx] = pos.ptr.next;
+        }
         pos.ptr.unlink;
         count--;
         return retval;
@@ -335,6 +384,10 @@ struct Hash(V, bool allowDuplicates=false)
 
         if(p.loadFactor != p.loadFactor)
             loadFactor = defaultLoadFactor;
+        if(p.startingTableSize != 0)
+            startingTableSize = p.startingTableSize;
+        else
+            startingTableSize = defaultTableSize;
     }
 
     /**
@@ -363,10 +416,11 @@ struct Hash(V, bool allowDuplicates=false)
                 Node head = tmp[p.idx];
                 if(head is null)
                 {
-                    head = tmp[p.idx] = new Node;
-                    Node.attach(head, head);
+                    tmp[p.idx] = p.ptr.unlink;
+                    Node.attach(p.ptr, p.ptr);
                 }
-                head.prepend(p.ptr.unlink);
+                else
+                    head.prepend(p.ptr.unlink);
                 result--;
             }
         }
@@ -385,7 +439,7 @@ struct Hash(V, bool allowDuplicates=false)
             if(p.idx != table.length)
             {
                 auto bucket = table[p.idx];
-                while(p.ptr !is bucket)
+                do
                 {
                     if(p.ptr.value == v)
                     {
@@ -401,6 +455,7 @@ struct Hash(V, bool allowDuplicates=false)
 
                     p.ptr = p.ptr.next;
                 }
+                while(p.ptr !is bucket)
             }
             return result;
         }
@@ -433,20 +488,19 @@ struct Hash(V, bool allowDuplicates=false)
             if(startFrom.idx < h)
             {
                 // if bucket is empty, return end
-                if(table[h] is null || table[h].next is table[h])
+                if(table[h] is null)
                     return end;
 
                 // start from the bucket that the value would live in
                 startFrom.idx = h;
                 startFrom.ptr = table[h];
-                startFrom = startFrom.next;
             }
             else if(startFrom.idx > h)
                 // beyond the bucket, return end
                 return end;
 
             if((startFrom.ptr = findInBucket(table[h], v, startFrom.ptr)) !is
-                    table[h])
+                    null)
                 return startFrom;
             return end;
         }
