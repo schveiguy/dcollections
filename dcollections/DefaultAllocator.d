@@ -7,16 +7,26 @@
 **********************************************************/
 module dcollections.DefaultAllocator;
 
-//import tango.io.Stdout;
-
 version(Tango)
 {
-    private import tango.stdc.string;
-    private import tango.core.Memory;
+    version(DDoc)
+    {
+    }
+    else
+    {
+        private import tango.stdc.string;
+        private import tango.core.Memory;
+    }
 }
 else
 {
-    //private import std.c.string;
+    version(DDoc)
+    {
+    }
+    else
+    {
+        private import std.c.string;
+    }
 }
 
 version(Tango)
