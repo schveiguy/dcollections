@@ -16,7 +16,7 @@ version(Tango)
 }
 else
 {
-    private import std.c.string;
+    //private import std.c.string;
 }
 
 version(Tango)

@@ -557,7 +557,6 @@ class HashSet(V, alias ImplTemp = Hash, alias Allocator=DefaultAllocator) : Set!
 
 version(UnitTest)
 {
-    import tango.io.Stdout;
     unittest
     {
         auto hs = new HashSet!(uint);
