@@ -9,6 +9,7 @@ module dcollections.HashMultiset;
 
 public import dcollections.model.Multiset;
 private import dcollections.Hash;
+private import dcollections.DefaultAllocator;
 
 /**
  * A multi-set implementation which uses a Hash to have near O(1) insertion,
@@ -69,12 +70,12 @@ private import dcollections.Hash;
  * void copyTo(ref Hash h) -> make a duplicate copy of this hash into the
  * target h.
  */
-class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
+class HashMultiset(V, alias ImplTemp = HashDup, alias Allocator=DefaultAllocator) : Multiset!(V)
 {
     /**
      * an alias the the implementation template instantiation.
      */
-    alias ImplTemp!(V) Impl;
+    alias ImplTemp!(V, Allocator) Impl;
 
     /**
      * convenience alias

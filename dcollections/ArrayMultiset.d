@@ -10,6 +10,7 @@ module dcollections.ArrayMultiset;
 public import dcollections.model.Multiset;
 
 private import dcollections.Link;
+private import dcollections.DefaultAllocator;
 
 /**
  * This class implements the multiset interface by keeping a linked list of
@@ -20,15 +21,31 @@ private import dcollections.Link;
  *
  * Adding an element does not invalidate any cursors.
  */
-class ArrayMultiset(V) : Multiset!(V)
+class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
 {
-    private alias Link!(V[]) node;
+    private alias Link!(V[]).Node node;
+    private alias Allocator!(Link!(V[])) allocator;
+    private allocator alloc;
     private node _head;
     private uint _count;
 
     private Purger _purger;
 
     private uint _growSize;
+
+    private node allocate()
+    {
+        return alloc.allocate;
+    }
+
+    private node allocate(V[] v)
+    {
+        auto n = allocate;
+        n.value = v;
+        return n;
+    }
+
+    alias ArrayMultiset!(V, Allocator) ArrayMultisetType;
 
     /**
      * A cursor is like a pointer into the ArrayMultiset collection.
@@ -181,7 +198,7 @@ class ArrayMultiset(V) : Multiset!(V)
     {
         _growSize = gs;
         _purger = new Purger();
-        _head = new node;
+        _head = alloc.allocate();
         node.attach(_head, _head);
         _count = 0;
     }
@@ -189,8 +206,13 @@ class ArrayMultiset(V) : Multiset!(V)
     /**
      * Clear the collection of all values
      */
-    ArrayMultiset!(V) clear()
+    ArrayMultisetType clear()
     {
+        static if(allocator.freeNeeded)
+        {
+            alloc.freeAll();
+            _head = allocate;
+        }
         node.attach(_head, _head);
         return this;
     }
@@ -254,7 +276,11 @@ class ArrayMultiset(V) : Multiset!(V)
         }
         last.value.length = last.value.length - 1;
         if(last.value.length == 0)
+        {
             last.unlink;
+            static if(allocator.freeNeeded)
+                alloc.free(last);
+        }
         _count--;
         return it;
     }
@@ -291,7 +317,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    ArrayMultiset!(V) remove(V v)
+    ArrayMultisetType remove(V v)
     {
         bool ignored;
         return remove(v, ignored);
@@ -305,7 +331,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    ArrayMultiset!(V) remove(V v, ref bool wasRemoved)
+    ArrayMultisetType remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
@@ -333,7 +359,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(1) time.
      */
-    ArrayMultiset!(V) add(V v)
+    ArrayMultisetType add(V v)
     {
         bool ignored;
         return add(v, ignored);
@@ -345,7 +371,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(1) time.
      */
-    ArrayMultiset!(V) add(V v, ref bool wasAdded)
+    ArrayMultisetType add(V v, ref bool wasAdded)
     {
         node last = _head.prev;
         if(last is _head || last.value.length == _growSize)
@@ -355,7 +381,7 @@ class ArrayMultiset(V) : Multiset!(V)
             //
             auto array = new V[_growSize];
             array.length = 0;
-            _head.prepend(new node(array));
+            _head.prepend(allocate(array));
             last = _head.prev;
         }
 
@@ -374,7 +400,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Returns the number of elements added.
      */
-    ArrayMultiset!(V) add(Iterator!(V) it)
+    ArrayMultisetType add(Iterator!(V) it)
     {
         uint ignored;
         return add(it, ignored);
@@ -385,7 +411,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Returns the number of elements added.
      */
-    ArrayMultiset!(V) add(Iterator!(V) it, ref uint numAdded)
+    ArrayMultisetType add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; it)
@@ -399,7 +425,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Returns the number of elements added.
      */
-    ArrayMultiset!(V) add(V[] array)
+    ArrayMultisetType add(V[] array)
     {
         uint ignored;
         return add(array, ignored);
@@ -410,7 +436,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Returns the number of elements added.
      */
-    ArrayMultiset!(V) add(V[] array, ref uint numAdded)
+    ArrayMultisetType add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
@@ -439,7 +465,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    ArrayMultiset!(V) removeAll(V v)
+    ArrayMultisetType removeAll(V v)
     {
         uint ignored;
         return removeAll(v, ignored);
@@ -450,7 +476,7 @@ class ArrayMultiset(V) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    ArrayMultiset!(V) removeAll(V v, ref uint numRemoved)
+    ArrayMultisetType removeAll(V v, ref uint numRemoved)
     {
         uint origlength = length;
         foreach(ref dp, x; _purger)
@@ -466,21 +492,21 @@ class ArrayMultiset(V) : Multiset!(V)
      * duplicate this container.  This does not do a 'deep' copy of the
      * elements.
      */
-    ArrayMultiset!(V) dup()
+    ArrayMultisetType dup()
     {
-        auto retval = new ArrayMultiset!(V)(_growSize);
+        auto retval = new ArrayMultisetType(_growSize);
         node n = _head.next;
         while(n !is _head)
         {
             node x;
             if(n.value.length == _growSize)
-                x = new node(n.value.dup);
+                x = retval.allocate(n.value.dup);
             else
             {
                 auto array = new V[_growSize];
                 array.length = n.value.length;
                 array[0..$] = n.value[];
-                x = new node(array);
+                x = retval.allocate(array);
             }
             retval._head.prepend(x);
         }

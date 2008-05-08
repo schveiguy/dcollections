@@ -10,6 +10,7 @@ module dcollections.Hash;
 public import dcollections.Functions;
 private import dcollections.Link;
 private import dcollections.model.Iterator;
+private import dcollections.DefaultAllocator;
 
 /**
  * Default Hash implementation.  This is used in the Hash* containers by
@@ -18,12 +19,27 @@ private import dcollections.model.Iterator;
  * The implementation consists of a table of linked lists.  The table index
  * that an element goes in is based on the hash code.
  */
-struct Hash(V, bool allowDuplicates=false)
+struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
 {
+    /**
+     * alias for this type
+     */
+    alias Hash!(V, Allocator, allowDuplicates) HashType;
+
     /**
      * alias for Node
      */
-    alias Link!(V) Node;
+    alias Link!(V).Node Node;
+
+    /**
+     * alias for the allocator
+     */
+    alias Allocator!(Link!(V)) allocator;
+
+    /**
+     * The allocator for the hash
+     */
+    allocator alloc;
 
     /**
      * the table of buckets
@@ -94,7 +110,7 @@ struct Hash(V, bool allowDuplicates=false)
      */
     struct position
     {
-        Hash!(V, allowDuplicates) *owner;
+        HashType *owner;
         Node ptr;
         int idx;
 
@@ -182,7 +198,7 @@ struct Hash(V, bool allowDuplicates=false)
             //
             // no node yet, add the new node here
             //
-            tail = table[h] = new Node(v);
+            tail = table[h] = allocate(v);
             Node.attach(tail, tail);
             count++;
             return true;
@@ -195,7 +211,7 @@ struct Hash(V, bool allowDuplicates=false)
                 if(elem is null)
                 {
                     count++;
-                    tail.prepend(new Node(v));
+                    tail.prepend(allocate(v));
                     // not single element, need to check load factor
                     checkLoadFactor();
                     return true;
@@ -215,7 +231,7 @@ struct Hash(V, bool allowDuplicates=false)
                 // always add, even if the node already exists.
                 //
                 count++;
-                tail.prepend(new Node(v));
+                tail.prepend(allocate(v));
                 // not single element, need to check load factor
                 checkLoadFactor();
                 return true;
@@ -354,6 +370,8 @@ struct Hash(V, bool allowDuplicates=false)
                 table[pos.idx] = pos.ptr.next;
         }
         pos.ptr.unlink;
+        static if(allocator.freeNeeded)
+            alloc.free(pos.ptr);
         count--;
         return retval;
     }
@@ -363,6 +381,8 @@ struct Hash(V, bool allowDuplicates=false)
      */
     void clear()
     {
+        static if(allocator.freeNeeded)
+            alloc.freeAll();
         delete table;
         table = null;
         count = 0;
@@ -424,6 +444,30 @@ struct Hash(V, bool allowDuplicates=false)
                 result--;
             }
         }
+
+        static if(allocator.freeNeeded)
+        {
+            //
+            // now, we must free all the unused nodes
+            //
+            foreach(head; table)
+            {
+                if(head !is null)
+                {
+                    //
+                    // since we will free head, mark the end of the list with
+                    // a null pointer
+                    //
+                    Node.attach(head.prev, null);
+                    while(head !is null)
+                    {
+                        auto newhead = head.next;
+                        alloc.free(head);
+                        head = newhead;
+                    }
+                }
+            }
+        }
         table = tmp;
         count -= result;
         return result;
@@ -449,6 +493,10 @@ struct Hash(V, bool allowDuplicates=false)
                             auto orig = p.ptr;
                             p.ptr = p.ptr.next;
                             orig.unlink();
+                            static if(allocator.freeNeeded)
+                            {
+                                alloc.free(orig);
+                            }
                             continue;
                         }
                     }
@@ -509,7 +557,7 @@ struct Hash(V, bool allowDuplicates=false)
     /**
      * copy all the elements from this hash to target.
      */
-    void copyTo(ref Hash!(V, allowDuplicates) target)
+    void copyTo(ref HashType target)
     {
         //
         // copy all local values
@@ -523,15 +571,27 @@ struct Hash(V, bool allowDuplicates=false)
         foreach(i, n; table)
         {
             if(n !is null)
-                target.table[i] = n.dup;
+                target.table[i] = n.dup(&target.allocate);
         }
+    }
+
+    Node allocate()
+    {
+        return alloc.allocate();
+    }
+
+    Node allocate(V v)
+    {
+        auto result = allocate();
+        result.value = v;
+        return result;
     }
 }
 
 /**
  * used to define a Hash that takes duplicates
  */
-template HashDup(V)
+template HashDup(V, alias Allocator=DefaultAllocator)
 {
-    alias Hash!(V, true) HashDup;
+    alias Hash!(V, Allocator, true) HashDup;
 }

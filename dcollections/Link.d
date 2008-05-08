@@ -7,15 +7,17 @@
 **********************************************************/
 module dcollections.Link;
 
+private import dcollections.DefaultAllocator;
+
 /**
  * Linked-list node that is used in various collection classes.
  */
-class Link(V)
+struct Link(V)
 {
     /**
      * convenience alias
      */
-    alias Link!(V) Node;
+    alias Link!(V) *Node;
     private Node _next;
     private Node _prev;
 
@@ -27,17 +29,17 @@ class Link(V)
     /**
      * default constructor.
      */
-    this()
+    /*this()
     {
-    }
+    }*/
 
     /**
      * construct a link with the given value.
      */
-    this(V v)
+    /*this(V v)
     {
         this.value = v;
-    }
+    }*/
 
     /**
      * insert the given node between this node and prev.  This updates all
@@ -45,7 +47,7 @@ class Link(V)
      *
      * returns this to allow for chaining.
      */
-    final Node prepend(Node n)
+    Node prepend(Node n)
     {
         attach(_prev, n);
         attach(n, this);
@@ -58,7 +60,7 @@ class Link(V)
      *
      * returns this to allow for chaining.
      */
-    final Node append(Node n)
+    Node append(Node n)
     {
         attach(n, _next);
         attach(this, n);
@@ -71,7 +73,7 @@ class Link(V)
      *
      * returns this to allow for chaining.
      */
-    final Node unlink()
+    Node unlink()
     {
         attach(_prev, _next);
         _next = _prev = null;
@@ -81,7 +83,7 @@ class Link(V)
     /**
      * return the next node in the sequence.
      */
-    final Node next()
+    Node next()
     {
         return _next;
     }
@@ -89,7 +91,7 @@ class Link(V)
     /**
      * return the previous node in the sequence.
      */
-    final Node prev()
+    Node prev()
     {
         return _prev;
     }
@@ -108,7 +110,7 @@ class Link(V)
     /**
      * count how many nodes until endNode.
      */
-    final uint count(Node endNode = null)
+    uint count(Node endNode = null)
     {
         Node x = this;
         uint c = 0;
@@ -120,17 +122,19 @@ class Link(V)
         return c;
     }
 
-    final Node dup()
+    Node dup(Node delegate(V v) createFunction)
     {
         //
         // create a duplicate of this and all nodes after this.
         //
         auto n = _next;
-        auto retval = new Node(value);
+        //auto retval = new Node(value);
+        auto retval = createFunction(value);
         auto cur = retval;
         while(n !is null && n !is this)
         {
-            auto x = new Node(n.value);
+            //auto x = new Node(n.value);
+            auto x = createFunction(n.value);
             attach(cur, x);
             cur = x;
             n = n.next;
@@ -144,6 +148,17 @@ class Link(V)
         }
         return retval;
     }
+
+    Node dup()
+    {
+        Node _create(V v)
+        {
+            auto n = new Link!(V);
+            n.value = v;
+            return n;
+        }
+        return dup(&_create);
+    }
 }
 
 /**
@@ -153,12 +168,22 @@ class Link(V)
  * list.  Basically, the list is circular, with the dummy node marking the
  * end/beginning.
  */
-struct LinkHead(V)
+struct LinkHead(V, alias Allocator=DefaultAllocator)
 {
     /**
      * Convenience alias
      */
-    alias Link!(V) node;
+    alias Link!(V).Node node;
+
+    /**
+     * Convenience alias
+     */
+    alias Allocator!(Link!(V)) allocator;
+
+    /**
+     * The allocator for this link head
+     */
+    allocator alloc;
 
     /**
      * The node that denotes the end of the list
@@ -188,7 +213,8 @@ struct LinkHead(V)
      */
     void setup(parameters p = 0)
     {
-        end = new node;
+        //end = new node;
+        end = allocate();
         node.attach(end, end);
         count = 0;
     }
@@ -202,6 +228,8 @@ struct LinkHead(V)
         count--;
         node retval = n.next;
         n.unlink;
+        static if(allocator.freeNeeded)
+            alloc.free(n);
         return retval;
     }
 
@@ -210,8 +238,16 @@ struct LinkHead(V)
      */
     node remove(node first, node last)
     {
-        count -= first.count(last);
         node.attach(first.prev, last);
+        auto n = first;
+        while(n !is last)
+        {
+            auto nx = n.next;
+            static if(alloc.freeNeeded)
+                alloc.free(n);
+            count--;
+            n = nx;
+        }
         return last;
     }
 
@@ -222,7 +258,8 @@ struct LinkHead(V)
     node insert(node before, V v)
     {
         count++;
-        return before.prepend(new node(v)).prev;
+        //return before.prepend(new node(v)).prev;
+        return before.prepend(allocate(v)).prev;
     }
 
     /**
@@ -234,12 +271,12 @@ struct LinkHead(V)
         count = 0;
     }
 
-    void copyTo(ref LinkHead!(V) target, bool copyNodes=true)
+    void copyTo(ref LinkHead!(V, Allocator) target, bool copyNodes=true)
     {
         target = *this;
         if(copyNodes)
         {
-            target.end = end.dup;
+            target.end = end.dup(&target.allocate);
         }
         else
         {
@@ -248,5 +285,17 @@ struct LinkHead(V)
             //
             target.setup();
         }
+    }
+
+    private node allocate()
+    {
+        return alloc.allocate();
+    }
+
+    private node allocate(V v)
+    {
+        auto retval = allocate();
+        retval.value = v;
+        return retval;
     }
 }

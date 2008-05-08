@@ -9,6 +9,7 @@ module dcollections.HashSet;
 
 public import dcollections.model.Set;
 private import dcollections.Hash;
+private import dcollections.DefaultAllocator;
 
 /**
  * A set implementation which uses a Hash to have near O(1) insertion,
@@ -59,17 +60,17 @@ private import dcollections.Hash;
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-class HashSet(V, alias ImplTemp = Hash) : Set!(V)
+class HashSet(V, alias ImplTemp = Hash, alias Allocator=DefaultAllocator) : Set!(V)
 {
     /**
      * an alias the the implementation template instantiation.
      */
-    alias ImplTemp!(V) Impl;
+    alias ImplTemp!(V, Allocator) Impl;
 
     /**
      * convenience alias
      */
-    alias HashSet!(V, ImplTemp) HashSetType;
+    alias HashSet!(V, ImplTemp, Allocator) HashSetType;
 
     private Impl _hash;
     private Purger _purger;
@@ -556,6 +557,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
 
 version(UnitTest)
 {
+    import tango.io.Stdout;
     unittest
     {
         auto hs = new HashSet!(uint);
