@@ -9,6 +9,8 @@ module dcollections.RBTree;
 
 private import dcollections.Functions;
 private import dcollections.model.Iterator;
+private import dcollections.DefaultAllocator;
+
 version(RBDoChecks)
 {
     import tango.io.Stdout;
@@ -26,12 +28,12 @@ version(RBDoChecks)
  *
  * A Red Black tree should have O(lg(n)) insertion, removal, and search time.
  */
-class RBNode(V)
+struct RBNode(V)
 {
     /**
      * Convenience alias
      */
-    alias RBNode!(V) Node;
+    alias RBNode!(V)* Node;
 
     private Node _left;
     private Node _right;
@@ -56,21 +58,6 @@ class RBNode(V)
      * The color of the node.
      */
     Color color;
-
-    /**
-     * Default constructor
-     */
-    this()
-    {
-    }
-
-    /**
-     * Value constructor
-     */
-    this(V v)
-    {
-        value = v;
-    }
 
     /**
      * Get the left child
@@ -575,7 +562,7 @@ class RBNode(V)
             return n.left.rightmost;
     }
 
-    Node dup()
+    Node dup(Node delegate(V v) alloc)
     {
         //
         // duplicate this and all child nodes
@@ -583,13 +570,24 @@ class RBNode(V)
         // The recursion should be lg(n), so we shouldn't have to worry about
         // stack size.
         //
-        Node copy = new Node(value);
+        Node copy = alloc(value);
         copy.color = color;
         if(_left !is null)
-            copy.left = _left.dup;
+            copy.left = _left.dup(alloc);
         if(_right !is null)
-            copy.right = _right.dup;
+            copy.right = _right.dup(alloc);
         return copy;
+    }
+
+    Node dup()
+    {
+        Node _dg(V v)
+        {
+            auto result = new RBNode!(V);
+            result.value = v;
+            return result;
+        }
+        return dup(&_dg);
     }
 }
 
@@ -600,12 +598,27 @@ class RBNode(V)
  *
  * Set allowDuplicates to true to allow duplicate values to be inserted.
  */
-struct RBTree(V, bool allowDuplicates=false)
+struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
 {
+    /**
+     * alias for this type
+     */
+    alias RBTree!(V, Allocator, allowDuplicates) RBTreeType;
+
     /**
      * Convenience alias
      */
-    alias RBNode!(V) node;
+    alias RBNode!(V).Node node;
+
+    /**
+     * alias for the allocator
+     */
+    alias Allocator!(RBNode!(V)) allocator;
+
+    /**
+     * The allocator
+     */
+    allocator alloc;
 
     /**
      * The number of nodes in the tree
@@ -663,7 +676,7 @@ struct RBTree(V, bool allowDuplicates=false)
         {
             updateFunc = p.updateFunction;
         }
-        end = new node();
+        end = allocate();
     }
 
     /**
@@ -677,7 +690,7 @@ struct RBTree(V, bool allowDuplicates=false)
     {
         node added;
         if(end.left is null)
-            end.left = added = new node(v);
+            end.left = added = allocate(v);
         else
         {
             node newParent = end.left;
@@ -708,7 +721,7 @@ struct RBTree(V, bool allowDuplicates=false)
                         //
                         // add to right of new parent
                         //
-                        newParent.right = added = new node(v);
+                        newParent.right = added = allocate(v);
                         break;
                     }
                     else
@@ -722,7 +735,7 @@ struct RBTree(V, bool allowDuplicates=false)
                         //
                         // add to left of new parent
                         //
-                        newParent.left = added = new node(v);
+                        newParent.left = added = allocate(v);
                         break;
                     }
                     else
@@ -768,6 +781,8 @@ struct RBTree(V, bool allowDuplicates=false)
         count--;
         //printTree(end.left);
         node result = z.remove(end);
+        static if(allocator.freeNeeded)
+            alloc.free(z);
         //printTree(end.left);
         version(RBDoChecks)
             check();
@@ -826,7 +841,13 @@ struct RBTree(V, bool allowDuplicates=false)
      */
     void clear()
     {
-        end.left = null;
+        static if(allocator.freeNeeded)
+        {
+            alloc.freeAll();
+            end = allocate();
+        }
+        else
+            end.left = null;
         count = 0;
     }
 
@@ -955,7 +976,7 @@ struct RBTree(V, bool allowDuplicates=false)
     uint intersect(Iterator!(V) subset)
     {
         // build a new RBTree, only inserting nodes that we already have.
-        scope newend = new node();
+        RBNode!(V) newend;
         auto origcount = count;
         count = 0;
         foreach(v; subset)
@@ -1070,9 +1091,22 @@ struct RBTree(V, bool allowDuplicates=false)
                     }
                 }
 
-                z.setColor(newend);
+                z.setColor(&newend);
                 count++;
             }
+        }
+        static if(allocator.freeNeeded)
+        {
+            //
+            // need to free all the nodes we are no longer using
+            //
+            void freeNode(node n)
+            {
+                freeNode(n.left);
+                freeNode(n.right);
+                alloc.free(n);
+            }
+            freeNode(end.left);
         }
         //
         // replace newend with end.  If we don't do this, cursors pointing
@@ -1082,19 +1116,31 @@ struct RBTree(V, bool allowDuplicates=false)
         return origcount - count;
     }
 
-    void copyTo(ref RBTree!(V, allowDuplicates) target)
+    void copyTo(ref RBTreeType target)
     {
         target = *this;
 
         // make shallow copy of RBNodes
-        target.end = end.dup;
+        target.end = end.dup(&target.allocate);
+    }
+
+    node allocate()
+    {
+        return alloc.allocate();
+    }
+
+    node allocate(V v)
+    {
+        auto result = allocate();
+        result.value = v;
+        return result;
     }
 }
 
 /**
  * used to define a RB tree that takes duplicates
  */
-template RBDupTree(V)
+template RBDupTree(V, alias Allocator=DefaultAllocator)
 {
-    alias RBTree!(V, true) RBDupTree;
+    alias RBTree!(V, Allocator, true) RBDupTree;
 }
