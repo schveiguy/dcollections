@@ -103,6 +103,11 @@ version(Tango)
             {
                 element *x = freeList;
                 freeList = x.next;
+                //
+                // clear the pointer, this clears the element as if it was
+                // newly allocated
+                //
+                x.next = null;
                 numFree--;
                 return cast(V*)x;
             }
@@ -114,6 +119,11 @@ version(Tango)
              */
             bool deallocate(V *v)
             {
+                //
+                // clear the element so the GC does not interpret the element
+                // as pointing to anything else.
+                //
+                memset(v, 0, (V).sizeof);
                 element *x = cast(element *)v;
                 x.next = freeList;
                 freeList = x;
@@ -151,7 +161,6 @@ version(Tango)
                 // allocate one element of the used list
                 //
                 V* result = used.allocateFromFree();
-                memset(result, 0, (V).sizeof);
                 if(used.numFree == 0)
                     //
                     // move used to the end of the list

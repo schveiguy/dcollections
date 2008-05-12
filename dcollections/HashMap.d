@@ -9,7 +9,6 @@ module dcollections.HashMap;
 
 public import dcollections.model.Map;
 private import dcollections.Hash;
-private import dcollections.DefaultAllocator;
 
 private import dcollections.Iterators;
 
@@ -62,7 +61,7 @@ private import dcollections.Iterators;
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-class HashMap(K, V, alias ImplTemp = Hash, alias Allocator=DefaultAllocator) : Map!(K, V)
+class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
 {
     /**
      * used to implement the key/value pair stored in the hash implementation
@@ -84,12 +83,12 @@ class HashMap(K, V, alias ImplTemp = Hash, alias Allocator=DefaultAllocator) : M
     /**
      * convenience alias
      */
-    alias ImplTemp!(element, Allocator) Impl;
+    alias ImplTemp!(element) Impl;
 
     /**
      * convenience alias
      */
-    alias HashMap!(K, V, ImplTemp, Allocator) HashMapType;
+    alias HashMap!(K, V, ImplTemp) HashMapType;
 
     private Impl _hash;
     private Purger _purger;

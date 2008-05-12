@@ -9,7 +9,6 @@ module dcollections.HashSet;
 
 public import dcollections.model.Set;
 private import dcollections.Hash;
-private import dcollections.DefaultAllocator;
 
 /**
  * A set implementation which uses a Hash to have near O(1) insertion,
@@ -60,17 +59,17 @@ private import dcollections.DefaultAllocator;
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-class HashSet(V, alias ImplTemp = Hash, alias Allocator=DefaultAllocator) : Set!(V)
+class HashSet(V, alias ImplTemp = Hash) : Set!(V)
 {
     /**
      * an alias the the implementation template instantiation.
      */
-    alias ImplTemp!(V, Allocator) Impl;
+    alias ImplTemp!(V) Impl;
 
     /**
      * convenience alias
      */
-    alias HashSet!(V, ImplTemp, Allocator) HashSetType;
+    alias HashSet!(V, ImplTemp) HashSetType;
 
     private Impl _hash;
     private Purger _purger;
