@@ -344,7 +344,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
      */
     position find(V v)
     {
-        if(table.length == 0)
+        if(count == 0)
             return end;
         auto h = hashFunc(v) % table.length;
         // if bucket is empty, or doesn't contain v, return end
@@ -536,7 +536,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
          */
         position find(V v, position startFrom)
         {
-            if(table.length == 0)
+            if(count == 0)
                 return end;
             auto h = hashFunc(v) % table.length;
             if(startFrom.idx < h)
