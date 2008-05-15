@@ -480,7 +480,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         foreach(ref dp, x; purger)
         {
-            dp = (x == v);
+            dp = cast(bool)(x == v);
         }
         return this;
     }

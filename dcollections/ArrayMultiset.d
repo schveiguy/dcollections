@@ -481,8 +481,7 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
         uint origlength = length;
         foreach(ref dp, x; _purger)
         {
-            if(v == x)
-                dp = true;
+            dp = cast(bool)(v == x);
         }
         numRemoved = origlength - length;
         return this;

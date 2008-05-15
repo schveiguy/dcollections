@@ -299,7 +299,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
      */
     position begin()
     {
-        if(table.length == 0)
+        if(count == 0)
             return end;
         position result;
         result.ptr = null;
@@ -344,6 +344,8 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
      */
     position find(V v)
     {
+        if(table.length == 0)
+            return end;
         auto h = hashFunc(v) % table.length;
         // if bucket is empty, or doesn't contain v, return end
         Node ptr;
@@ -417,6 +419,8 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
      */
     uint intersect(Iterator!(V) subset)
     {
+        if(count == 0)
+            return 0;
         //
         // start out removing all nodes, then filter out ones that are in the
         // set.
@@ -532,6 +536,8 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
          */
         position find(V v, position startFrom)
         {
+            if(table.length == 0)
+                return end;
             auto h = hashFunc(v) % table.length;
             if(startFrom.idx < h)
             {

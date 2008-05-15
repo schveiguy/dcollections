@@ -837,7 +837,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         auto origLength = length;
         foreach(ref b, x; _purger)
         {
-            b = (x == v);
+            b = cast(bool)(x == v);
         }
         numRemoved = length - origLength;
         return this;

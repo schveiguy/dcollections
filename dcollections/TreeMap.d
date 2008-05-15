@@ -710,7 +710,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     TreeMapType removeAll(V v)
     {
         foreach(ref b, x; purger)
-            b = (x == v);
+            b = cast(bool)(x == v);
         return this;
     }
 

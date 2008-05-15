@@ -709,7 +709,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
         uint origlength = length;
         foreach(ref b, x; purger)
         {
-            b = (x == v);
+            b = cast(bool)(x == v);
         }
         numRemoved = origlength - length;
         return this;
