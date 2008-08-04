@@ -8,6 +8,18 @@ BUILDING
 To build libdcollections.a or dcollections.lib, run the build script (either
 build-lib-linux.sh or build-lib-win32.bat)
 
-Move libdcollections.a or dcollections.lib to a directory in your link path, or add the following to your dmd.conf/sc.ini file under the DFLAGS line:
+Move libdcollections.a or dcollections.lib to a directory in your link path, or
+add the following to your dmd.conf file under the DFLAGS line:
 
 -L-Lpath/to/library -L-ldcollections
+
+or in your sc.ini file:
+
+LIB=...;path/to/library
+DFLAGS=... -L+dcollections.lib
+
+where the ... represents what's there now.
+
+Then copy the dcollections source tree to wherever you have your import tree.
+Otherwise, add a -Ipath/to/dcollections to the appropriate config file for your
+system
