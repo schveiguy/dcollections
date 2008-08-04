@@ -18,28 +18,13 @@ struct Link(V)
      * convenience alias
      */
     alias Link!(V) *Node;
-    private Node _next;
-    private Node _prev;
+    Node next;
+    Node prev;
 
     /**
      * the value that is represented by this link node.
      */
     V value;
-
-    /**
-     * default constructor.
-     */
-    /*this()
-    {
-    }*/
-
-    /**
-     * construct a link with the given value.
-     */
-    /*this(V v)
-    {
-        this.value = v;
-    }*/
 
     /**
      * insert the given node between this node and prev.  This updates all
@@ -49,7 +34,7 @@ struct Link(V)
      */
     Node prepend(Node n)
     {
-        attach(_prev, n);
+        attach(prev, n);
         attach(n, this);
         return this;
     }
@@ -62,7 +47,7 @@ struct Link(V)
      */
     Node append(Node n)
     {
-        attach(n, _next);
+        attach(n, next);
         attach(this, n);
         return this;
     }
@@ -75,25 +60,9 @@ struct Link(V)
      */
     Node unlink()
     {
-        attach(_prev, _next);
-        _next = _prev = null;
+        attach(prev, next);
+        next = prev = null;
         return this;
-    }
-
-    /**
-     * return the next node in the sequence.
-     */
-    Node next()
-    {
-        return _next;
-    }
-
-    /**
-     * return the previous node in the sequence.
-     */
-    Node prev()
-    {
-        return _prev;
     }
 
     /**
@@ -102,9 +71,9 @@ struct Link(V)
     static void attach(Node first, Node second)
     {
         if(first)
-            first._next = second;
+            first.next = second;
         if(second)
-            second._prev = first;
+            second.prev = first;
     }
 
     /**
@@ -116,7 +85,7 @@ struct Link(V)
         uint c = 0;
         while(x !is endNode)
         {
-            x = x._next;
+            x = x.next;
             c++;
         }
         return c;
@@ -127,13 +96,11 @@ struct Link(V)
         //
         // create a duplicate of this and all nodes after this.
         //
-        auto n = _next;
-        //auto retval = new Node(value);
+        auto n = next;
         auto retval = createFunction(value);
         auto cur = retval;
         while(n !is null && n !is this)
         {
-            //auto x = new Node(n.value);
             auto x = createFunction(n.value);
             attach(cur, x);
             cur = x;

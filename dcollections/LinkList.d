@@ -130,7 +130,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
             if(inc < 0)
                 return opSubAssign(-inc);
             while(inc--)
-                ptr = ptr.next();
+                ptr = ptr.next;
             return *this;
         }
 
@@ -147,7 +147,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
             if(inc < 0)
                 return opAddAssign(-inc);
             while(inc--)
-                ptr = ptr.prev();
+                ptr = ptr.prev;
             return *this;
         }
 
