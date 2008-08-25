@@ -988,6 +988,16 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         remove(c);
         return retval;
     }
+
+    /**
+     * Get the index of a particular value.  Equivalent to find(v) - begin.
+     *
+     * If the value isn't in the collection, returns end.
+     */
+    uint indexOf(V v)
+    {
+        return find(v) - begin;
+    }
 }
 
 version(UnitTest)
