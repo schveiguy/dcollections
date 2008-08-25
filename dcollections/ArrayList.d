@@ -992,7 +992,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * Get the index of a particular value.  Equivalent to find(v) - begin.
      *
-     * If the value isn't in the collection, returns end.
+     * If the value isn't in the collection, returns length.
      */
     uint indexOf(V v)
     {
