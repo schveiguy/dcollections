@@ -76,7 +76,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
 
     private static uint hashFunction(ref V v)
     {
-        return (typeid(V).getHash(&v) & 0x7FFF_FFFF);
+        return DefaultHash(v);
     }
 
     private static void updateFunction(ref V orig, ref V newelem)

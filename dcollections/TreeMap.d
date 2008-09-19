@@ -93,7 +93,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
 
     private static int compareFunction(ref element e, ref element e2)
     {
-        return typeid(K).compare(&e.key, &e2.key);
+        return DefaultCompare(e.key, e2.key);
     }
 
     private static void updateFunction(ref element orig, ref element newv)

@@ -79,7 +79,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
 
     private static int compareFunction(ref V e, ref V e2)
     {
-        return typeid(V).compare(&e, &e2);
+        return DefaultCompare(e, e2);
     }
 
     private static void updateFunction(ref V orig, ref V newv)

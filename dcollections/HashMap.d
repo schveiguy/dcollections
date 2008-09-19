@@ -96,7 +96,7 @@ class HashMap(K, V, alias ImplTemp = Hash) : Map!(K, V)
 
     private static uint hashFunction(ref element e)
     {
-        return (typeid(K).getHash(&e.key) & 0x7FFF_FFFF);
+        return DefaultHash(e.key);
     }
 
     private static void updateFunction(ref element orig, ref element newelem)

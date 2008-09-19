@@ -8,7 +8,8 @@
 module dcollections.model.List;
 public import dcollections.model.Collection,
        dcollections.model.Addable,
-       dcollections.model.Multi;
+       dcollections.model.Multi,
+       dcollections.Functions;
 
 /**
  * A List is a collection whose elements are in the order added.  These are
@@ -106,6 +107,18 @@ interface List(V) : Collection!(V), Addable!(V), Multi!(V)
      * covariant removeAll (from Multi)
      */
     List!(V) removeAll(V v, ref uint numRemoved);
+
+    /**
+     * sort this list according to the default compare routine for V.  Returns
+     * a reference to the list after it is sorted.
+     */
+    List!(V) sort();
+
+    /**
+     * sort this list according to the comparison routine given.  Returns a
+     * reference to the list after it is sorted.
+     */
+    List!(V) sort(CompareFunction!(V) comp);
 
     /**
      * compare this list to another list.  Returns true if they have the same

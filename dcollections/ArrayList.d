@@ -9,6 +9,14 @@ module dcollections.ArrayList;
 public import dcollections.model.List,
        dcollections.model.Keyed;
 
+private struct Array
+{
+    int length;
+    void *ptr;
+}
+
+private extern (C) long _adSort(Array arr, TypeInfo ti);
+
 /***
  * This class is a wrapper around an array which provides the necessary
  * implemenation to implement the List interface
@@ -997,6 +1005,83 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     uint indexOf(V v)
     {
         return find(v) - begin;
+    }
+
+    class SpecialTypeInfo : TypeInfo
+    {
+        private CompareFunction!(V) cf;
+        private TypeInfo derivedFrom;
+        this(TypeInfo derivedFrom, CompareFunction!(V) comp)
+        {
+            this.derivedFrom = derivedFrom;
+            this.cf = comp;
+        }
+
+        /// Returns a hash of the instance of a type.
+        override hash_t getHash(void *p) { return derivedFrom.getHash(p); }
+
+        /// Compares two instances for equality.
+        override int equals(void *p1, void *p2) { return derivedFrom.equals(p1, p2); }
+
+        /// Compares two instances for &lt;, ==, or &gt;.
+        override int compare(void *p1, void *p2)
+        {
+            return cf(*cast(V *)p1, *cast(V *)p2);
+        }
+
+        /// Returns size of the type.
+        override size_t tsize() { return derivedFrom.tsize(); }
+
+        /// Swaps two instances of the type.
+        override void swap(void *p1, void *p2)
+        {
+            return derivedFrom.swap(p1, p2);
+        }
+
+        /// Get TypeInfo for 'next' type, as defined by what kind of type this is,
+        /// null if none.
+        override TypeInfo next() { return derivedFrom; }
+
+        /// Return default initializer, null if default initialize to 0
+        override void[] init() { return derivedFrom.init(); }
+
+        /// Get flags for type: 1 means GC should scan for pointers
+        override uint flags() { return derivedFrom.flags(); }
+
+        /// Get type information on the contents of the type; null if not available
+        override OffsetTypeInfo[] offTi() { return derivedFrom.offTi(); }
+    }
+
+    /**
+     * Sort according to a given comparison function
+     */
+    ArrayList sort(CompareFunction!(V) comp)
+    {
+        //
+        // can't really do this without extra library help.  Luckily, the
+        // function to sort an array is always defined by the runtime.  We
+        // just need to access it.  However, it requires that we pass in a
+        // TypeInfo structure to do all the dirty work.  What we need is a
+        // derivative of the real TypeInfo structure with the compare function
+        // overridden to call the comp function.
+        //
+        //scope SpecialTypeInfo!(typeof(typeid(V))) sti = new SpecialTypeInfo(comp);
+        scope sti = new SpecialTypeInfo(typeid(V), comp);
+        int x;
+        Array ar;
+        ar.length = _array.length;
+        ar.ptr = _array.ptr;
+        _adSort(ar, sti);
+        return this;
+    }
+
+    /**
+     * Sort according to the default comparison routine for V
+     */
+    ArrayList sort()
+    {
+        _array.sort;
+        return this;
     }
 }
 

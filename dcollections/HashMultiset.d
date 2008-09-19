@@ -86,7 +86,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
 
     private static uint hashFunction(ref V v)
     {
-        return (typeid(V).getHash(&v) & 0x7FFF_FFFF);
+        return DefaultHash(v);
     }
 
     /**

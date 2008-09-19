@@ -8,6 +8,7 @@
 module dcollections.Link;
 
 private import dcollections.DefaultAllocator;
+private import dcollections.Functions;
 
 /**
  * Linked-list node that is used in various collection classes.
@@ -198,6 +199,114 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
         static if(allocator.freeNeeded)
             alloc.free(n);
         return retval;
+    }
+
+    /**
+     * sort the list according to the given compare function
+     */
+    void sort(CompareFunction!(V) comp)
+    {
+        if(end.next.next is end)
+            //
+            // no nodes to sort
+            //
+            return;
+
+        //
+        // detach the sentinel
+        //
+        end.prev.next = null;
+
+        //
+        // use merge sort, don't update prev pointers until the sort is
+        // finished.
+        //
+        int K = 1;
+        while(K < count)
+        {
+            //
+            // end.next serves as the sorted list head
+            //
+            node head = end.next;
+            end.next = null;
+            node sortedtail = end;
+            int tmpcount = count;
+
+            while(head !is null)
+            {
+
+                if(tmpcount <= K)
+                {
+                    //
+                    // the rest is alread sorted
+                    //
+                    sortedtail.next = head;
+                    break;
+                }
+                node left = head;
+                for(int k = 1; k < K && head.next !is null; k++)
+                    head = head.next;
+                node right = head.next;
+
+                //
+                // head now points to the last element in 'left', detach the
+                // left side
+                //
+                head.next = null;
+                int nright = K;
+                while(true)
+                {
+                    if(left is null)
+                    {
+                        sortedtail.next = right;
+                        while(nright != 0 && sortedtail.next !is null)
+                        {
+                            sortedtail = sortedtail.next;
+                            nright--;
+                        }
+                        head = sortedtail.next;
+                        sortedtail.next = null;
+                        break;
+                    }
+                    else if(right is null || nright == 0)
+                    {
+                        sortedtail.next = left;
+                        sortedtail = head;
+                        head = right;
+                        sortedtail.next = null;
+                        break;
+                    }
+                    else
+                    {
+                        int r = comp(left.value, right.value);
+                        if(r > 0)
+                        {
+                            sortedtail.next = right;
+                            right = right.next;
+                            nright--;
+                        }
+                        else
+                        {
+                            sortedtail.next = left;
+                            left = left.next;
+                        }
+                        sortedtail = sortedtail.next;
+                    }
+                }
+
+                tmpcount -= 2 * K;
+            }
+
+            K *= 2;
+        }
+
+        //
+        // now, attach all the prev nodes
+        //
+        node n;
+        for(n = end; n.next !is null; n = n.next)
+            n.next.prev = n;
+        node.attach(n, end);
     }
 
     /**

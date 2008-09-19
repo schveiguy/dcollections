@@ -55,6 +55,9 @@ private import dcollections.Link;
  * return a pointer to the new node.
  *
  * void clear() -> remove all nodes from the list.
+ * 
+ * void sort(CompareFunction!(V) comp) -> sort the list according to the
+ * compare function
  *
  */
 class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
@@ -641,6 +644,31 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
             }
         }
         return 0;
+    }
+
+    /**
+     * Sort the linked list according to the given compare function.
+     *
+     * Runs in O(n lg(n)) time
+     *
+     * Returns this after sorting
+     */
+    LinkList sort(CompareFunction!(V) comp)
+    {
+        _link.sort(comp);
+        return this;
+    }
+
+    /**
+     * Sort the linked list according to the default compare function for V.
+     *
+     * Runs in O(n lg(n)) time
+     *
+     * Returns this
+     */
+    LinkList sort()
+    {
+        return sort(&DefaultCompare!(V));
     }
 }
 
