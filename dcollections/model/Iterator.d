@@ -7,6 +7,14 @@
 **********************************************************/
 module dcollections.model.Iterator;
 
+enum : uint
+{
+    /**
+     * Returned from length() when length isn't supported
+     */
+    NO_LENGTH_SUPPORT = ~0
+}
+
 /**
  * Basic iterator.  Allows iterating over all the elements of an object.
  */
@@ -15,7 +23,7 @@ interface Iterator(V)
     /**
      * If supported, returns the number of elements that will be iterated.
      *
-     * If not supported, returns cast(uint)-1.
+     * If not supported, returns NO_LENGTH_SUPPORT.
      */
     uint length();
 
