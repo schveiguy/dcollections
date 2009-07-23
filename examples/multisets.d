@@ -63,5 +63,5 @@ void main()
     //
     // combine three sets and an array
     treeMS = treeMS.dup.add(hashMS).add(arrayMS).add([70, 80, 90, 100, 110]);
-    print(treeMS, "dup'd, recombined treeMS, arrayMS, and hashMS");
+    print(treeMS, "dup'd, recombined treeMS, arrayMS, and hashMS, added some elements");
 }

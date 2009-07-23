@@ -927,6 +927,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
         }
     }
 
+    
     uint intersect(Iterator!(V) subset)
     {
         // build a new RBTree, only inserting nodes that we already have.
@@ -942,7 +943,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             if(z !is end)
             {
                 //
-                // remove the element from the tree, but worry about satisfing
+                // remove the element from the tree, but don't worry about satisfing
                 // the Red-black rules.  we don't care because this tree is
                 // going away.
                 //
@@ -1054,12 +1055,6 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             //
             // need to free all the nodes we are no longer using
             //
-            void freeNode(Node n)
-            {
-                freeNode(n.left);
-                freeNode(n.right);
-                alloc.free(n);
-            }
             freeNode(end.left);
         }
         //
@@ -1068,6 +1063,19 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
         //
         end.left = newend.left;
         return origcount - count;
+    }
+
+    static if(allocator.freeNeeded)
+    {
+        private void freeNode(Node n)
+        {
+            if(n !is null)
+            {
+                freeNode(n.left);
+                freeNode(n.right);
+                alloc.free(n);
+            }
+        }
     }
 
     void copyTo(ref RBTree target)

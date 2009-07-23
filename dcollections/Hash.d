@@ -363,6 +363,18 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
                 // table.
                 //
                 Node head = tmp[p.idx];
+
+                //
+                // need to update the table pointer if this is the head node in that cell
+                //
+                if(p.ptr is table[p.idx])
+                {
+                    if(p.ptr.next is p.ptr)
+                        table[p.idx] = null;
+                    else
+                        table[p.idx] = p.ptr.next;
+                }
+
                 if(head is null)
                 {
                     tmp[p.idx] = p.ptr.unlink;
