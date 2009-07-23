@@ -17,7 +17,7 @@ public import dcollections.model.Iterator;
  * here, because elements are not always simply addable.  For example, a map
  * needs both the element and the key to add it.
  */
-interface Collection(V) : Iterator!(V)
+interface Collection(V) : Iterator!(V), Purgeable!(V) 
 {
     /**
      * clear the container of all values
@@ -54,17 +54,4 @@ interface Collection(V) : Iterator!(V)
      * elements if they are reference or pointer types.
      */
     Collection!(V) dup();
-
-    /**
-     * get a purger that can iterate and remove elements.  Note that the
-     * collection itself cannot be a PurgeIterator because the number of
-     * arguments would match a KeyedCollection's normal iterator.  This would
-     * make code ambiguous:
-     *
-     * -------
-     * foreach(k, v; keyedCollection)
-     * // is k the doPurge variable or the key?
-     * -------
-     */
-    PurgeIterator!(V) purger();
 }

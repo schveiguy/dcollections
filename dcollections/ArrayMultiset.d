@@ -29,8 +29,6 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
     private node _head;
     private uint _count;
 
-    private Purger _purger;
-
     private uint _growSize;
 
     private node allocate()
@@ -151,12 +149,21 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
         }
     }
 
-    private class Purger : PurgeIterator!(V)
+    /**
+     * Iterate over the items in the ArrayMultiset, specifying which elements
+     * should be removed.
+     *
+     * Use like this:
+     * ----------
+     * // remove all odd elements
+     * foreach(ref doPurge, elem; &arrayMultiset.purge)
+     * {
+     *    doPurge = ((elem & 1) == 1)
+     * }
+     */
+    final int purge(int delegate(ref bool doPurge, ref V v) dg)
     {
-        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
-        {
-            return _apply(dg);
-        }
+        return _apply(dg);
     }
 
     private int _apply(int delegate(ref bool doPurge, ref V v) dg)
@@ -197,7 +204,6 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
     this(uint gs = 31)
     {
         _growSize = gs;
-        _purger = new Purger();
         _head = alloc.allocate();
         node.attach(_head, _head);
         _count = 0;
@@ -215,14 +221,6 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
         }
         node.attach(_head, _head);
         return this;
-    }
-
-    /**
-     * Returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -342,14 +340,6 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
             wasRemoved = true;
         }
         return this;
-    }
-
-    /**
-     * Returns an object that can be used to purge the collection.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
     }
 
     /**
@@ -479,7 +469,7 @@ class ArrayMultiset(V, alias Allocator=DefaultAllocator) : Multiset!(V)
     ArrayMultisetType removeAll(V v, ref uint numRemoved)
     {
         uint origlength = length;
-        foreach(ref dp, x; _purger)
+        foreach(ref dp, x; &purge)
         {
             dp = cast(bool)(v == x);
         }
@@ -547,7 +537,7 @@ version(UnitTest)
         ms.remove(1);
         assert(ms.length == 5);
         assert(ms._head.next.value == [0U, 5, 2, 3, 4]);
-        foreach(ref dopurge, v; ms.purger)
+        foreach(ref dopurge, v; &ms.purge)
             dopurge = (v % 2 == 1);
         assert(ms.length == 3);
         assert(ms._head.next.value == [0U, 4, 2]);

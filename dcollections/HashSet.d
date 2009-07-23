@@ -8,6 +8,7 @@
 module dcollections.HashSet;
 
 public import dcollections.model.Set;
+public import dcollections.DefaultFunctions;
 private import dcollections.Hash;
 
 /**
@@ -59,30 +60,14 @@ private import dcollections.Hash;
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-class HashSet(V, alias ImplTemp = Hash) : Set!(V)
+class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : Set!(V)
 {
     /**
      * an alias the the implementation template instantiation.
      */
-    alias ImplTemp!(V) Impl;
-
-    /**
-     * convenience alias
-     */
-    alias HashSet!(V, ImplTemp) HashSetType;
+    alias ImplTemp!(V, hashFunction) Impl;
 
     private Impl _hash;
-    private Purger _purger;
-
-    private static uint hashFunction(ref V v)
-    {
-        return DefaultHash(v);
-    }
-
-    private static void updateFunction(ref V orig, ref V newelem)
-    {
-        // don't copy anything, the values already match
-    }
 
     /**
      * A cursor for the hash set.
@@ -164,12 +149,21 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
         }
     }
 
-    private class Purger : PurgeIterator!(V)
+    /**
+     * Iterate over the elements in the set, specifying which ones to remove.
+     *
+     * Use like this:
+     *
+     * ---------------
+     * // remove all odd elements
+     * foreach(ref doPurge, v; &hashSet.purge)
+     * {
+     *   doPurge = ((v & 1) == 1);
+     * }
+     */
+    final int purge(int delegate(ref bool doPurge, ref V v) dg)
     {
-        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
-        {
-            return _apply(dg);
-        }
+        return _apply(dg);
     }
 
     private int _apply(int delegate(ref bool doPurge, ref V v) dg)
@@ -188,7 +182,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
             if((dgret = dg(doPurge, tmpvalue)) != 0)
                 break;
             if(doPurge)
-                remove(it++);
+                it = remove(it);
             else
                 it++;
         }
@@ -208,26 +202,11 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     }
 
     /**
-     * Instantiate the hash map using the implementation parameters given.
-     */
-    this(Impl.parameters p)
-    {
-        // insert defaults for the functions if necessary.
-        if(!p.updateFunction)
-            p.updateFunction = &updateFunction;
-        if(!p.hashFunction)
-            p.hashFunction = &hashFunction;
-        _hash.setup(p);
-        _purger = new Purger;
-    }
-
-    /**
-     * Instantiate the hash map using the default implementation parameters.
+     * Instantiate the hash set using the implementation parameters given.
      */
     this()
     {
-        Impl.parameters p;
-        this(p);
+        _hash.setup();
     }
 
     //
@@ -236,24 +215,15 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     private this(ref Impl dupFrom)
     {
         dupFrom.copyTo(_hash);
-        _purger = new Purger;
     }
 
     /**
      * Clear the collection of all elements
      */
-    HashSetType clear()
+    HashSet clear()
     {
         _hash.clear();
         return this;
-    }
-
-    /**
-     * returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -326,7 +296,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in O(n) time.
      */
-    HashSetType remove(V v)
+    HashSet remove(V v)
     {
         cursor it = find(v);
         if(it != end)
@@ -340,7 +310,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs in O(n) time.
      */
-    HashSetType remove(V v, ref bool wasRemoved)
+    HashSet remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
@@ -355,7 +325,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
         return this;
     }
 
-    HashSetType remove(Iterator!(V) it)
+    HashSet remove(Iterator!(V) it)
     {
         foreach(v; it)
             remove(v);
@@ -368,7 +338,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Returns this.
      */
-    HashSetType remove(Iterator!(V) it, ref uint numRemoved)
+    HashSet remove(Iterator!(V) it, ref uint numRemoved)
     {
         uint origlength = length;
         remove(it);
@@ -377,20 +347,12 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     }
 
     /**
-     * returns an object that can be used to purge the collection.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
-    }
-
-    /**
      * Adds an element to the set.  Returns true if the element was not
      * already present.
      *
      * Runs on average in O(1) time.
      */
-    HashSetType add(V v)
+    HashSet add(V v)
     {
         _hash.add(v);
         return this;
@@ -402,7 +364,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) time.
      */
-    HashSetType add(V v, ref bool wasAdded)
+    HashSet add(V v, ref bool wasAdded)
     {
         wasAdded = _hash.add(v);
         return this;
@@ -415,7 +377,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
-    HashSetType add(Iterator!(V) it)
+    HashSet add(Iterator!(V) it)
     {
         foreach(v; it)
             _hash.add(v);
@@ -429,7 +391,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
-    HashSetType add(Iterator!(V) it, ref uint numAdded)
+    HashSet add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
         add(it);
@@ -443,7 +405,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) + O(m) time, where m is the array length.
      */
-    HashSetType add(V[] array)
+    HashSet add(V[] array)
     {
         foreach(v; array)
             _hash.add(v);
@@ -456,7 +418,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * Runs on average in O(1) + O(m) time, where m is the array length.
      */
-    HashSetType add(V[] array, ref uint numAdded)
+    HashSet add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         add(array);
@@ -469,7 +431,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * returns this.
      */
-    HashSetType intersect(Iterator!(V) subset)
+    HashSet intersect(Iterator!(V) subset)
     {
         //
         // intersection is more difficult than removal, because we do not have
@@ -486,7 +448,7 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
      *
      * returns this.
      */
-    HashSetType intersect(Iterator!(V) subset, ref uint numRemoved)
+    HashSet intersect(Iterator!(V) subset, ref uint numRemoved)
     {
         //
         // intersection is more difficult than removal, because we do not have
@@ -500,9 +462,9 @@ class HashSet(V, alias ImplTemp = Hash) : Set!(V)
     /**
      * duplicate this hash set
      */
-    HashSetType dup()
+    HashSet dup()
     {
-        return new HashSetType(_hash);
+        return new HashSet(_hash);
     }
 
     int opEquals(Object o)
@@ -562,7 +524,7 @@ version(UnitTest)
         Set!(uint) s = hs;
         s.add([0U, 1, 2, 3, 4, 5, 5]);
         assert(s.length == 6);
-        foreach(ref doPurge, i; s.purger)
+        foreach(ref doPurge, i; &s.purge)
             doPurge = (i % 2 == 1);
         assert(s.length == 3);
         assert(s.contains(4));

@@ -7,7 +7,6 @@
 **********************************************************/
 module dcollections.RBTree;
 
-private import dcollections.Functions;
 private import dcollections.model.Iterator;
 private import dcollections.DefaultAllocator;
 
@@ -19,12 +18,12 @@ version(RBDoChecks)
 /**
  * Implementation for a Red Black node for use in a Red Black Tree (see below)
  *
- * this implementation assumes we have a marker node that is the parent of the
- * root node.  This marker node is not a valid node, but marks the end of the
- * collection.  The root is the left child of the marker node, so it is always
- * last in the collection.  The marker node is passed in to the setColor
- * function, and the node which has this node as its parent is assumed to be
- * the root node.
+ * this implementation assumes we have a marker Node that is the parent of the
+ * root Node.  This marker Node is not a valid Node, but marks the end of the
+ * collection.  The root is the left child of the marker Node, so it is always
+ * last in the collection.  The marker Node is passed in to the setColor
+ * function, and the Node which has this Node as its parent is assumed to be
+ * the root Node.
  *
  * A Red Black tree should have O(lg(n)) insertion, removal, and search time.
  */
@@ -598,17 +597,12 @@ struct RBNode(V)
  *
  * Set allowDuplicates to true to allow duplicate values to be inserted.
  */
-struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
+struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=DefaultAllocator, bool allowDuplicates=false, bool doUpdates=true)
 {
-    /**
-     * alias for this type
-     */
-    alias RBTree!(V, Allocator, allowDuplicates) RBTreeType;
-
     /**
      * Convenience alias
      */
-    alias RBNode!(V).Node node;
+    alias RBNode!(V).Node Node;
 
     /**
      * alias for the allocator
@@ -626,74 +620,33 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     uint count;
 
     /**
-     * The function used to compare two nodes.
+     * The marker Node.  This is the parent of the root Node.
      */
-    CompareFunction!(V) compareFunc;
-
-    static if(!allowDuplicates)
-    {
-        /**
-         * If duplicates are not allowed, this function updates the value with
-         * a new identical value.
-         *
-         * This is useful if not all of the value is used to determine
-         * equality.  You can decide which pieces should be updated if any.
-         */
-        UpdateFunction!(V) updateFunc;
-    }
+    Node end;
 
     /**
-     * The marker node.  This is the parent of the root node.
+     * Setup this RBTree.
      */
-    node end;
-
-    /**
-     * The parameter structure used to configure this Red-Black tree
-     */
-    struct parameters
+    void setup()
     {
-        /**
-         * The compare function to use.
-         */
-        CompareFunction!(V) compareFunction;
-
-        static if(!allowDuplicates)
-        {
-            /**
-             * The update function to use
-             */
-            UpdateFunction!(V) updateFunction;
-        }
-    }
-
-    /**
-     * Setup this RBTree with the given parameters.
-     */
-    void setup(parameters p)
-    {
-        compareFunc = p.compareFunction;
-        static if(!allowDuplicates)
-        {
-            updateFunc = p.updateFunction;
-        }
         end = allocate();
     }
 
     /**
-     * Add a node to the RBTree.  Runs in O(lg(n)) time.
+     * Add a Node to the RBTree.  Runs in O(lg(n)) time.
      *
-     * Returns true if a new node was added, false if it was not.
+     * Returns true if a new Node was added, false if it was not.
      *
      * This can also be used to update a value if it is already in the tree.
      */
     bool add(V v)
     {
-        node added;
+        Node added;
         if(end.left is null)
             end.left = added = allocate(v);
         else
         {
-            node newParent = end.left;
+            Node newParent = end.left;
             while(true)
             {
                 int cmpvalue = compareFunc(newParent.value, v);
@@ -709,13 +662,14 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                     }
                     else
                     {
-                        updateFunc(newParent.value, v);
+                        static if(doUpdates)
+                            updateFunction(newParent.value, v);
                         return false;
                     }
                 }
                 if(cmpvalue < 0)
                 {
-                    node nxt = newParent.right;
+                    Node nxt = newParent.right;
                     if(nxt is null)
                     {
                         //
@@ -729,7 +683,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                 }
                 else
                 {
-                    node nxt = newParent.left;
+                    Node nxt = newParent.left;
                     if(nxt is null)
                     {
                         //
@@ -750,7 +704,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         added.setColor(end);
 
         //
-        // did add a node
+        // did add a Node
         //
         count++;
         version(RBDoChecks)
@@ -759,19 +713,19 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     }
 
     /**
-     * Return the lowest-valued node in the tree
+     * Return the lowest-valued Node in the tree
      */
-    node begin()
+    Node begin()
     {
         return end.leftmost;
     }
 
     /**
-     * Remove the node from the tree.  Returns the next node in the tree.
+     * Remove the Node from the tree.  Returns the next Node in the tree.
      *
-     * Do not call this with the marker (end) node.
+     * Do not call this with the marker (end) Node.
      */
-    node remove(node z)
+    Node remove(Node z)
     in
     {
         assert(z !is end);
@@ -780,7 +734,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     {
         count--;
         //printTree(end.left);
-        node result = z.remove(end);
+        Node result = z.remove(end);
         static if(allocator.freeNeeded)
             alloc.free(z);
         //printTree(end.left);
@@ -790,10 +744,10 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     }
 
     /**
-     * Find a node in the tree with a given value.  Returns end if no such
-     * node exists.
+     * Find a Node in the tree with a given value.  Returns end if no such
+     * Node exists.
      */
-    node find(V v)
+    Node find(V v)
     {
         static if(allowDuplicates)
         {
@@ -801,8 +755,8 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
             // find the left-most v, this allows the pointer to traverse
             // through all the v's.
             //
-            node cur = end;
-            node n = end.left;
+            Node cur = end;
+            Node n = end.left;
             while(n !is null)
             {
                 int cmpresult = compareFunc(n.value, v);
@@ -821,7 +775,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         }
         else
         {
-            node n = end.left;
+            Node n = end.left;
             int cmpresult;
             while(n !is null && (cmpresult = compareFunc(n.value, v)) != 0)
             {
@@ -858,7 +812,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
          * with the number of indentations representing the level of the nodes.
          * It does not print values, only the tree structure and color of nodes.
          */
-        void printTree(node n, int indent = 0)
+        void printTree(Node n, int indent = 0)
         {
             if(n !is null)
             {
@@ -887,13 +841,13 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
             //
             // check implementation of the tree
             //
-            int recurse(node n, char[] path)
+            int recurse(Node n, char[] path)
             {
                 if(n is null)
                     return 1;
                 if(n.parent.left !is n && n.parent.right !is n)
-                    throw new Exception("node at path " ~ path ~ " has inconsistent pointers");
-                node next = n.next;
+                    throw new Exception("Node at path " ~ path ~ " has inconsistent pointers");
+                Node next = n.next;
                 static if(allowDuplicates)
                 {
                     if(next !is end && compareFunc(n.value, next.value) > 0)
@@ -908,7 +862,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                 {
                     if((n.left !is null && n.left.color == n.color.Red) ||
                             (n.right !is null && n.right.color == n.color.Red))
-                        throw new Exception("node at path " ~ path ~ " is red with a red child");
+                        throw new Exception("Node at path " ~ path ~ " is red with a red child");
                 }
 
                 int l = recurse(n.left, path ~ "L");
@@ -917,7 +871,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                 {
                     Stdout("bad tree at:").newline;
                     printTree(n);
-                    throw new Exception("node at path " ~ path ~ " has different number of black nodes on left and right paths");
+                    throw new Exception("Node at path " ~ path ~ " has different number of black nodes on left and right paths");
                 }
                 return l + (n.color == n.color.Black ? 1 : 0);
             }
@@ -944,7 +898,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
          */
         uint countAll(V v)
         {
-            node n = find(v);
+            Node n = find(v);
             uint retval = 0;
             while(n !is end && compareFunc(n.value, v) == 0)
             {
@@ -962,7 +916,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
          */
         uint removeAll(V v)
         {
-            node n = find(v);
+            Node n = find(v);
             uint retval = 0;
             while(n !is end && compareFunc(n.value, v) == 0)
             {
@@ -982,7 +936,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         foreach(v; subset)
         {
             //
-            // find if the node is in the current tree
+            // find if the Node is in the current tree
             //
             auto z = find(v);
             if(z !is end)
@@ -995,8 +949,8 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                 if(z.left is null)
                 {
                     //
-                    // no left node, so this is a single parentage line,
-                    // move the right node to be where we are
+                    // no left Node, so this is a single parentage line,
+                    // move the right Node to be where we are
                     //
                     if(z.isLeftNode)
                         z.parent.left = z.right;
@@ -1006,7 +960,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                 else if(z.right is null)
                 {
                     //
-                    // no right node, single parentage line.
+                    // no right Node, single parentage line.
                     //
                     if(z.isLeftNode)
                         z.parent.left = z.left;
@@ -1017,25 +971,25 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                 {
                     //
                     // z has both left and right nodes, swap it with the next
-                    // node.  Next node's left is guaranteed to be null
+                    // Node.  Next Node's left is guaranteed to be null
                     // because it must be a right child of z, and if it had a
-                    // left node, then it would not be the next node.
+                    // left Node, then it would not be the next Node.
                     //
-                    node n = z.next;
+                    Node n = z.next;
                     if(n.parent !is z)
                     {
                         //
                         // n is a descendant of z, but not the immediate
                         // child, we need to link n's parent to n's right
                         // child.  Note that n must be a left child or else
-                        // n's parent would have been the next node.
+                        // n's parent would have been the next Node.
                         //
                         n.parent.left = n.right;
                         n.right = z.right;
                     }
                     // else, n is the direct child of z, which means there is
-                    // no need to update n's parent, or n's right node (as n
-                    // is the right node of z).
+                    // no need to update n's parent, or n's right Node (as n
+                    // is the right Node of z).
 
                     if(z.isLeftNode)
                         z.parent.left = n;
@@ -1059,7 +1013,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                     //
                     // got to find the right place for z
                     //
-                    node newParent = newend.left;
+                    Node newParent = newend.left;
                     while(true)
                     {
                         auto cmpvalue = compareFunc(newParent.value, z.value);
@@ -1068,7 +1022,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                         // allowDuplicates is true.
                         if(cmpvalue <= 0)
                         {
-                            node nxt = newParent.right;
+                            Node nxt = newParent.right;
                             if(nxt is null)
                             {
                                 newParent.right = z;
@@ -1079,7 +1033,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                         }
                         else
                         {
-                            node nxt = newParent.left;
+                            Node nxt = newParent.left;
                             if(nxt is null)
                             {
                                 newParent.left = z;
@@ -1100,7 +1054,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
             //
             // need to free all the nodes we are no longer using
             //
-            void freeNode(node n)
+            void freeNode(Node n)
             {
                 freeNode(n.left);
                 freeNode(n.right);
@@ -1116,7 +1070,7 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         return origcount - count;
     }
 
-    void copyTo(ref RBTreeType target)
+    void copyTo(ref RBTree target)
     {
         target = *this;
 
@@ -1124,12 +1078,12 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         target.end = end.dup(&target.allocate);
     }
 
-    node allocate()
+    Node allocate()
     {
         return alloc.allocate();
     }
 
-    node allocate(V v)
+    Node allocate(V v)
     {
         auto result = allocate();
         result.value = v;
@@ -1138,9 +1092,16 @@ struct RBTree(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
 }
 
 /**
+ * used to define a RB tree that does not require updates.
+ */
+template RBNoUpdatesTree(V, alias compareFunc, alias Allocator=DefaultAllocator)
+{
+    alias RBTree!(V, compareFunc, compareFunc, Allocator, false, false) RBNoUpdatesTree;
+}
+/**
  * used to define a RB tree that takes duplicates
  */
-template RBDupTree(V, alias Allocator=DefaultAllocator)
+template RBDupTree(V, alias compareFunc, alias Allocator=DefaultAllocator)
 {
-    alias RBTree!(V, Allocator, true) RBDupTree;
+    alias RBTree!(V, compareFunc, compareFunc, Allocator, true, false) RBDupTree;
 }

@@ -46,20 +46,42 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     private ArrayList!(V) _parent;
     private ArrayList!(V) _ancestor;
 
-    private class Purger : PurgeKeyedIterator!(uint, V)
+    /**
+     * Iterate over the elements in the ArrayList, telling it which ones
+     * should be removed
+     *
+     * Use like this:
+     *
+     * -------------
+     * // remove all odd elements
+     * foreach(ref doRemove, v; &arrayList.purge)
+     * {
+     *   doRemove = (v & 1) != 0;
+     * }
+     * ------------
+     */
+    final int purge(int delegate(ref bool doRemove, ref V value) dg)
     {
-        final int opApply(int delegate(ref bool doRemove, ref V value) dg)
-        {
-            return _apply(dg, _begin, _end);
-        }
-
-        final int opApply(int delegate(ref bool doRemove, ref uint key, ref V value) dg)
-        {
-            return _apply(dg, _begin, _end);
-        }
+        return _apply(dg, _begin, _end);
     }
 
-    private Purger _purger;
+    /**
+     * Iterate over the elements in the ArrayList, telling it which ones
+     * should be removed.
+     *
+     * Use like this:
+     * -------------
+     * // remove all odd indexes
+     * foreach(ref doRemove, k, v; &arrayList.purge)
+     * {
+     *   doRemove = (k & 1) != 0;
+     * }
+     * ------------
+     */
+    final int keypurge(int delegate(ref bool doRemove, ref uint key, ref V value) dg)
+    {
+        return _apply(dg, _begin, _end);
+    }
 
     /**
      * The array cursor is exactly like a pointer into the array.  The only
@@ -184,7 +206,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     this()
     {
-        _purger = new Purger();
         _ancestor = this;
         _parent = null;
     }
@@ -208,7 +229,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         uint ib = s - parent._begin;
         uint ie = e - parent._begin;
         _array = parent._array[ib..ie];
-        _purger = new Purger();
     }
 
     /**
@@ -226,14 +246,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
             remove(_begin, _end);
         }
         return this;
-    }
-
-    /**
-     * returns true because this supports length
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -616,15 +628,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * gives an object that can be used to purge the list that provides index
-     * information as well as value information.
-     */
-    PurgeKeyedIterator!(uint, V) purger()
-    {
-        return _purger;
-    }
-
-    /**
      * returns true if the given index is valid
      *
      * Runs in O(1) time
@@ -702,9 +705,9 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         // generic case
         //
         checkMutation();
-        if(coll.supportsLength)
+        numAdded = coll.length;
+        if(numAdded != cast(uint)-1)
         {
-            numAdded = coll.length;
             if(numAdded > 0)
             {
                 int i = _array.length;
@@ -843,7 +846,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     ArrayList!(V) removeAll(V v, ref uint numRemoved)
     {
         auto origLength = length;
-        foreach(ref b, x; _purger)
+        foreach(ref b, x; &purge)
         {
             b = cast(bool)(x == v);
         }
@@ -1007,11 +1010,15 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return find(v) - begin;
     }
 
-    class SpecialTypeInfo : TypeInfo
+    class SpecialTypeInfo(bool useFunction) : TypeInfo
     {
-        private CompareFunction!(V) cf;
+        static if(useFunction)
+            alias int function(ref V v1, ref V v2) CompareFunction;
+        else
+            alias int delegate(ref V v1, ref V v2) CompareFunction;
+        private CompareFunction cf;
         private TypeInfo derivedFrom;
-        this(TypeInfo derivedFrom, CompareFunction!(V) comp)
+        this(TypeInfo derivedFrom, CompareFunction comp)
         {
             this.derivedFrom = derivedFrom;
             this.cf = comp;
@@ -1055,7 +1062,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * Sort according to a given comparison function
      */
-    ArrayList sort(CompareFunction!(V) comp)
+    ArrayList sort(int delegate(ref V v1, ref V v2) comp)
     {
         //
         // can't really do this without extra library help.  Luckily, the
@@ -1066,7 +1073,30 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         // overridden to call the comp function.
         //
         //scope SpecialTypeInfo!(typeof(typeid(V))) sti = new SpecialTypeInfo(comp);
-        scope sti = new SpecialTypeInfo(typeid(V), comp);
+        scope sti = new SpecialTypeInfo!(false)(typeid(V), comp);
+        int x;
+        Array ar;
+        ar.length = _array.length;
+        ar.ptr = _array.ptr;
+        _adSort(ar, sti);
+        return this;
+    }
+
+    /**
+     * Sort according to a given comparison function
+     */
+    ArrayList sort(int function(ref V v1, ref V v2) comp)
+    {
+        //
+        // can't really do this without extra library help.  Luckily, the
+        // function to sort an array is always defined by the runtime.  We
+        // just need to access it.  However, it requires that we pass in a
+        // TypeInfo structure to do all the dirty work.  What we need is a
+        // derivative of the real TypeInfo structure with the compare function
+        // overridden to call the comp function.
+        //
+        //scope SpecialTypeInfo!(typeof(typeid(V))) sti = new SpecialTypeInfo(comp);
+        scope sti = new SpecialTypeInfo!(true)(typeid(V), comp);
         int x;
         Array ar;
         ar.length = _array.length;
@@ -1094,7 +1124,7 @@ version(UnitTest)
         assert(al.length == 6);
         al.add(al[0..3]);
         assert(al.length == 9);
-        foreach(ref dp, uint idx, uint val; al.purger)
+        foreach(ref dp, uint idx, uint val; &al.keypurge)
             dp = (val % 2 == 1);
         assert(al.length == 5);
         assert(al == [0U, 2, 4, 0, 2]);

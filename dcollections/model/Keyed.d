@@ -12,7 +12,7 @@ public import dcollections.model.Iterator;
 /**
  * Interface defining an object that accesses values by key.
  */
-interface Keyed(K, V) : KeyedIterator!(K, V)
+interface Keyed(K, V) : KeyedIterator!(K, V), KeyPurgeable!(K, V)
 {
     /**
      * remove the value at the given key location
@@ -61,9 +61,4 @@ interface Keyed(K, V) : KeyedIterator!(K, V)
      * returns true if the collection contains the key
      */
     bool containsKey(K key);
-
-    /**
-     * covariant purger
-     */
-    PurgeKeyedIterator!(K, V) purger();
 }

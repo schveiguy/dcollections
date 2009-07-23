@@ -16,9 +16,6 @@ public import dcollections.model.Collection,
  */
 interface Map(K, V) : Keyed!(K, V), Collection!(V), Multi!(V)
 {
-    //alias Keyed!(K,V).opApply opApply;
-    //alias Keyed!(K,V).purger purger;
-
     /**
      * set all the elements from the given keyed iterator in the map.  Any key
      * that already exists will be overridden.

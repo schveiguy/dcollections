@@ -7,10 +7,15 @@
 **********************************************************/
 module dcollections.Hash;
 
-public import dcollections.Functions;
 private import dcollections.Link;
 private import dcollections.model.Iterator;
 private import dcollections.DefaultAllocator;
+
+struct HashDefaults
+{
+    const float loadFactor = .75;
+    const uint tableSize = 31;
+}
 
 /**
  * Default Hash implementation.  This is used in the Hash* containers by
@@ -19,13 +24,8 @@ private import dcollections.DefaultAllocator;
  * The implementation consists of a table of linked lists.  The table index
  * that an element goes in is based on the hash code.
  */
-struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
+struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDefaults.loadFactor, uint startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator, bool allowDuplicates=false, bool doUpdate=true)
 {
-    /**
-     * alias for this type
-     */
-    alias Hash!(V, Allocator, allowDuplicates) HashType;
-
     /**
      * alias for Node
      */
@@ -52,65 +52,11 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     uint count;
 
     /**
-     * used to determine when to rehash
-     */
-    float loadFactor;
-
-    /**
-     * used to determine starting table size
-     */
-    uint startingTableSize;
-
-    static const float defaultLoadFactor = .75;
-    static const uint defaultTableSize = 31;
-
-    /**
-     * Function used to calculate hashes
-     */
-    HashFunction!(V) hashFunc;
-
-    static if(!allowDuplicates)
-    {
-        /**
-         * Function used to update values that are determined to be equal
-         */
-        UpdateFunction!(V) updateFunc;
-    }
-
-    /**
-     * Used to change one of the parameters of the implementation.
-     */
-    struct parameters
-    {
-        /**
-         * hash function parameter
-         */
-        HashFunction!(V) hashFunction;
-        static if(!allowDuplicates)
-        {
-            /**
-             * update function parameter
-             */
-            UpdateFunction!(V) updateFunction;
-        }
-
-        /**
-         * load factor parameter, this is optional.
-         */
-        float loadFactor;
-
-        /**
-         * initial table size, this is optional.
-         */
-        uint startingTableSize;
-    }
-
-    /**
      * This is like a pointer, used to point to a given element in the hash.
      */
     struct position
     {
-        HashType *owner;
+        Hash *owner;
         Node ptr;
         int idx;
 
@@ -191,7 +137,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         if(table is null)
             resize(startingTableSize);
 
-        auto h = hashFunc(v) % table.length;
+        auto h = hashFunction(v) % table.length;
         Node tail = table[h];
         if(tail is null)
         {
@@ -221,7 +167,8 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                     //
                     // found the node, set the value instead
                     //
-                    updateFunc(elem.value, v);
+                    static if(doUpdate)
+                        updateFunction(elem.value, v);
                     return false;
                 }
             }
@@ -262,7 +209,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
                             cur = next)
                     {
                         next = cur.next;
-                        auto h = hashFunc(cur.value) % newTable.length;
+                        auto h = hashFunction(cur.value) % newTable.length;
                         Node newHead = newTable[h];
                         if(newHead is null)
                         {
@@ -346,7 +293,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     {
         if(count == 0)
             return end;
-        auto h = hashFunc(v) % table.length;
+        auto h = hashFunction(v) % table.length;
         // if bucket is empty, or doesn't contain v, return end
         Node ptr;
         if(table[h] is null || (ptr = findInBucket(table[h], v, table[h])) is null)
@@ -388,28 +335,6 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         delete table;
         table = null;
         count = 0;
-    }
-
-    /**
-     * initialize the hash with the given parameters.  Like a constructor.
-     */
-    void setup(parameters p)
-    {
-        //
-        // these parameters are always set
-        //
-        hashFunc = p.hashFunction;
-        static if(!allowDuplicates)
-        {
-            updateFunc = p.updateFunction;
-        }
-
-        if(p.loadFactor != p.loadFactor)
-            loadFactor = defaultLoadFactor;
-        if(p.startingTableSize != 0)
-            startingTableSize = p.startingTableSize;
-        else
-            startingTableSize = defaultTableSize;
     }
 
     /**
@@ -538,7 +463,7 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         {
             if(count == 0)
                 return end;
-            auto h = hashFunc(v) % table.length;
+            auto h = hashFunction(v) % table.length;
             if(startFrom.idx < h)
             {
                 // if bucket is empty, return end
@@ -563,12 +488,17 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
     /**
      * copy all the elements from this hash to target.
      */
-    void copyTo(ref HashType target)
+    void copyTo(ref Hash target)
     {
         //
         // copy all local values
         //
         target = *this;
+
+        //
+        // reset allocator
+        //
+        target.alloc = target.alloc.init;
 
         //
         // reallocate all the nodes in the table
@@ -592,12 +522,29 @@ struct Hash(V, alias Allocator=DefaultAllocator, bool allowDuplicates=false)
         result.value = v;
         return result;
     }
+
+    /**
+     * Perform any setup necessary (none for this hash impl)
+     */
+    void setup()
+    {
+    }
+}
+
+/**
+ * used to define a Hash that does not perform updates
+ */
+template HashNoUpdate(V, alias hashFunction, float loadFactor=HashDefaults.loadFactor, uint startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator)
+{
+    // note the second hashFunction isn't used because doUpdates is false
+    alias Hash!(V, hashFunction, hashFunction, loadFactor, startingTableSize, Allocator, false, false) HashNoUpdate;
 }
 
 /**
  * used to define a Hash that takes duplicates
  */
-template HashDup(V, alias Allocator=DefaultAllocator)
+template HashDup(V, alias hashFunction, float loadFactor=HashDefaults.loadFactor, uint startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator)
 {
-    alias Hash!(V, Allocator, true) HashDup;
+    // note the second hashFunction isn't used because doUpdates is false
+    alias Hash!(V, hashFunction, hashFunction, loadFactor, startingTableSize, Allocator, true, false) HashDup;
 }

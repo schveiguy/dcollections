@@ -8,8 +8,10 @@
 module dcollections.HashMultiset;
 
 public import dcollections.model.Multiset;
+public import dcollections.DefaultFunctions;
 private import dcollections.Hash;
 
+    import tango.io.Stdout;
 /**
  * A multi-set implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
@@ -69,25 +71,14 @@ private import dcollections.Hash;
  * void copyTo(ref Hash h) -> make a duplicate copy of this hash into the
  * target h.
  */
-class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
+class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : Multiset!(V)
 {
     /**
      * an alias the the implementation template instantiation.
      */
-    alias ImplTemp!(V) Impl;
-
-    /**
-     * convenience alias
-     */
-    alias HashMultiset!(V, ImplTemp) HashMultisetType;
+    alias ImplTemp!(V, hashFunction) Impl;
 
     private Impl _hash;
-    private Purger _purger;
-
-    private static uint hashFunction(ref V v)
-    {
-        return DefaultHash(v);
-    }
 
     /**
      * A cursor for the hash multiset.
@@ -169,16 +160,28 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
         }
     }
 
-    private class Purger : PurgeIterator!(V)
+    /**
+     * Iterate through all the elements of the multiset, indicating which
+     * elements should be removed
+     *
+     *
+     * Use like this:
+     * ----------
+     * // remove all odd elements
+     * foreach(ref doPurge, v; &hashMultiset.purge)
+     * {
+     *   doPurge = ((v & 1) == 1);
+     * }
+     */
+    int purge(int delegate(ref bool doPurge, ref V v) dg)
     {
-        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
-        {
-            return _apply(dg);
-        }
+        Stdout("here", __LINE__).newline();
+        return _apply(dg);
     }
 
     private int _apply(int delegate(ref bool doPurge, ref V v) dg)
     {
+        Stdout("here", __LINE__).newline();
         cursor it = begin;
         bool doPurge;
         int dgret = 0;
@@ -205,6 +208,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     int opApply(int delegate(ref V v) dg)
     {
+        Stdout("here", __LINE__).newline();
         int _dg(ref bool doPurge, ref V v)
         {
             return dg(v);
@@ -213,47 +217,28 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     }
 
     /**
-     * Instantiate the hash map using the implementation parameters given.
-     */
-    this(Impl.parameters p)
-    {
-        // insert defaults for the functions if necessary.
-        if(!p.hashFunction)
-            p.hashFunction = &hashFunction;
-        _hash.setup(p);
-        _purger = new Purger;
-    }
-
-    /**
      * Instantiate the hash map using the default implementation parameters.
      */
     this()
     {
-        Impl.parameters p;
-        this(p);
+        Stdout("here", __LINE__).newline();
+        _hash.setup();
     }
 
     private this(ref Impl dupFrom)
     {
+        Stdout("here", __LINE__).newline();
         dupFrom.copyTo(_hash);
-        _purger = new Purger;
     }
 
     /**
      * Clear the collection of all elements
      */
-    HashMultisetType clear()
+    HashMultiset clear()
     {
+        Stdout("here", __LINE__).newline();
         _hash.clear();
         return this;
-    }
-
-    /**
-     * returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -261,6 +246,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     uint length()
     {
+        Stdout("here", __LINE__).newline();
         return _hash.count;
     }
 
@@ -269,6 +255,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     cursor begin()
     {
+        Stdout("here", __LINE__).newline();
         cursor it;
         it.position = _hash.begin();
         return it;
@@ -280,6 +267,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     cursor end()
     {
+        Stdout("here", __LINE__).newline();
         cursor it;
         it.position = _hash.end();
         return it;
@@ -293,6 +281,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     cursor remove(cursor it)
     {
+        Stdout("here", __LINE__).newline();
         it.position = _hash.remove(it.position);
         return it;
     }
@@ -305,6 +294,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     cursor find(V v)
     {
+        Stdout("here", __LINE__).newline();
         cursor it;
         it.position = _hash.find(v);
         return it;
@@ -317,6 +307,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     cursor find(cursor it, V v)
     {
+        Stdout("here", __LINE__).newline();
         it.position = _hash.find(v, it.position);
         return it;
     }
@@ -328,6 +319,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     bool contains(V v)
     {
+        Stdout("here", __LINE__).newline();
         return find(v) != end;
     }
 
@@ -337,8 +329,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    HashMultisetType remove(V v)
+    HashMultiset remove(V v)
     {
+        Stdout("here", __LINE__).newline();
         bool ignored;
         return remove(v, ignored);
     }
@@ -349,8 +342,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs in O(n) time.
      */
-    HashMultisetType remove(V v, ref bool wasRemoved)
+    HashMultiset remove(V v, ref bool wasRemoved)
     {
+        Stdout("here", __LINE__).newline();
         cursor it = find(v);
         if(it == end)
         {
@@ -365,21 +359,14 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     }
 
     /**
-     * returns an object that can be used to purge the collection.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
-    }
-
-    /**
      * Adds an element to the set.  Returns true if the element was not
      * already present.
      *
      * Runs on average in O(1) time.
      */
-    HashMultisetType add(V v)
+    HashMultiset add(V v)
     {
+        Stdout("here", __LINE__).newline();
         _hash.add(v);
         return this;
     }
@@ -390,8 +377,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs on average in O(1) time.
      */
-    HashMultisetType add(V v, ref bool wasAdded)
+    HashMultiset add(V v, ref bool wasAdded)
     {
+        Stdout("here", __LINE__).newline();
         wasAdded = _hash.add(v);
         return this;
     }
@@ -403,8 +391,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
-    HashMultisetType add(Iterator!(V) it)
+    HashMultiset add(Iterator!(V) it)
     {
+        Stdout("here", __LINE__).newline();
         foreach(v; it)
             _hash.add(v);
         return this;
@@ -417,8 +406,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
-    HashMultisetType add(Iterator!(V) it, ref uint numAdded)
+    HashMultiset add(Iterator!(V) it, ref uint numAdded)
     {
+        Stdout("here", __LINE__).newline();
         uint origlength = length;
         add(it);
         numAdded = length - origlength;
@@ -431,8 +421,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs on average in O(1) * O(m) time, where m is the array length.
      */
-    HashMultisetType add(V[] array)
+    HashMultiset add(V[] array)
     {
+        Stdout("here", __LINE__).newline();
         uint ignored;
         return add(array, ignored);
     }
@@ -443,8 +434,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      *
      * Runs on average in O(1) * O(m) time, where m is the array length.
      */
-    HashMultisetType add(V[] array, ref uint numAdded)
+    HashMultiset add(V[] array, ref uint numAdded)
     {
+        Stdout("here", __LINE__).newline();
         uint origlength = length;
         foreach(v; array)
             _hash.add(v);
@@ -460,6 +452,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     uint count(V v)
     {
+        Stdout("here", __LINE__).newline();
         return _hash.countAll(v);
     }
 
@@ -469,8 +462,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      * Runs on average in O(m * 1) time, where m is the number of elements
      * that are v.
      */
-    HashMultisetType removeAll(V v)
+    HashMultiset removeAll(V v)
     {
+        Stdout("here", __LINE__).newline();
         _hash.removeAll(v);
         return this;
     }
@@ -481,8 +475,9 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      * Runs on average in O(m * 1) time, where m is the number of elements
      * that are v.
      */
-    HashMultisetType removeAll(V v, ref uint numRemoved)
+    HashMultiset removeAll(V v, ref uint numRemoved)
     {
+        Stdout("here", __LINE__).newline();
         numRemoved = _hash.removeAll(v);
         return this;
     }
@@ -490,9 +485,10 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
     /**
      * make a shallow copy of this hash mulitiset.
      */
-    HashMultisetType dup()
+    HashMultiset dup()
     {
-        return new HashMultisetType(_hash);
+        Stdout("here", __LINE__).newline();
+        return new HashMultiset(_hash);
     }
 
     /**
@@ -502,6 +498,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     V get()
     {
+        Stdout("here", __LINE__).newline();
         return begin.value;
     }
 
@@ -512,6 +509,7 @@ class HashMultiset(V, alias ImplTemp = HashDup) : Multiset!(V)
      */
     V take()
     {
+        Stdout("here", __LINE__).newline();
         auto c = begin;
         auto retval = c.value;
         remove(c);
@@ -528,8 +526,14 @@ version(UnitTest)
         hms.add([0U, 1, 2, 3, 4, 5, 5]);
         assert(hms.length == 7);
         assert(ms.count(5U) == 2);
-        foreach(ref doPurge, i; ms.purger)
+        Stdout("about to do foreach").newline;
+        foreach(ref doPurge, i; &ms.purge)
+        {
             doPurge = (i % 2 == 1);
+            Stdout.formatln("element is {}, doPurge is {}", i, doPurge);
+        }
+        Stdout("done foreach").newline;
+        Stdout.formatln("ms.count(5U) is {}", ms.count(5U));
         assert(ms.count(5U) == 0);
         assert(ms.length == 3);
     }

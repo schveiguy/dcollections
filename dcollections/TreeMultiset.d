@@ -8,6 +8,7 @@
 module dcollections.TreeMultiset;
 
 public import dcollections.model.Multiset;
+public import dcollections.DefaultFunctions;
 
 private import dcollections.RBTree;
 
@@ -64,32 +65,21 @@ private import dcollections.RBTree;
  *
  * node removeAll(V v) -> removes all the given values from the tree.
  */
-class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
+class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultCompare) : Multiset!(V)
 {
     /**
      * convenience alias
      */
-    alias ImplTemp!(V) Impl;
-
-    /**
-     * convenience alias
-     */
-    alias TreeMultiset!(V, ImplTemp) TreeMultisetType;
+    alias ImplTemp!(V, compareFunction) Impl;
 
     private Impl _tree;
-    private Purger _purger;
-
-    private static int compareFunction(ref V e, ref V e2)
-    {
-        return DefaultCompare(e, e2);
-    }
 
     /**
      * cursor for the tree multiset
      */
     struct cursor
     {
-        private Impl.node ptr;
+        private Impl.Node ptr;
 
         /**
          * get the value in this element
@@ -164,12 +154,22 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
         }
     }
 
-    private class Purger : PurgeIterator!(V)
+    /**
+     * Iterate through the elements of the collection, specifying which ones
+     * should be removed.
+     *
+     * Use like this:
+     * -------------
+     * // remove all odd elements
+     * foreach(ref doPurge, v; &treeMultiset.purge)
+     * {
+     *   doPurge = ((v % 1) == 1);
+     * }
+     * -------------
+     */
+    final int purge(int delegate(ref bool doPurge, ref V v) dg)
     {
-        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
-        {
-            return _apply(dg);
-        }
+        return _apply(dg);
     }
 
     private int _apply(int delegate(ref bool doPurge, ref V v) dg)
@@ -208,26 +208,11 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
     }
 
     /**
-     * Instantiate the tree multiset using the implementation parameters
-     * given.
-     */
-    this(Impl.parameters p)
-    {
-        // insert defaults
-        if(!p.compareFunction)
-            p.compareFunction = &compareFunction;
-        _tree.setup(p);
-        _purger = new Purger;
-    }
-
-    /**
-     * Instantiate the tree multiset using the default implementation
-     * parameters.
+     * Instantiate the tree multiset
      */
     this()
     {
-        Impl.parameters p;
-        this(p);
+        _tree.setup();
     }
 
     //
@@ -236,24 +221,15 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
     private this(ref Impl dupFrom)
     {
         dupFrom.copyTo(_tree);
-        _purger = new Purger;
     }
 
     /**
      * Clear the collection of all elements
      */
-    TreeMultisetType clear()
+    TreeMultiset clear()
     {
         _tree.clear();
         return this;
-    }
-
-    /**
-     * returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -326,7 +302,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMultisetType remove(V v)
+    TreeMultiset remove(V v)
     {
         cursor it = find(v);
         if(it != end)
@@ -340,7 +316,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMultisetType remove(V v, ref bool wasRemoved)
+    TreeMultiset remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
@@ -356,20 +332,12 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
     }
 
     /**
-     * returns an object that can be used to purge the collection.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
-    }
-
-    /**
      * Adds a value to the collection.
      * Returns this.
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMultisetType add(V v)
+    TreeMultiset add(V v)
     {
         _tree.add(v);
         return this;
@@ -383,7 +351,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMultisetType add(V v, ref bool wasAdded)
+    TreeMultiset add(V v, ref bool wasAdded)
     {
         wasAdded = _tree.add(v);
         return this;
@@ -395,7 +363,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * the iterator.
      */
-    TreeMultisetType add(Iterator!(V) it)
+    TreeMultiset add(Iterator!(V) it)
     {
         foreach(v; it)
             _tree.add(v);
@@ -409,7 +377,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * the iterator.
      */
-    TreeMultisetType add(Iterator!(V) it, ref uint numAdded)
+    TreeMultiset add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
         add(it);
@@ -423,7 +391,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * array.
      */
-    TreeMultisetType add(V[] array)
+    TreeMultiset add(V[] array)
     {
         foreach(v; array)
             _tree.add(v);
@@ -437,7 +405,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree) : Multiset!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * array.
      */
-    TreeMultisetType add(V[] array, ref uint numAdded)
+    TreeMultiset add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         add(array);
@@ -519,7 +487,7 @@ version(UnitTest)
         ms.add([0U, 1, 2, 3, 4, 5, 5]);
         assert(ms.length == 7);
         assert(ms.count(5U) == 2);
-        foreach(ref doPurge, i; ms.purger)
+        foreach(ref doPurge, i; &ms.purge)
             doPurge = (i % 2 == 1);
         assert(ms.count(5U) == 0);
         assert(ms.length == 3);

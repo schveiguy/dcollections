@@ -8,6 +8,7 @@
 module dcollections.TreeMap;
 
 public import dcollections.model.Map;
+public import dcollections.DefaultFunctions;
 
 private import dcollections.RBTree;
 private import dcollections.Iterators;
@@ -64,7 +65,7 @@ private import dcollections.Iterators;
  *
  * void clear() -> removes all elements from the tree, sets count to 0.
  */
-class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
+class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : Map!(K, V)
 {
     /**
      * the elements that are passed to the tree.  Note that if you define a
@@ -77,36 +78,37 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         V val;
     }
 
-    /**
-     * convenience alias to the implementation
-     */
-    alias ImplTemp!(element) Impl;
-
-    /**
-     * convenience alias to the type
-     */
-    alias TreeMap!(K, V, ImplTemp) TreeMapType;
-
-    private Impl _tree;
-    private Purger _purger;
     private KeyIterator _keys;
 
-    private static int compareFunction(ref element e, ref element e2)
+    /**
+     * Compare function used internally to compare two keys
+     */
+    static int _compareFunction(ref element e, ref element e2)
     {
-        return DefaultCompare(e.key, e2.key);
+        return compareFunc(e.key, e2.key);
     }
 
-    private static void updateFunction(ref element orig, ref element newv)
+    /**
+     * Update function used internally to update the value of a node
+     */
+    static void _updateFunction(ref element orig, ref element newv)
     {
         orig.val = newv.val;
     }
+
+    /**
+     * convenience alias to the implementation
+     */
+    alias ImplTemp!(element, _compareFunction, _updateFunction) Impl;
+
+    private Impl _tree;
 
     /**
      * A cursor for elements in the tree
      */
     struct cursor
     {
-        private Impl.node ptr;
+        private Impl.Node ptr;
 
         /**
          * get the value in this element
@@ -198,30 +200,22 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         }
     }
 
-    private class Purger : PurgeKeyedIterator!(K, V)
+    final int purge(int delegate(ref bool doPurge, ref V v) dg)
     {
-        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
+        int _dg(ref bool doPurge, ref K k, ref V v)
         {
-            int _dg(ref bool doPurge, ref K k, ref V v)
-            {
-                return dg(doPurge, v);
-            }
-            return _apply(&_dg);
+            return dg(doPurge, v);
         }
+        return _apply(&_dg);
+    }
 
-        final int opApply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
-        {
-            return _apply(dg);
-        }
+    final int keypurge(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    {
+        return _apply(dg);
     }
 
     private class KeyIterator : Iterator!(K)
     {
-        final bool supportsLength()
-        {
-            return true;
-        }
-
         final uint length()
         {
             return this.outer.length;
@@ -297,25 +291,10 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      * The default update function sets only the V part of the element, and
      * leaves the K part alone.
      */
-    this(Impl.parameters p)
-    {
-        // insert defaults for the functions if necessary.
-        if(!p.updateFunction)
-            p.updateFunction = &updateFunction;
-        if(!p.compareFunction)
-            p.compareFunction = &compareFunction;
-        _tree.setup(p);
-        _purger = new Purger;
-        _keys = new KeyIterator;
-    }
-
-    /**
-     * Instantiate the tree map using the default implementation parameters.
-     */
     this()
     {
-        Impl.parameters p;
-        this(p);
+        _tree.setup();
+        _keys = new KeyIterator;
     }
 
     //
@@ -324,25 +303,16 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     private this(ref Impl dupFrom)
     {
         dupFrom.copyTo(_tree);
-        _purger = new Purger;
         _keys = new KeyIterator;
     }
 
     /**
      * Clear the collection of all elements
      */
-    TreeMapType clear()
+    TreeMap clear()
     {
         _tree.clear();
         return this;
-    }
-
-    /**
-     * returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -446,7 +416,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    TreeMapType remove(V v)
+    TreeMap remove(V v)
     {
         bool ignored;
         return remove(v, ignored);
@@ -458,7 +428,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(n) time.
      */
-    TreeMapType remove(V v, ref bool wasRemoved)
+    TreeMap remove(V v, ref bool wasRemoved)
     {
         cursor it = findValue(v);
         if(it == end)
@@ -479,7 +449,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMapType removeAt(K key)
+    TreeMap removeAt(K key)
     {
         cursor it = find(key);
         if(it != end)
@@ -493,7 +463,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMapType removeAt(K key, ref bool wasRemoved)
+    TreeMap removeAt(K key, ref bool wasRemoved)
     {
         cursor it = find(key);
         if(it == end)
@@ -513,7 +483,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      * 
      * returns this.
      */
-    TreeMapType remove(Iterator!(K) subset)
+    TreeMap remove(Iterator!(K) subset)
     {
         foreach(k; subset)
             removeAt(k);
@@ -526,7 +496,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      * 
      * returns this.
      */
-    TreeMapType remove(Iterator!(K) subset, ref uint numRemoved)
+    TreeMap remove(Iterator!(K) subset, ref uint numRemoved)
     {
         uint origLength = length;
         remove(subset);
@@ -539,7 +509,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType intersect(Iterator!(K) subset, ref uint numRemoved)
+    TreeMap intersect(Iterator!(K) subset, ref uint numRemoved)
     {
         //
         // create a wrapper iterator that generates elements from keys.  Then
@@ -548,34 +518,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         // scope allocates on the stack.
         //
         scope w = new TransformIterator!(element, K)(subset, function void(ref K k, ref element e) { e.key = k;});
-        /*static class wrapper : Iterator!(element)
-        {
-            Iterator!(K) wrapped;
-            this(Iterator!(K) wrapped)
-            {
-              this.wrapped = wrapped;
-            }
-            bool supportsLength() { return wrapped.supportsLength;}
-            uint length() { return wrapped.length;}
-            int opApply(int delegate(ref element e) dg)
-            {
-                //
-                // need to wrap each key in the wrapped iterator into an
-                // element.
-                //
-                int retval = 0;
-                foreach(k; wrapped)
-                {
-                    element elem;
-                    elem.key = k;
-                    if((retval = dg(elem)) != 0)
-                        break;
-                }
-                return retval;
-            }
-        }
 
-        scope w = new wrapper(subset);*/
         numRemoved = _tree.intersect(w);
         return this;
     }
@@ -586,7 +529,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType intersect(Iterator!(K) subset)
+    TreeMap intersect(Iterator!(K) subset)
     {
         uint ignored;
         intersect(subset, ignored);
@@ -629,7 +572,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType set(K key, V value)
+    TreeMap set(K key, V value)
     {
         bool ignored;
         return set(key, value, ignored);
@@ -641,7 +584,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType set(K key, V value, ref bool wasAdded)
+    TreeMap set(K key, V value, ref bool wasAdded)
     {
         element elem;
         elem.key = key;
@@ -656,7 +599,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Returns this.
      */
-    TreeMapType set(KeyedIterator!(K, V) source)
+    TreeMap set(KeyedIterator!(K, V) source)
     {
         foreach(k, v; source)
             set(k, v);
@@ -670,7 +613,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Returns this.
      */
-    TreeMapType set(KeyedIterator!(K, V) source, ref uint numAdded)
+    TreeMap set(KeyedIterator!(K, V) source, ref uint numAdded)
     {
         uint origLength = length;
         set(source);
@@ -707,9 +650,9 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(n + m lg(n)) time, where m is the number of elements removed.
      */
-    TreeMapType removeAll(V v)
+    TreeMap removeAll(V v)
     {
-        foreach(ref b, x; purger)
+        foreach(ref b, x; &purge)
             b = cast(bool)(x == v);
         return this;
     }
@@ -719,7 +662,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * Runs in O(n + m lg(n)) time, where m is the number of elements removed.
      */
-    TreeMapType removeAll(V v, ref uint numRemoved)
+    TreeMap removeAll(V v, ref uint numRemoved)
     {
         uint origLength = length;
         removeAll(v);
@@ -728,20 +671,11 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
     }
 
     /**
-     * returns an object that can be used to purge the collection using
-     * key/value pairs.
-     */
-    PurgeKeyedIterator!(K, V) purger()
-    {
-        return _purger;
-    }
-
-    /**
      * Get a duplicate of this tree map
      */
-    TreeMapType dup()
+    TreeMap dup()
     {
-        return new TreeMapType(_tree);
+        return new TreeMap(_tree);
     }
 
     /**
@@ -761,7 +695,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
         if(m !is null && m.length == length)
         {
             auto _end = end;
-            auto tm = cast(TreeMapType)o;
+            auto tm = cast(TreeMap)o;
             if(tm !is null)
             {
                 //
@@ -796,7 +730,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType set(V[K] source)
+    TreeMap set(V[K] source)
     {
         foreach(K k, V v; source)
             this[k] = v;
@@ -811,7 +745,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType set(V[K] source, ref uint numAdded)
+    TreeMap set(V[K] source, ref uint numAdded)
     {
         uint origLength = length;
         set(source);
@@ -824,7 +758,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * return this.
      */
-    TreeMapType remove(K[] subset)
+    TreeMap remove(K[] subset)
     {
         foreach(k; subset)
             removeAt(k);
@@ -838,7 +772,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * numRemoved is set to the number of elements removed.
      */
-    TreeMapType remove(K[] subset, ref uint numRemoved)
+    TreeMap remove(K[] subset, ref uint numRemoved)
     {
         uint origLength = length;
         remove(subset);
@@ -851,7 +785,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType intersect(K[] subset)
+    TreeMap intersect(K[] subset)
     {
         scope iter = new ArrayIterator!(K)(subset);
         return intersect(iter);
@@ -864,7 +798,7 @@ class TreeMap(K, V, alias ImplTemp = RBTree) : Map!(K, V)
      *
      * returns this.
      */
-    TreeMapType intersect(K[] subset, ref uint numRemoved)
+    TreeMap intersect(K[] subset, ref uint numRemoved)
     {
         scope iter = new ArrayIterator!(K)(subset);
         return intersect(iter, numRemoved);
@@ -881,7 +815,7 @@ version(UnitTest)
         for(int i = 0; i < 10; i++)
             m[i * i + 1] = i;
         assert(m.length == 10);
-        foreach(ref doPurge, k, v; m.purger)
+        foreach(ref doPurge, k, v; &m.keypurge)
         {
             doPurge = (v % 2 == 1);
         }

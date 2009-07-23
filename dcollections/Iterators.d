@@ -44,14 +44,6 @@ class TransformIterator(V, U=V) : Iterator!(V)
     }
 
     /**
-     * Returns true if the source iterator suports length.
-     */
-    bool supportsLength()
-    {
-        return _src.supportsLength;
-    }
-
-    /**
      * Returns the length that the source provides.
      */
     uint length()
@@ -115,14 +107,6 @@ class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
     {
         _src = source;
         _fn = fn;
-    }
-
-    /**
-     * Returns true if the source iterator suports length.
-     */
-    bool supportsLength()
-    {
-        return _src.supportsLength;
     }
 
     /**
@@ -197,7 +181,7 @@ class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
 class ChainIterator(V) : Iterator!(V)
 {
     private Iterator!(V)[] _chain;
-    private bool _supLength;
+    private uint _len;
 
     /**
      * Constructor.  Pass in the iterators you wish to chain together in the
@@ -211,7 +195,7 @@ class ChainIterator(V) : Iterator!(V)
         _chain = chain.dup;
         _supLength = true;
         foreach(it; _chain)
-            if(!it.supportsLength)
+            if(it.length == cast(uint)-1)
             {
                 _supLength = false;
                 break;
@@ -219,27 +203,21 @@ class ChainIterator(V) : Iterator!(V)
     }
 
     /**
-     * Returns true if all the iterators in the chain support length.
-     */
-    bool supportsLength()
-    {
-        return _supLength;
-    }
-
-    /**
      * Returns the sum of all the iterator lengths in the chain.
      *
-     * returns 0 if supportsLength is false.
+     * returns cast(uint)-1 if a single iterator in the chain does not support
+     * length
      */
     uint length()
     {
-        uint result = 0;
         if(_supLength)
         {
+            uint result = 0;
             foreach(it; _chain)
                 result += it.length;
+            return result;
         }
-        return result;
+        return cast(uint)-1;
     }
 
     /**
@@ -277,7 +255,7 @@ class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
         _chain = chain.dup;
         _supLength = true;
         foreach(it; _chain)
-            if(!it.supportsLength)
+            if(it.length == cast(uint)-1)
             {
                 _supLength = false;
                 break;
@@ -285,27 +263,20 @@ class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
     }
 
     /**
-     * Returns true if all the iterators in the chain support length.
-     */
-    bool supportsLength()
-    {
-        return _supLength;
-    }
-
-    /**
      * Returns the sum of all the iterator lengths in the chain.
      *
-     * returns 0 if supportsLength is false.
+     * returns cast(uint)-1 if any iterators in the chain return -1 for length
      */
     uint length()
     {
-        uint result = 0;
         if(_supLength)
         {
+            uint result = 0;
             foreach(it; _chain)
                 result += it.length;
+            return result;
         }
-        return result;
+        return cast(uint)-1;
     }
 
     /**
@@ -372,26 +343,14 @@ class FilterIterator(V) : Iterator!(V)
     }
 
     /**
-     * Always returns false.  It is impossible to tell how many elements from
-     * the underlying iterator will pass the filter function.
-     */
-    bool supportsLength()
-    {
-        //
-        // cannot know what the filter delegate/function will decide.
-        //
-        return false;
-    }
-
-    /**
-     * Returns 0
+     * Returns cast(uint)-1
      */
     uint length()
     {
         //
         // cannot know what the filter delegate/function will decide.
         //
-        return 0;
+        return cast(uint)-1;
     }
 
     /**
@@ -456,26 +415,14 @@ class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
     }
 
     /**
-     * Always returns false.  It is impossible to tell how many elements from
-     * the underlying iterator will pass the filter function.
-     */
-    bool supportsLength()
-    {
-        //
-        // cannot know what the filter delegate/function will decide.
-        //
-        return false;
-    }
-
-    /**
-     * Returns 0
+     * Returns cast(uint)-1
      */
     uint length()
     {
         //
         // cannot know what the filter delegate/function will decide.
         //
-        return 0;
+        return cast(uint)-1;
     }
 
     /**
@@ -547,14 +494,6 @@ class ArrayIterator(V) : Iterator!(V)
     }
 
     /**
-     * Always returns true, because arrays always have a length field.
-     */
-    bool supportsLength()
-    {
-        return true;
-    }
-
-    /**
      * Returns the array length
      */
     uint length()
@@ -591,14 +530,6 @@ class AAIterator(K, V) : KeyedIterator!(K, V)
     }
 
     /**
-     * always supports length, because AA's support length
-     */
-    bool supportsLength()
-    {
-        return true;
-    }
-
-    /**
      * Returns the length of the wrapped AA
      */
     uint length()
@@ -627,12 +558,13 @@ class AAIterator(K, V) : KeyedIterator!(K, V)
 V[] toArray(V)(Iterator!(V) it)
 {
     V[] result;
-    if(it.supportsLength)
+    uint len = it.length;
+    if(len != cast(uint)-1)
     {
         //
         // can optimize a bit
         //
-        result.length = it.length;
+        result.length = len;
         int i = 0;
         foreach(v; it)
             result[i++] = v;

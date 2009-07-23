@@ -9,6 +9,7 @@ module dcollections.LinkList;
 
 public import dcollections.model.List;
 private import dcollections.Link;
+private import dcollections.DefaultFunctions;
 
 /**
  * This class implements the list interface by using Link nodes.  This gives
@@ -24,19 +25,19 @@ private import dcollections.Link;
  * template argument V with the following members (unless specified, members
  * can be implemented as properties):
  *
- * parameters -> data type that is passed to setup to help set up the node.
+ * parameters -> data type that is passed to setup to help set up the Node.
  * There are no specific requirements for this type.
  *
- * node -> data type that represents a node in the list.  This should be a
- * reference type.  Each node must define the following members:
- *   V value -> the value held at this node.  Cannot be a property.
- *   node prev -> (get only) the previous node in the list
- *   node next -> (get only) the next node in the list
+ * Node -> data type that represents a Node in the list.  This should be a
+ * reference type.  Each Node must define the following members:
+ *   V value -> the value held at this Node.  Cannot be a property.
+ *   Node prev -> (get only) the previous Node in the list
+ *   Node next -> (get only) the next Node in the list
  *
- * node end -> (get only) An invalid node that points just past the last valid
- * node.  end.prev should be the last valid node.  end.next is undefined.
+ * Node end -> (get only) An invalid Node that points just past the last valid
+ * Node.  end.prev should be the last valid Node.  end.next is undefined.
  *
- * node begin -> (get only) The first valid node.  begin.prev is undefined.
+ * Node begin -> (get only) The first valid Node.  begin.prev is undefined.
  *
  * uint count -> (get only)  The number of nodes in the list.  This can be
  * calculated in O(n) time to allow for more efficient removal of multiple
@@ -44,15 +45,15 @@ private import dcollections.Link;
  *
  * void setup(parameters p) -> set up the list.  This is like a constructor.
  *
- * node remove(node n) -> removes the given node from the list.  Returns the
- * next node in the list.
+ * Node remove(Node n) -> removes the given Node from the list.  Returns the
+ * next Node in the list.
  *
- * node remove(node first, node last) -> removes the nodes from first to last,
+ * Node remove(Node first, Node last) -> removes the nodes from first to last,
  * not including last.  Returns last.  This can run in O(n) time if count is
  * O(1), or O(1) time if count is O(n).
  *
- * node insert(node before, V v) -> add a new node before the node 'before',
- * return a pointer to the new node.
+ * Node insert(Node before, V v) -> add a new Node before the Node 'before',
+ * return a pointer to the new Node.
  *
  * void clear() -> remove all nodes from the list.
  * 
@@ -73,14 +74,13 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     alias LinkList!(V, ImplTemp) LinkListType;
 
     private Impl _link;
-    private Purger _purger;
 
     /**
      * A cursor for link list
      */
     struct cursor
     {
-        private Impl.node ptr;
+        private Impl.Node ptr;
 
         /**
          * get the value pointed to by this cursor
@@ -166,19 +166,9 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * Constructor
      */
-    this(Impl.parameters p)
-    {
-        _link.setup(p);
-        _purger = new Purger;
-    }
-
-    /**
-     * Constructor
-     */
     this()
     {
-        Impl.parameters p;
-        this(p);
+        _link.setup();
     }
 
     //
@@ -187,7 +177,6 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     private this(ref Impl dupFrom, bool copyNodes)
     {
       dupFrom.copyTo(_link, copyNodes);
-      _purger = new Purger;
     }
 
     /**
@@ -197,14 +186,6 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         _link.clear();
         return this;
-    }
-
-    /**
-     * returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -368,20 +349,23 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         return _apply(dg, begin, end);
     }
 
-    private class Purger : PurgeIterator!(V)
-    {
-        int opApply(int delegate(ref bool doRemove, ref V value) dg)
-        {
-            return _apply(dg, begin, end);
-        }
-    }
-
     /**
-     * returns an object that can be used to purge the collection.
+     * Iterate over the collections values, specifying which ones should be
+     * removed
+     *
+     * Use like this:
+     *
+     * -----------
+     * // remove all odd values
+     * foreach(ref doPurge, v; &list.purge)
+     * {
+     *   doPurge = ((v & 1) == 1);
+     * }
+     * -----------
      */
-    PurgeIterator!(V) purger()
+    final int purge(int delegate(ref bool doRemove, ref V value) dg)
     {
-        return _purger;
+        return _apply(dg, begin, end);
     }
 
     /**
@@ -481,7 +465,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     LinkListType removeAll(V v)
     {
-        foreach(ref dp, x; purger)
+        foreach(ref dp, x; &purge)
         {
             dp = cast(bool)(x == v);
         }
@@ -653,7 +637,20 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns this after sorting
      */
-    LinkList sort(CompareFunction!(V) comp)
+    LinkList sort(int delegate(ref V, ref V) comp)
+    {
+        _link.sort(comp);
+        return this;
+    }
+
+    /**
+     * Sort the linked list according to the given compare function.
+     *
+     * Runs in O(n lg(n)) time
+     *
+     * Returns this after sorting
+     */
+    LinkList sort(int function(ref V, ref V) comp)
     {
         _link.sort(comp);
         return this;
@@ -670,6 +667,17 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         return sort(&DefaultCompare!(V));
     }
+
+    /**
+     * Sort the linked list according to the given compare functor.  This is
+     * a templatized version, and so can be used with functors, and might be
+     * inlined.
+     */
+    LinkList sortX(Comparator)(Comparator comp)
+    {
+        _link.sort(comp);
+        return this;
+    }
 }
 
 version(UnitTest)
@@ -681,7 +689,7 @@ version(UnitTest)
         l.add([0U, 1, 2, 3, 4, 5]);
         assert(l.length == 6);
         assert(l.contains(5));
-        foreach(ref doPurge, i; l.purger)
+        foreach(ref doPurge, i; &l.purge)
             doPurge = (i % 2 == 1);
         assert(l.length == 3);
         assert(!l.contains(5));

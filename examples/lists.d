@@ -55,7 +55,7 @@ void main()
     // you can purge elements from a list
     //
     // removes all odd elements in the list.
-    foreach(ref doPurge, i; linkList.purger)
+    foreach(ref doPurge, i; &linkList.purge)
         doPurge = (i % 2 == 1);
     print(linkList, "removed all odds from linkList");
 
@@ -69,7 +69,7 @@ void main()
     // removing an element from a slice removes it from the parent
     //
     // removes all even elements from arrayList
-    foreach(ref doPurge, i; slice.purger)
+    foreach(ref doPurge, i; &slice.purge)
         doPurge = (i % 2 == 0);
     print(slice, "removed evens from slice");
     print(arrayList, "arrayList after removal from slice");

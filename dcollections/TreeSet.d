@@ -8,6 +8,7 @@
 module dcollections.TreeSet;
 
 public import dcollections.model.Set;
+public import dcollections.DefaultFunctions;
 
 private import dcollections.RBTree;
 
@@ -62,36 +63,21 @@ private import dcollections.RBTree;
  *
  * void clear() -> removes all elements from the tree, sets count to 0.
  */
-class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
+class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = DefaultCompare) : Set!(V)
 {
     /**
      * convenience alias.
      */
-    alias ImplTemp!(V) Impl;
-
-    /**
-     * convenience alias.
-     */
-    alias TreeSet!(V, ImplTemp) TreeSetType;
+    alias ImplTemp!(V, compareFunction) Impl;
 
     private Impl _tree;
-    private Purger _purger;
-
-    private static int compareFunction(ref V e, ref V e2)
-    {
-        return DefaultCompare(e, e2);
-    }
-
-    private static void updateFunction(ref V orig, ref V newv)
-    {
-    }
 
     /**
      * Iterator for the tree set.
      */
     struct cursor
     {
-        private Impl.node ptr;
+        private Impl.Node ptr;
 
         /**
          * get the value in this element
@@ -166,12 +152,22 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
         }
     }
 
-    private class Purger : PurgeIterator!(V)
+    /**
+     * Iterate through elements of the TreeSet, specifying which ones to
+     * remove.
+     *
+     * Use like this:
+     * -------------
+     * // remove all odd elements
+     * foreach(ref doPurge, v; &treeSet.purge)
+     * {
+     *   doPurge = ((v % 1) == 1);
+     * }
+     * -------------
+     */
+    final int purge(int delegate(ref bool doPurge, ref V v) dg)
     {
-        final int opApply(int delegate(ref bool doPurge, ref V v) dg)
-        {
-            return _apply(dg);
-        }
+        return _apply(dg);
     }
 
     private int _apply(int delegate(ref bool doPurge, ref V v) dg)
@@ -210,26 +206,11 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
     }
 
     /**
-     * Instantiate the tree set using the implementation parameters given.
-     */
-    this(Impl.parameters p)
-    {
-        // insert defaults
-        if(!p.updateFunction)
-            p.updateFunction = &updateFunction;
-        if(!p.compareFunction)
-            p.compareFunction = &compareFunction;
-        _tree.setup(p);
-        _purger = new Purger;
-    }
-
-    /**
-     * Instantiate the tree set using the default implementation parameters.
+     * Instantiate the tree set
      */
     this()
     {
-        Impl.parameters p;
-        this(p);
+        _tree.setup();
     }
 
     //
@@ -238,24 +219,15 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
     private this(ref Impl dupFrom)
     {
         dupFrom.copyTo(_tree);
-        _purger = new Purger;
     }
 
     /**
      * Clear the collection of all elements
      */
-    TreeSetType clear()
+    TreeSet clear()
     {
         _tree.clear();
         return this;
-    }
-
-    /**
-     * returns true
-     */
-    bool supportsLength()
-    {
-        return true;
     }
 
     /**
@@ -328,7 +300,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeSetType remove(V v)
+    TreeSet remove(V v)
     {
         cursor it = find(v);
         if(it !is end)
@@ -342,7 +314,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeSetType remove(V v, ref bool wasRemoved)
+    TreeSet remove(V v, ref bool wasRemoved)
     {
         cursor it = find(v);
         if(it == end)
@@ -358,20 +330,12 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
     }
 
     /**
-     * returns an object that can be used to purge the collection.
-     */
-    PurgeIterator!(V) purger()
-    {
-        return _purger;
-    }
-
-    /**
      * Adds a value to the collection.
      * Returns true.
      *
      * Runs in O(lg(n)) time.
      */
-    TreeSetType add(V v)
+    TreeSet add(V v)
     {
         _tree.add(v);
         return this;
@@ -383,7 +347,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * Runs in O(lg(n)) time.
      */
-    TreeSetType add(V v, ref bool wasAdded)
+    TreeSet add(V v, ref bool wasAdded)
     {
         wasAdded = _tree.add(v);
         return this;
@@ -395,7 +359,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * enumerator.
      */
-    TreeSetType add(Iterator!(V) it)
+    TreeSet add(Iterator!(V) it)
     {
         foreach(v; it)
             _tree.add(v);
@@ -408,7 +372,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * enumerator.
      */
-    TreeSetType add(Iterator!(V) it, ref uint numAdded)
+    TreeSet add(Iterator!(V) it, ref uint numAdded)
     {
         uint origlength = length;
         add(it);
@@ -422,7 +386,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * array.
      */
-    TreeSetType add(V[] array)
+    TreeSet add(V[] array)
     {
         foreach(v; array)
             _tree.add(v);
@@ -435,7 +399,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Runs in O(m lg(n)) time, where m is the number of elements in
      * array.
      */
-    TreeSetType add(V[] array, ref uint numAdded)
+    TreeSet add(V[] array, ref uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)
@@ -448,15 +412,15 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      * Return a duplicate treeset containing all the elements in this tree
      * set.
      */
-    TreeSetType dup()
+    TreeSet dup()
     {
-        return new TreeSetType(_tree);
+        return new TreeSet(_tree);
     }
 
     /**
      * Remove all the elements that match in the subset
      */
-    TreeSetType remove(Iterator!(V) subset)
+    TreeSet remove(Iterator!(V) subset)
     {
         foreach(v; subset)
             remove(v);
@@ -469,7 +433,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * returns this.
      */
-    TreeSetType remove(Iterator!(V) subset, ref uint numRemoved)
+    TreeSet remove(Iterator!(V) subset, ref uint numRemoved)
     {
         uint origLength = length;
         remove(subset);
@@ -482,7 +446,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * returns this.
      */
-    TreeSetType intersect(Iterator!(V) subset)
+    TreeSet intersect(Iterator!(V) subset)
     {
         _tree.intersect(subset);
         return this;
@@ -494,7 +458,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
      *
      * returns this.
      */
-    TreeSetType intersect(Iterator!(V) subset, ref uint numRemoved)
+    TreeSet intersect(Iterator!(V) subset, ref uint numRemoved)
     {
         numRemoved = _tree.intersect(subset);
         return this;
@@ -513,7 +477,7 @@ class TreeSet(V, alias ImplTemp = RBTree) : Set!(V)
             auto s = cast(Set!(V))o;
             if(s !is null && s.length == length)
             {
-                auto ts = cast(TreeSetType)o;
+                auto ts = cast(TreeSet)o;
                 auto _end = end;
                 if(ts !is null)
                 {
@@ -591,7 +555,7 @@ version(UnitTest)
         Set!(uint) s = ts;
         s.add([0U, 1, 2, 3, 4, 5, 5]);
         assert(s.length == 6);
-        foreach(ref doPurge, i; s.purger)
+        foreach(ref doPurge, i; &s.purge)
             doPurge = (i % 2 == 1);
         assert(s.length == 3);
         assert(s.contains(4));

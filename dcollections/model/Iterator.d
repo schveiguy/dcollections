@@ -13,12 +13,9 @@ module dcollections.model.Iterator;
 interface Iterator(V)
 {
     /**
-     * Should return true if the length can be obtained, false if it cannot.
-     */
-    bool supportsLength();
-
-    /**
      * If supported, returns the number of elements that will be iterated.
+     *
+     * If not supported, returns cast(uint)-1.
      */
     uint length();
 
@@ -46,7 +43,7 @@ interface KeyedIterator(K, V) : Iterator!(V)
  * A purge iterator is used to purge values from a collection.  This works by
  * telling the iterator that you want it to remove the value last iterated.
  */
-interface PurgeIterator(V)
+interface Purgeable(V)
 {
     /**
      * iterate over the values of the iterator, telling it which values to
@@ -56,20 +53,18 @@ interface PurgeIterator(V)
      * Make sure you specify ref for the doPurge parameter:
      *
      * -----
-     * foreach(ref doPurge, v; purgeIterator){
+     * foreach(ref doPurge, v; &purgeable.purge){
      * ...
      * -----
      */
-    int opApply(int delegate(ref bool doPurge, ref V v) dg);
+    int purge(int delegate(ref bool doPurge, ref V v) dg);
 }
 
 /**
  * A purge iterator for keyed containers.
  */
-interface PurgeKeyedIterator(K, V) : PurgeIterator!(V)
+interface KeyPurgeable(K, V) : Purgeable!(V)
 {
-    alias PurgeIterator!(V).opApply opApply;
-
     /**
      * iterate over the key/value pairs of the iterator, telling it which ones
      * to remove.
@@ -77,9 +72,16 @@ interface PurgeKeyedIterator(K, V) : PurgeIterator!(V)
      * Make sure you specify ref for the doPurge parameter:
      *
      * -----
-     * foreach(ref doPurge, k, v; purgeIterator){
+     * foreach(ref doPurge, k, v; &purgeable.keypurge){
      * ...
      * -----
+     *
+     * TODO: note this should have the name purge, but because of asonine
+     * lookup rules, it makes it difficult to specify this version over the
+     * base version.  Once this is fixed, it's highly likely that this goes
+     * back to the name purge.
+     *
+     * See bugzilla #2498
      */
-    int opApply(int delegate(ref bool doPurge, ref K k, ref V v) dg);
+    int keypurge(int delegate(ref bool doPurge, ref K k, ref V v) dg);
 }

@@ -8,7 +8,6 @@
 module dcollections.Link;
 
 private import dcollections.DefaultAllocator;
-private import dcollections.Functions;
 
 /**
  * Linked-list node that is used in various collection classes.
@@ -18,7 +17,7 @@ struct Link(V)
     /**
      * convenience alias
      */
-    alias Link!(V) *Node;
+    alias Link *Node;
     Node next;
     Node prev;
 
@@ -141,7 +140,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * Convenience alias
      */
-    alias Link!(V).Node node;
+    alias Link!(V).Node Node;
 
     /**
      * Convenience alias
@@ -156,7 +155,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * The node that denotes the end of the list
      */
-    node end; // not a valid node
+    Node end; // not a valid node
 
     /**
      * The number of nodes in the list
@@ -164,14 +163,9 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     uint count;
 
     /**
-     * we don't use parameters, so alias it to int.
-     */
-    alias int parameters;
-
-    /**
      * Get the first valid node in the list
      */
-    node begin()
+    Node begin()
     {
         return end.next;
     }
@@ -179,11 +173,11 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * Initialize the list
      */
-    void setup(parameters p = 0)
+    void setup()
     {
         //end = new node;
         end = allocate();
-        node.attach(end, end);
+        Node.attach(end, end);
         count = 0;
     }
 
@@ -191,10 +185,10 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
      * Remove a node from the list, returning the next node in the list, or
      * end if the node was the last one in the list. O(1) operation.
      */
-    node remove(node n)
+    Node remove(Node n)
     {
         count--;
-        node retval = n.next;
+        Node retval = n.next;
         n.unlink;
         static if(allocator.freeNeeded)
             alloc.free(n);
@@ -204,7 +198,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * sort the list according to the given compare function
      */
-    void sort(CompareFunction!(V) comp)
+    void sort(Comparator)(Comparator comp)
     {
         if(end.next.next is end)
             //
@@ -227,9 +221,9 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
             //
             // end.next serves as the sorted list head
             //
-            node head = end.next;
+            Node head = end.next;
             end.next = null;
-            node sortedtail = end;
+            Node sortedtail = end;
             int tmpcount = count;
 
             while(head !is null)
@@ -243,10 +237,10 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
                     sortedtail.next = head;
                     break;
                 }
-                node left = head;
+                Node left = head;
                 for(int k = 1; k < K && head.next !is null; k++)
                     head = head.next;
-                node right = head.next;
+                Node right = head.next;
 
                 //
                 // head now points to the last element in 'left', detach the
@@ -303,18 +297,18 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
         //
         // now, attach all the prev nodes
         //
-        node n;
+        Node n;
         for(n = end; n.next !is null; n = n.next)
             n.next.prev = n;
-        node.attach(n, end);
+        Node.attach(n, end);
     }
 
     /**
      * Remove all the nodes from first to last.  This is an O(n) operation.
      */
-    node remove(node first, node last)
+    Node remove(Node first, Node last)
     {
-        node.attach(first.prev, last);
+        Node.attach(first.prev, last);
         auto n = first;
         while(n !is last)
         {
@@ -331,7 +325,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
      * Insert the given value before the given node.  Use insert(end, v) to
      * add to the end of the list, or to an empty list. O(1) operation.
      */
-    node insert(node before, V v)
+    Node insert(Node before, V v)
     {
         count++;
         //return before.prepend(new node(v)).prev;
@@ -343,13 +337,21 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
      */
     void clear()
     {
-        node.attach(end, end);
+        Node.attach(end, end);
         count = 0;
     }
 
-    void copyTo(ref LinkHead!(V, Allocator) target, bool copyNodes=true)
+    /**
+     * Copy this list to the target.
+     */
+    void copyTo(ref LinkHead target, bool copyNodes=true)
     {
         target = *this;
+        //
+        // reset the allocator
+        //
+        target.alloc = target.alloc.init;
+
         if(copyNodes)
         {
             target.end = end.dup(&target.allocate);
@@ -363,12 +365,18 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
         }
     }
 
-    private node allocate()
+    /**
+     * Allocate a new node
+     */
+    private Node allocate()
     {
         return alloc.allocate();
     }
 
-    private node allocate(V v)
+    /**
+     * Allocate a new node, then set the value to v
+     */
+    private Node allocate(V v)
     {
         auto retval = allocate();
         retval.value = v;
