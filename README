@@ -23,3 +23,11 @@ where the ... represents what's there now.
 Then copy the dcollections source tree to wherever you have your import tree.
 Otherwise, add a -Ipath/to/dcollections to the appropriate config file for your
 system
+
+COMPILER
+
+This library was tested with Tango, using DMD version 1.046.
+
+It *REQUIRES* version 1.045 or later, since this fixed an interface bug.  Without the change, you will have access violations because the compiler calls the wrong vtable function.
+
+So before you report a bug that you can't figure out, MAKE SURE you are using compiler 1.045 or later!
