@@ -6,124 +6,128 @@
 
 **********************************************************/
 module dcollections.model.List;
-public import dcollections.model.Collection,
-       dcollections.model.Addable,
-       dcollections.model.Multi;
+public import dcollections.model.Addable;
 
 /**
  * A List is a collection whose elements are in the order added.  These are
  * useful when you need something that keeps track of not only values, but the
  * order added.
  */
-interface List(V) : Collection!(V), Addable!(V), Multi!(V)
+interface List(V) : Iterator!(V), Addable!(V)
 {
     /**
      * Concatenate two lists together.  The resulting list type is of the type
-     * of the left hand side.
+     * of the left hand side.  The returned list is a new object, different
+     * from this and rhs.
      */
-    List!(V) opCat(List!(V) rhs);
+    List concat(List rhs);
 
     /**
      * Concatenate this list and an array together.
      *
      * The resulting list is the same type as this list.
      */
-    List!(V) opCat(V[] array);
+    List concat(V[] array);
 
     /**
      * Concatenate an array and this list together.
      *
      * The resulting list is the same type as this list.
      */
-    List!(V) opCat_r(V[] array);
+    List concat_r(V[] array);
 
     /**
-     * append the given list to this list.  Returns 'this'.
+     * operator overload for concatenation.
      */
-    List!(V) opCatAssign(List!(V) rhs);
+    auto opBinary(string op, T)(T rhs) if (op == "~" && (is(T == V[]) || is(T == List)))
+    {
+        return concat(rhs);
+    }
 
     /**
-     * append the given array to this list.  Returns 'this'.
+     * operator overload for concatenation of an array with this object.
      */
-    List!(V) opCatAssign(V[] array);
+    auto opBinaryRight(string op, T)(T rhs) if (op == "~" && is(T == V[]))
+    {
+        return concat_r(rhs);
+    }
 
     /**
-     * covariant clear (from Collection)
+     * Append the given elements in the range to the end of the list.  Returns
+     * 'this'
      */
-    List!(V) clear();
+    auto opOpAssign(string op, R)(R range) if (op == "~=" && !is(R == V[]) && isInputRange!R && is(ElementType!R == V))
+    {
+        addRange(range);
+        return this;
+    }
 
     /**
-     * covariant dup (from Collection)
+     * Append the given item to the 
      */
-    List!(V) dup();
+    auto opOpAssign(string op, T)(T other) if (op == "~=" && (is(T == V[]) || !isInputRange!R))
+    {
+        return add(other);
+    }
 
     /**
-     * Covariant remove (from Collection)
+     * clear all elements from the list. (Part of the collection
+     * pseudo-interface)
      */
-    List!(V) remove(V v);
+    List clear();
 
     /**
-     * Covariant remove (from Collection)
+     * Create a clone of this list. (Part of the collection pseudo-interface)
      */
-    List!(V) remove(V v, ref bool wasRemoved);
-
-    /**
-     * Covariant add (from Addable)
-     */
-    List!(V) add(V v);
-
-    /**
-     * Covariant add (from Addable)
-     */
-    List!(V) add(V v, ref bool wasAdded);
-
-    /**
-     * Covariant add (from Addable)
-     */
-    List!(V) add(Iterator!(V) it);
-
-    /**
-     * Covariant add (from Addable)
-     */
-    List!(V) add(Iterator!(V) it, ref uint numAdded);
+    List dup();
 
     /**
      * Covariant add (from Addable)
      */
-    List!(V) add(V[] array);
+    List add(V v);
 
     /**
      * Covariant add (from Addable)
      */
-    List!(V) add(V[] array, ref uint numAdded);
+    List add(V v, ref bool wasAdded);
 
     /**
-     * covariant removeAll (from Multi)
+     * Covariant add (from Addable)
      */
-    List!(V) removeAll(V v);
+    List add(Iterator!(V) it);
 
     /**
-     * covariant removeAll (from Multi)
+     * Covariant add (from Addable)
      */
-    List!(V) removeAll(V v, ref uint numRemoved);
+    List add(Iterator!(V) it, ref uint numAdded);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    List add(V[] array);
+
+    /**
+     * Covariant add (from Addable)
+     */
+    List add(V[] array, ref uint numAdded);
 
     /**
      * sort this list according to the default compare routine for V.  Returns
-     * a reference to the list after it is sorted.
+     * a reference to the list after it is sorted.  O(NlgN) runtime or better.
      */
-    List!(V) sort();
+    List sort();
 
     /**
      * sort this list according to the comparison routine given.  Returns a
-     * reference to the list after it is sorted.
+     * reference to the list after it is sorted.  O(NlgN) runtime or better.
      */
-    List!(V) sort(int delegate(ref V v1, ref V v2) comp);
+    List sort(int delegate(ref V v1, ref V v2) comp);
 
     /**
      * sort this list according to the comparison routine given.  Returns a
-     * reference to the list after it is sorted.
+     * reference to the list after it is sorted.  O(NlgN) runtime or better.
      */
-    List!(V) sort(int function(ref V v1, ref V v2) comp);
+    List sort(int function(ref V v1, ref V v2) comp);
 
     /**
      * compare this list to another list.  Returns true if they have the same
@@ -131,29 +135,28 @@ interface List(V) : Collection!(V), Addable!(V), Multi!(V)
      *
      * If o is not a list, then 0 is returned.
      */
-    int opEquals(Object o);
+    bool opEquals(const Object o) const;
 
     /**
      * Returns the element at the front of the list, or the oldest element
      * added.  If the list is empty, calling front is undefined.
+     *
+     * TODO: should be inout
      */
     V front();
 
     /**
      * Returns the element at the end of the list, or the most recent element
      * added.  If the list is empty, calling back is undefined.
+     *
+     * TODO: should be inout
      */
     V back();
 
     /**
-     * Takes the element at the front of the list, and return its value.  This
-     * operation can be as high as O(n).
-     */
-    V takeFront();
-
-    /**
      * Takes the element at the end of the list, and return its value.  This
-     * operation can be as high as O(n).
+     * operation is guaranteed to be O(lgN).  It should always be implementable
+     * as O(lgN) because it is O(lgN) to add an element to the end.
      */
-    V takeBack();
+    V take();
 }

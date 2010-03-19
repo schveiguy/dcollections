@@ -6,9 +6,8 @@
 
 **********************************************************/
 module dcollections.model.Multiset;
-public import dcollections.model.Collection,
-       dcollections.model.Addable,
-       dcollections.model.Multi;
+
+public import dcollections.model.Addable;
 
 /**
  * A Multiset is a container that allows multiple instances of the same value
@@ -18,85 +17,91 @@ public import dcollections.model.Collection,
  * is, elements may not be stored in the order added.
  *
  * Since ordering is not important, the collection can reorder elements on
- * removal or addition to optimize the operations.
+ * removal or addition to optimize the operations.  Indeed most of the
+ * operations guarantee better performance than an equivalent list operation
+ * would.
  */
-interface Multiset(V) : Collection!(V), Addable!(V), Multi!(V)
+interface Multiset(V) : Addable!(V)
 {
     /**
-     * covariant clear (from Collection)
+     * clear all elements from the multiset (part of collection
+     * pseudo-interface)
      */
-    Multiset!(V) clear();
+    Multiset clear();
 
     /**
-     * covariant dup (from Collection)
+     * dup (part of collection pseudo-interface)
      */
-    Multiset!(V) dup();
+    Multiset dup();
 
     /**
-     * Covariant remove (from Collection)
+     * Remove an element from the multiset.  Guaranteed to be O(lgN) or better.
      */
-    Multiset!(V) remove(V v);
+    Multiset remove(V v);
 
     /**
-     * Covariant remove (from Collection)
+     * Same as remove(v), but indicates whether the element was removed or not.
      */
-    Multiset!(V) remove(V v, ref bool wasRemoved);
-
-    /**
-     * Covariant add (from Addable)
-     */
-    Multiset!(V) add(V v);
+    Multiset remove(V v, out bool wasRemoved);
 
     /**
      * Covariant add (from Addable)
      */
-    Multiset!(V) add(V v, ref bool wasAdded);
+    Multiset add(V v);
 
     /**
      * Covariant add (from Addable)
      */
-    Multiset!(V) add(Iterator!(V) it);
+    Multiset add(V v, out bool wasAdded);
 
     /**
      * Covariant add (from Addable)
      */
-    Multiset!(V) add(Iterator!(V) it, ref uint numAdded);
+    Multiset add(Iterator!(V) it);
 
     /**
      * Covariant add (from Addable)
      */
-    Multiset!(V) add(V[] array);
+    Multiset add(Iterator!(V) it, out uint numAdded);
 
     /**
      * Covariant add (from Addable)
      */
-    Multiset!(V) add(V[] array, ref uint numAdded);
+    Multiset add(V[] array);
 
     /**
-     * covariant removeAll (from Multi)
+     * Covariant add (from Addable)
      */
-    Multiset!(V) removeAll(V v);
+    Multiset add(V[] array, out uint numAdded);
 
     /**
-     * covariant removeAll (from Multi)
+     * remove all elements with the given value from the multiset.  Guaranteed
+     * to be O(lgN*M) or better, where N is the number of elements in the
+     * multiset and M is the number of elements to be removed.
      */
-    Multiset!(V) removeAll(V v, ref uint numRemoved);
+    Multiset removeAll(V v);
+
+    /**
+     * Same as removeAll(v), but indicates number of elements removed.
+     */
+    Multiset removeAll(V v, out uint numRemoved);
 
     /**
      * gets the most convenient element in the multiset.  Note that no
      * particular order of elements is assumed, so this might be the last
      * element added, might be the first, might be one in the middle.  This
      * element would be the first iterated if the multiset is used as an
-     * iterator.  Therefore, the removal of this element via remove(get())
-     * would be less than the normal O(n) runtime.
+     * iterator.  This will be faster than finding a specific element because
+     * it's guaranteed to be O(1), where finding a specific element is only
+     * guaranteed to be O(lgN).
+     * TODO: this should be inout
      */
     V get();
 
     /**
      * Remove the most convenient element in the multiset and return its
-     * value.  This is equivalent to remove(get()), but only does one lookup.
-     *
-     * Undefined if called on an empty multiset.
+     * value.  This is equivalent to (v = get(), remove(v), v), but only
+     * does one lookup.
      */
     V take();
 }
