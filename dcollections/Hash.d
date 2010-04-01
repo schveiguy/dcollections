@@ -63,7 +63,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         /**
          * Returns the position that comes after p.
          */
-        position next()
+        @property position next()
         {
             position p = *this;
             auto table = owner.table;
@@ -102,7 +102,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         /**
          * Returns the position that comes before p.
          */
-        position prev()
+        @property position prev()
         {
             position p = *this;
             auto table = owner.table;
@@ -533,13 +533,6 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         auto result = allocate();
         result.value = v;
         return result;
-    }
-
-    /**
-     * Perform any setup necessary (none for this hash impl)
-     */
-    void setup()
-    {
     }
 }
 

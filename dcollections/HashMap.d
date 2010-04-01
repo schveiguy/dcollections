@@ -27,14 +27,6 @@ private import dcollections.Iterators;
  * template argument V, and must implement the following members (non-function
  * members can be get/set properties unless otherwise specified):
  *
- *
- * parameters -> must be a struct with at least the following members:
- *   hashFunction -> the hash function to use (should be a HashFunction!(V))
- *   updateFunction -> the update function to use (should be an
- *                     UpdateFunction!(V))
- * 
- * void setup(parameters p) -> initializes the hash with the given parameters.
- *
  * uint count -> count of the elements in the hash
  *
  * position -> must be a struct/class with the following member:
@@ -75,7 +67,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         /**
          * compare 2 elements for equality.  Only compares the keys.
          */
-        int opEquals(element e)
+        bool opEquals(ref element e)
         {
             return key == e.key;
         }
@@ -119,7 +111,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         /**
          * get the value at this cursor
          */
-        V value()
+        @property V value()
         {
             return position.ptr.value.val;
         }
@@ -127,7 +119,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         /**
          * get the key at this cursor
          */
-        K key()
+        @property K key()
         {
             return position.ptr.value.key;
         }
@@ -135,66 +127,10 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         /**
          * set the value at this cursor
          */
-        V value(V v)
+        @property V value(V v)
         {
             position.ptr.value.val = v;
             return v;
-        }
-
-        /**
-         * increment this cursor, returns what the cursor was before
-         * incrementing.
-         */
-        cursor opPostInc()
-        {
-            cursor tmp = *this;
-            position = position.next;
-            return tmp;
-        }
-
-        /**
-         * decrement this cursor, returns what the cursor was before
-         * decrementing.
-         */
-        cursor opPostDec()
-        {
-            cursor tmp = *this;
-            position = position.prev;
-            return tmp;
-        }
-
-        /**
-         * increment the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * ++i;
-         */
-        cursor opAddAssign(int inc)
-        {
-            if(inc < 0)
-                return opSubAssign(-inc);
-            while(inc--)
-                position = position.next;
-            return *this;
-        }
-
-        /**
-         * decrement the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * --i;
-         */
-        cursor opSubAssign(int inc)
-        {
-            if(inc < 0)
-                return opAddAssign(-inc);
-            while(inc--)
-                position = position.prev;
-            return *this;
         }
 
         /**
@@ -207,10 +143,95 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     }
 
     /**
+     * A range that can be used to iterate over the elements in the hash.
+     */
+    struct range
+    {
+        private cursor _begin;
+        private cursor _end;
+
+        /**
+         * is the range empty?
+         */
+        @property bool empty()
+        {
+            return _begin != _end;
+        }
+
+        /**
+         * Get a cursor to the first element in the range
+         */
+        @property cursor begin()
+        {
+            return _begin;
+        }
+
+        /**
+         * Get a cursor to the end element in the range
+         */
+        @property cursor end()
+        {
+            return _end;
+        }
+
+        /**
+         * Get the first value in the range
+         */
+        @property V front()
+        in
+        {
+            assert(!empty)
+        }
+        body
+        {
+            return _begin.value();
+        }
+
+        /**
+         * Get the second value in the range
+         */
+        @property K frontKey()
+        in
+        {
+            assert(!empty)
+        }
+        body
+        {
+            return _begin.key();
+        }
+
+        /**
+         * Move the front of the range ahead one element
+         */
+        void popFront()
+        in
+        {
+            assert(!empty)
+        }
+        body
+        {
+            _begin.position = _begin.position.next;
+        }
+
+        /**
+         * Move the back of the range to the previous element
+         */
+        void popBack()
+        in
+        {
+            assert(!empty)
+        }
+        body
+        {
+            _end.position = _end.position.prev;
+        }
+    }
+
+    /**
      * Iterate over the values of the HashMap, telling it which ones to
      * remove.
      */
-    final int purge(int delegate(ref bool doPurge, ref V v) dg)
+    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -223,19 +244,19 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      * Iterate over the key/value pairs of the HashMap, telling it which ones
      * to remove.
      */
-    final int keypurge(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    final int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         return _apply(dg);
     }
 
     private class KeyIterator : Iterator!(K)
     {
-        final uint length()
+        @property final uint length() const
         {
             return this.outer.length;
         }
 
-        final int opApply(int delegate(ref K) dg)
+        final int opApply(scope int delegate(ref K) dg)
         {
             int _dg(ref bool doPurge, ref K k, ref V v)
             {
@@ -245,7 +266,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         }
     }
 
-    private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    private int _apply(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         cursor it = begin;
         bool doPurge;
@@ -271,7 +292,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     /**
      * iterate over the collection's key/value pairs
      */
-    int opApply(int delegate(ref K k, ref V v) dg)
+    int opApply(scope int delegate(ref K k, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -284,7 +305,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -298,8 +319,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      */
     this()
     {
-        // setup any hash info that needs to be done
-        _hash.setup();
+        // create the key iterator
         _keys = new KeyIterator;
     }
 
@@ -324,7 +344,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    @property uint length() const
     {
         return _hash.count;
     }
@@ -363,32 +383,43 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     }
 
     /**
-     * find a given value in the collection starting at a given cursor.
-     * This is useful to iterate over all elements that have the same value.
-     *
-     * Runs in O(n) time.
+     * remove all the elements in the given range.
      */
-    cursor findValue(cursor it, V v)
+    cursor remove(range r)
     {
-        return _findValue(it, end, v);
+        auto b = r.begin;
+        auto e = r.end;
+        while(b != e)
+        {
+            b = remove(b);
+        }
     }
 
     /**
-     * find an instance of a value in the collection.  Equivalent to
-     * findValue(begin, v);
-     *
-     * Runs in O(n) time.
+     * get a slice of all the elements in this hashmap.
      */
-    cursor findValue(V v)
+    range opSlice()
     {
-        return _findValue(begin, end, v);
+        range result;
+        range._begin = begin;
+        range._end = end;
     }
 
-    private cursor _findValue(cursor it, cursor last, V v)
+    /**
+     * get a slice of the elements between the two cursors.  Runs on average
+     * O(1) time.
+     */
+    range opSlice(cursor b, cursor e)
     {
-        while(it != last && it.value != v)
-            it++;
-        return it;
+        // first, ensure that b is before e
+        if(b.position.isBefore(e.position))
+        {
+            range r;
+            r._begin = b;
+            r._end = e;
+            return r;
+        }
+        throw new RangeError("invalid slice parameters to hashmap");
     }
 
     /**
@@ -404,49 +435,6 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         tmp.key = k;
         it.position = _hash.find(tmp);
         return it;
-    }
-
-    /**
-     * Returns true if the given value exists in the collection.
-     *
-     * Runs in O(n) time.
-     */
-    bool contains(V v)
-    {
-        return findValue(v) != end;
-    }
-
-    /**
-     * Removes the first element that has the value v.  Returns true if the
-     * value was present and was removed.
-     *
-     * Runs in O(n) time.
-     */
-    HashMap remove(V v)
-    {
-        bool ignored;
-        return remove(v, ignored);
-    }
-
-    /**
-     * Removes the first element that has the value v.  Returns true if the
-     * value was present and was removed.
-     *
-     * Runs in O(n) time.
-     */
-    HashMap remove(V v, ref bool wasRemoved)
-    {
-        cursor it = findValue(v);
-        if(it == end)
-        {
-            wasRemoved = false;
-        }
-        else
-        {
-            remove(it);
-            wasRemoved = true;
-        }
-        return this;
     }
 
     /**
@@ -623,48 +611,6 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     bool containsKey(K key)
     {
         return find(key) != end;
-    }
-
-    /**
-     * Returns the number of elements that contain the value v
-     *
-     * Runs in O(n) time.
-     */
-    uint count(V v)
-    {
-        uint instances = 0;
-        foreach(x; this)
-        {
-            if(x == v)
-                instances++;
-        }
-        return instances;
-    }
-
-    /**
-     * Remove all the elements that contain the value v.
-     *
-     * Runs in O(n) time.
-     */
-    HashMap removeAll(V v)
-    {
-        uint ignored;
-        return removeAll(v, ignored);
-    }
-    /**
-     * Remove all the elements that contain the value v.
-     *
-     * Runs in O(n) time.
-     */
-    HashMap removeAll(V v, ref uint numRemoved)
-    {
-        uint origlength = length;
-        foreach(ref b, x; &purge)
-        {
-            b = cast(bool)(x == v);
-        }
-        numRemoved = origlength - length;
-        return this;
     }
 
     /**

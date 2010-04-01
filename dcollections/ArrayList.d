@@ -78,21 +78,42 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     struct cursor
     {
         private V *ptr;
+        private bool _empty = false;
         
         /**
          * get the value pointed to
          */
-        @property V value();
+        @property V front();
         {
+            assert(!_empty, "Attempting to read the value of an empty cursor of " ~ ArrayList.stringof);
             return *ptr;
         }
 
         /**
          * set the value pointed to
          */
-        @property V value(V v)
+        @property V front(V v)
         {
+            assert(!_empty, "Attempting to write the value of an empty cursor of " ~ ArrayList.stringof);
             return (*ptr = v);
+        }
+
+        /**
+         * pop the front of the cursor.  This only is valid if the cursor is
+         * not empty.  Normally you do not use this, but it allows the cursor
+         * to be considered a range, convenient for passing to range-accepting
+         * functions.
+         */
+        void popFront()
+        {
+            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ ArrayList.stringof);
+            ptr++;
+            _empty = true;
+        }
+
+        @property bool empty()
+        {
+            return _empty;
         }
 
         /**
@@ -120,11 +141,14 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * clear the container of all values
+     * clear the container of all values.  Note that unlike arrays, it is no
+     * longer safe to use the elements in the array list.  This is consistent
+     * with the other container types.
      */
     ArrayList clear()
     {
-        _array = null;
+        _array.length = 0;
+        _array.assumeSafeAppend();
         return this;
     }
 
@@ -141,20 +165,16 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     @property cursor begin()
     {
-        cursor it;
-        it.ptr = _array.ptr;
-        return it;
+        return _array.begin;
     }
 
     /**
      * return a cursor that points to just beyond the last element in the
-     * list.
+     * list.  The cursor will be empty, so you cannot call front on it.
      */
     @property cursor end()
     {
-        cursor it;
-        it.ptr = _array.ptr + _array.length;
-        return it;
+        return _array.end;
     }
 
     private int _apply(int delegate(ref bool, ref uint, ref V) dg, range r)
@@ -223,6 +243,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
             // set the length value directly rather than calling the runtime
             // function.
             _array.length = nextGood - _array.ptr;
+            _array.assumeSafeAppend();
         }
         return dgret;
     }
@@ -243,6 +264,12 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * Runs in O(n) time.
      */
     cursor remove(range r)
+    in
+    {
+        assert(r.ptr >= _array.ptr);
+        assert(r.ptr + r.length <= _array.ptr + _array.length);
+    }
+    body
     {
         int check(ref bool b, ref V)
         {
@@ -265,41 +292,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * remove an element with the specific value.  This is an O(n)
-     * operation.  If the collection has duplicate instances, the first
-     * element that matches is removed.
-     *
-     * returns this.
-     *
-     * Sets wasRemoved to true if the element existed and was removed.
-     */
-    ArrayList remove(V v, ref bool wasRemoved)
-    {
-        auto it = find(v);
-        if(it == end)
-            wasRemoved = false;
-        else
-        {
-            remove(it);
-            wasRemoved = true;
-        }
-        return this;
-    }
-
-    /**
-     * remove an element with the specific value.  This is an O(n)
-     * operation.  If the collection has duplicate instances, the first
-     * element that matches is removed.
-     *
-     * returns this.
-     */
-    ArrayList remove(V v)
-    {
-        bool ignored;
-        return remove(v, ignored);
-    }
-
-    /**
      * same as find(v), but start at given position.
      */
     cursor find(cursor it, V v)
@@ -310,8 +302,10 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     body
     {
         auto last = end;
-        while(it < last && it.value != v)
+        while(it.ptr < last.ptr && *it.ptr != v)
             it.ptr++;
+        // set the cursor as not empty only if it is not the last element.
+        it._empty = (it.ptr == last.ptr)
         return it;
     }
 
@@ -325,37 +319,14 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * returns true if the collection contains the value.  Runs in O(n) time.
+     * get a cursor at the given index
      */
-    bool contains(V v)
+    cursor elemAt(uint idx)
     {
-        return find(v) < end;
-    }
-
-    /**
-     * remove the element at the given index.  Runs in O(n) time.
-     */
-    ArrayList removeAt(uint key, ref bool wasRemoved)
-    {
-        if(key >= length)
-        {
-            wasRemoved = false;
-        }
-        else
-        {
-            remove(_array[key..key+1]);
-            wasRemoved = true;
-        }
-        return this;
-    }
-
-    /**
-     * remove the element at the given index.  Runs in O(n) time.
-     */
-    ArrayList removeAt(uint key)
-    {
-        bool ignored;
-        return removeAt(key, ignored);
+        assert(idx < _array.length)
+        cursor it;
+        it.ptr = _array.ptr + idx;
+        return it;
     }
 
     /**
@@ -564,47 +535,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * returns the number of instances of the given element value
-     *
-     * Runs in O(n) time.
-     */
-    uint count(V v)
-    {
-        uint instances = 0;
-        foreach(x; this)
-            if(v == x)
-                instances++;
-        return instances;
-    }
-
-    /**
-     * removes all the instances of the given element value
-     *
-     * Runs in O(n) time.
-     */
-    ArrayList removeAll(V v, ref uint numRemoved)
-    {
-        auto origLength = length;
-        foreach(ref b, x; &purge)
-        {
-            b = cast(bool)(x == v);
-        }
-        numRemoved = length - origLength;
-        return this;
-    }
-
-    /**
-     * removes all the instances of the given element value
-     *
-     * Runs in O(n) time.
-     */
-    ArrayList removeAll(V v)
-    {
-        uint ignored;
-        return removeAll(v, ignored);
-    }
-
-    /**
      * Returns a slice of an array list.
      *
      * The returned slice begins at index b and ends at, but does not include,
@@ -612,7 +542,6 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     range opSlice(uint b, uint e)
     {
-        // TODO: throw range error if b > e
         return _array[b..e];
     }
 
@@ -621,9 +550,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     range opSlice(cursor b, cursor e)
     {
-        if(e > end || b < begin || b > e) // call checkMutation once
-            throw new Exception("slice values out of range");
-
+        assert(e.ptr >= b.ptr && e.ptr <= end.ptr && b.ptr >= begin.ptr)
         return b.ptr[0..(e.ptr-b.ptr)];
     }
 
@@ -713,38 +640,42 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * Remove the element at the front of the ArrayList and return its value.
-     * This is an O(n) operation.
-     */
-    V takeFront()
-    {
-        auto c = begin;
-        auto retval = c.value;
-        remove(c);
-        return retval;
-    }
-
-    /**
      * Remove the element at the end of the ArrayList and return its value.
-     * This can be an O(n) operation.
      */
-    V takeBack()
+    V take()
     {
-        auto c = end;
-        c.ptr--;
-        auto retval = c.value;
-        remove(c);
+        auto retval = _array[$-1];
+        _array = _array[0..$-1];
+        _array.assumeSafeAppend();
         return retval;
     }
 
     /**
-     * Get the index of a particular value.
-     *
-     * If the value isn't in the collection, returns length.
+     * Get the index of a particular cursor.
      */
-    uint indexOf(V v)
+    uint indexOf(cursor c)
     {
-        return find(v).ptr - begin.ptr;
+        assert(c.ptr >= begin.ptr)
+        return c.ptr - begin.ptr;
+    }
+
+    /**
+     * returns true if the given cursor belongs points to an element that is
+     * part of the container.  If the cursor is the same as the end cursor,
+     * true is also returned.
+     */
+    bool belongs(cursor c)
+    {
+        auto last = end;
+        if(c.ptr == last.ptr && !c.empty)
+            // a non-empty cursor which points past the array 
+            return false;
+        return c.ptr >= _array.ptr && c.ptr <= last.ptr;
+    }
+
+    bool belongs(range r)
+    {
+        return(r.ptr >= _array.ptr && r.ptr + r.length <= _array.ptr + _array.length);
     }
 
     class SpecialTypeInfo(bool useFunction) : TypeInfo
@@ -848,6 +779,30 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         _array.sort;
         return this;
     }
+}
+
+// some extra functions needed to support range functions guaranteed by dcollections.
+
+/**
+ * Get the begin cursor of an ArrayList range.
+ */
+@property ArrayList!T.cursor begin(T)(T[] r)
+{
+    ArrayList!T.cursor c;
+    c.ptr = r.ptr;
+    c._empty = r.empty;
+    return c;
+}
+
+/**
+ * Get the end cursor of an ArrayList range.
+ */
+@property ArrayList!T.cursor end(T)(T[] r)
+{
+    ArrayList!T.cursor c;
+    c.ptr = r.ptr + r.length;
+    c._empty = true;
+    return c;
 }
 
 version(UnitTest)

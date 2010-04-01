@@ -7,7 +7,7 @@
 **********************************************************/
 module dcollections.model.Iterator;
 
-enum : uint
+enum : size_t
 {
     /**
      * Returned from length() when length isn't supported
@@ -25,12 +25,12 @@ interface Iterator(V)
      *
      * If not supported, returns NO_LENGTH_SUPPORT.
      */
-    uint length();
+    @property size_t length() const;
 
     /**
      * foreach operator.
      */
-    int opApply(int delegate(ref V v) dg);
+    int opApply(scope int delegate(ref V v) dg);
 }
 
 /**
@@ -44,7 +44,7 @@ interface KeyedIterator(K, V) : Iterator!(V)
     /**
      * iterate over both keys and values
      */
-    int opApply(int delegate(ref K k, ref V v) dg);
+    int opApply(scope int delegate(ref K k, ref V v) dg);
 }
 
 /**
@@ -65,7 +65,7 @@ interface Purgeable(V)
      * ...
      * -----
      */
-    int purge(int delegate(ref bool doPurge, ref V v) dg);
+    int purge(scope int delegate(ref bool doPurge, ref V v) dg);
 }
 
 /**
@@ -91,5 +91,5 @@ interface KeyPurgeable(K, V) : Purgeable!(V)
      *
      * See bugzilla #2498
      */
-    int keypurge(int delegate(ref bool doPurge, ref K k, ref V v) dg);
+    int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg);
 }

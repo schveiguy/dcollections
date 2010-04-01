@@ -1,0 +1,90 @@
+Ranges:
+
+Dcollections defines a unique range type per container.  The range is
+bidirectional, since every container in dcollections can be traversed forwards
+and backwards.  The front function gets the element by value.  There are no
+range classes that are supported by the interfaces.  The reason is because
+ranges as interfaces are too slow to be useful (one virtual call per method, if iterating that's 3 virtual calls per loop), plus the range concept works
+best as a value type; classes are reference types.  Therefore, to use the
+ranges, you must know the exact type of the container you are using.
+
+Dcollections ranges support these additional methods:
+
+- Get the beginning cursor which points to the first element in the range, or
+  the end cursor which points past the last element in the range (the end
+  cursor always is empty, but points to the correct element).
+- Determine whether the range belongs to a container.
+
+Cursors:
+
+Cursors are special 1 or 0 element ranges.  They implement the forward range
+interface.  The benefit to using cursors is that they always refer to exactly
+one element.  A normal range uses two marker elements, a begin and an end
+element.  Therefore, cursors are less susceptible to removal of elements.
+
+Cursors support these additional features.
+
+- Check if a cursor belongs to a container.
+- Use a cursor as a reference point when dealing with a container.
+- Use as an end point when slicing a container.  Note that some containers only
+  support slicing with an arbitrary cursor and the beginning or end of the
+  container.  Slicing is guaranteed to be a fast operation (lgn or better).
+
+Range/Cursor invalidation:
+
+Dcollections ensures that you never can create an invalid range.  For instance,
+trying to get a range from a container using
+container[container.end..container.begin] will not work.  This is true even in
+release mode.
+
+However, through other means, you can modify the container making ranges
+invalid.  Dcollections cannot ensure that such modifications will not
+invalidate ranges.  For example sorting a linked list will most likely
+invalidate all ranges on that list created before sorting.  When compiled in
+non-release mode, ranges will perform a check every time they are used to see
+if it can detect an invalidation, throwing an error.  You should not rely on
+this feature, it is disabled in release mode for performance reasons.  However,
+it is present to help you see logic errors in your code.  It is similar to the
+builtin array out of bounds exception.
+
+Some operations can guarantee they do not invalidate ranges/cursors.
+Operations that modify the containers will specifically state how they affect
+ranges/cursors.
+
+Const Ranges/cursors:
+
+When getting a range/cursor from a non-mutable container
+(const/immutable/inout), a special type of range/cursor is returned.  This is
+because it is impossible to const-ify just the elements being pointed to inside
+the range.  Since they are not the same type (or simply a const-ified range),
+they cannot be easily cast to/from a mutable range type.  For instance, an
+explicit cast is required to go from a mutable range into a const range.  The
+one notable exception is the ArrayList, whose ranges are builtin arrays easily
+cast to const implicitly.
+
+Purging:
+
+You may note that distinctly missing from some containers is the ability to
+remove elements by value.  This is because finding the element might be an
+O(n) operation.  However, all containers support a special type of iteration
+loop called a purge.  This loop allows you to remove elements as you loop
+through them.  The advantage of this is if you are planning to remove many
+elements, and searching for elements is not a fast operation, then you may face
+a slow operation to find each element, and then a possibly slow operation to
+remove each element.  Via the purge function, you can remove all these elements
+in a single pass through the container, reducing your complexity to a maximum
+of O(n) for searching and removing any number of elements.  Purging is done via
+a ref bool parameter, indicating whether the element you are currently dealing
+with should be removed.  An example on an ArrayList!int alist:
+
+foreach(ref bool doRemove, int elem; &alist.purge)
+{
+  // remove all odd elements
+  doRemove = (elem & 1) ? true : false;
+}
+
+Note that even though an array list takes O(n) to find an element *and* O(n) to
+remove an element, the entire loop above is guaranteed to take only O(n) time.
+Also note that the ref is required, even though the foreach loop allows you to
+make it not ref.  Having it be not ref is useless, since the container will not
+get the message.
