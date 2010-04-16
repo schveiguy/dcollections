@@ -24,6 +24,15 @@ interface Map(K, V) : Keyed!(K, V)
     Map set(KeyedIterator!(K, V) source);
 
     /**
+     * set all the elements from the given keyed iterator in the map.  Any key
+     * that already exists will be overridden.  numAdded is set to the number
+     * of elements actually added.
+     *
+     * Returns this.
+     */
+    Map set(KeyedIterator!(K, V) source, out uint numAdded);
+
+    /**
      * set all the elements from the given associative array in the map.  Any
      * key that already exists wil be overridden.
      *
@@ -32,11 +41,20 @@ interface Map(K, V) : Keyed!(K, V)
     Map set(V[K] source);
 
     /**
+     * set all the elements from the given associative array in the map.  Any
+     * key that already exists wil be overridden.  numAdded is set to the
+     * number of elements actually added.
+     *
+     * Returns this.
+     */
+    Map set(V[K] source, out uint numAdded);
+
+    /**
      * Remove all the given keys from the map.
      *
      * return this.
      */
-    Map removeKeys(Iterator!(K) subset);
+    Map remove(Iterator!(K) subset);
 
     /**
      * Remove all the given keys from the map.
@@ -45,14 +63,14 @@ interface Map(K, V) : Keyed!(K, V)
      *
      * numRemoved is set to the number of elements removed.
      */
-    Map removeKeys(Iterator!(K) subset, out uint numRemoved);
+    Map remove(Iterator!(K) subset, out uint numRemoved);
 
     /**
      * Remove all the given keys from the map.
      *
      * return this.
      */
-    Map removeKeys(K[] subset);
+    Map remove(K[] subset);
 
     /**
      * Remove all the given keys from the map.
@@ -61,7 +79,7 @@ interface Map(K, V) : Keyed!(K, V)
      *
      * numRemoved is set to the number of elements removed.
      */
-    Map removeKeys(K[] subset, out uint numRemoved);
+    Map remove(K[] subset, out uint numRemoved);
 
     /**
      * Remove a range of keys from the map.
@@ -144,14 +162,15 @@ interface Map(K, V) : Keyed!(K, V)
     Map dup();
 
     /**
-     * covariant removeAt (from Keyed)
+     * remove element that has the given key
      */
-    Map removeAt(K key);
+    Map remove(K key);
 
     /**
-     * covariant removeAt (from Keyed)
+     * remove element that has the given key, setting wasRemoved to true if the
+     * key was removed.
      */
-    Map removeAt(K key, out bool wasRemoved);
+    Map remove(K key, out bool wasRemoved);
 
     /**
      * covariant set (from Keyed)
@@ -169,5 +188,5 @@ interface Map(K, V) : Keyed!(K, V)
      *
      * If o is not a map, then 0 is returned.
      */
-    bool opEquals(const Object o) const;
+    bool opEquals(Object o);
 }

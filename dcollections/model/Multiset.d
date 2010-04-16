@@ -104,4 +104,11 @@ interface Multiset(V) : Addable!(V)
      * does one lookup.
      */
     V take();
+
+    /**
+     * Count all the instances of v in the multiset.  Guaranteed to run in
+     * O(lgn * m) or better, where n is the number of elements in the multiset,
+     * and m is the number of v elements in the multiset.
+     */
+    uint count(V v);
 }

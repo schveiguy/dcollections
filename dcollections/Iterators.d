@@ -55,7 +55,7 @@ class TransformIterator(V, U=V) : Iterator!(V)
      * Iterate through the source iterator, working with temporary copies of a
      * transformed V element.
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int privateDG(ref U u)
         {
@@ -122,7 +122,7 @@ class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
      * transformed V element.  Note that K can be ignored if this is the only
      * use for the iterator.
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int privateDG(ref J j, ref U u)
         {
@@ -150,7 +150,7 @@ class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
      * Iterate through the source iterator, working with temporary copies of a
      * transformed K,V pair.
      */
-    int opApply(int delegate(ref K k, ref V v) dg)
+    int opApply(scope int delegate(ref K k, ref V v) dg)
     {
         int privateDG(ref J j, ref U u)
         {
@@ -223,7 +223,7 @@ class ChainIterator(V) : Iterator!(V)
     /**
      * Iterate through the chain of iterators.
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int result = 0;
         foreach(it; _chain)
@@ -282,7 +282,7 @@ class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
     /**
      * Iterate through the chain of iterators using values only.
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int result = 0;
         foreach(it; _chain)
@@ -296,7 +296,7 @@ class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
     /**
      * Iterate through the chain of iterators using keys and values.
      */
-    int opApply(int delegate(ref K, ref V) dg)
+    int opApply(scope int delegate(ref K, ref V) dg)
     {
         int result = 0;
         foreach(it; _chain)
@@ -357,7 +357,7 @@ class FilterIterator(V) : Iterator!(V)
      * Iterate through the source iterator, only accepting elements where the
      * delegate/function returns true.
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int privateDG(ref V v)
         {
@@ -429,7 +429,7 @@ class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
      * Iterate through the source iterator, only iterating elements where the
      * delegate/function returns true.
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int privateDG(ref K k, ref V v)
         {
@@ -455,7 +455,7 @@ class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
      * Iterate through the source iterator, only iterating elements where the
      * delegate/function returns true.
      */
-    int opApply(int delegate(ref K k, ref V v) dg)
+    int opApply(scope int delegate(ref K k, ref V v) dg)
     {
         int privateDG(ref K k, ref V v)
         {
@@ -504,7 +504,7 @@ class ArrayIterator(V) : Iterator!(V)
     /**
      * Iterate over the array.
      */
-    int opApply(int delegate(ref V) dg)
+    int opApply(scope int delegate(ref V) dg)
     {
         int retval = 0;
         foreach(ref x; _array)
@@ -540,7 +540,7 @@ class AAIterator(K, V) : KeyedIterator!(K, V)
     /**
      * Iterate over the AA
      */
-    int opApply(int delegate(ref K, ref V) dg)
+    int opApply(scope int delegate(ref K, ref V) dg)
     {
         int retval;
         foreach(k, ref v; _array)

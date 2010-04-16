@@ -47,7 +47,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * }
      * ------------
      */
-    final int purge(int delegate(ref bool doRemove, ref V value) dg)
+    final int purge(scope int delegate(ref bool doRemove, ref V value) dg)
     {
         return _apply(dg, _array);
     }
@@ -65,7 +65,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * }
      * ------------
      */
-    final int keypurge(int delegate(ref bool doRemove, ref uint key, ref V value) dg)
+    final int keypurge(scope int delegate(ref bool doRemove, ref uint key, ref V value) dg)
     {
         return _apply(dg, _array);
     }
@@ -111,13 +111,17 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
             _empty = true;
         }
 
+        /**
+         * returns true if this cursor does not point to a valid element.
+         */
         @property bool empty()
         {
             return _empty;
         }
 
         /**
-         * compare two cursors for equality.
+         * compare two cursors for equality.  Note that only the position of
+         * the cursor is checked, whether it's empty or not is not checked.
          */
         bool opEquals(cursor it)
         {
@@ -142,8 +146,8 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
 
     /**
      * clear the container of all values.  Note that unlike arrays, it is no
-     * longer safe to use the elements in the array list.  This is consistent
-     * with the other container types.
+     * longer safe to use elements that were in the array list.  This is
+     * consistent with the other container types.
      */
     ArrayList clear()
     {
@@ -177,7 +181,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return _array.end;
     }
 
-    private int _apply(int delegate(ref bool, ref uint, ref V) dg, range r)
+    private int _apply(scope int delegate(ref bool, ref uint, ref V) dg, range r)
     {
         int dgret;
         auto i = r.ptr;
@@ -248,7 +252,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return dgret;
     }
 
-    private int _apply(int delegate(ref bool, ref V) dg, range r)
+    private int _apply(scope int delegate(ref bool, ref V) dg, range r)
     {
         int _dg(ref bool b, ref uint k, ref V v)
         {
@@ -367,7 +371,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * iterate over the collection
      */
-    int opApply(int delegate(ref V value) dg)
+    int opApply(scope int delegate(ref V value) dg)
     {
         int retval;
         foreach(ref v; _array)
@@ -381,7 +385,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * iterate over the collection with key and value
      */
-    int opApply(int delegate(ref uint key, ref V value) dg)
+    int opApply(scope int delegate(ref uint key, ref V value) dg)
     {
         int retval = 0;
         foreach(i, ref v; _array)
@@ -515,7 +519,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     ArrayList opCat(List!(V) rhs)
     {
-        return dup.add(rhs);
+        return dup().add(rhs);
     }
 
     /**
@@ -730,7 +734,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * Sort according to a given comparison function
      */
-    ArrayList sort(int delegate(ref V v1, ref V v2) comp)
+    ArrayList sort(scope int delegate(ref V v1, ref V v2) comp)
     {
         //
         // can't really do this without extra library help.  Luckily, the
