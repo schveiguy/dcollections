@@ -11,10 +11,10 @@ private import dcollections.Link;
 private import dcollections.model.Iterator;
 private import dcollections.DefaultAllocator;
 
-struct HashDefaults
+enum HashDefaults
 {
-    const float loadFactor = .75;
-    const uint tableSize = 31;
+    float loadFactor = .75;
+    uint tableSize = 31;
 }
 
 /**
@@ -126,6 +126,15 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
                 p.ptr = p.ptr.prev;
             return p;
         }
+    }
+
+    /**
+     * return true if the given position is a member of this hash.
+     * Easy to determine, since we have to store a pointer to the hash anyways.
+     */
+    bool belongs(position p)
+    {
+        return p.owner is &this;
     }
 
     /**

@@ -68,6 +68,12 @@ interface Set(V) : Addable!(V)
     Set dup();
 
     /**
+     * Returns true if the given value exists in the collection. Guaranteed to
+     * be O(lgN) or better.
+     */
+    bool contains(V v);
+
+    /**
      * Remove an element from the set.  Guaranteed to be O(lgN) or better.
      */
     Set remove(V v);
@@ -114,7 +120,7 @@ interface Set(V) : Addable!(V)
      *
      * if o is not a Set, return false.
      */
-    bool opEquals(const Object o) const;
+    bool opEquals(Object o);
 
     /**
      * get the most convenient element in the set.  This is the element that

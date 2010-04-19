@@ -694,13 +694,13 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             foreach(K k, V v; m)
             {
                 auto cu = elemAt(k);
-                if(cu is _end || cu.value != v)
-                    return 0;
+                if(cu.empty || cu.value != v)
+                    return false;
             }
-            return 1;
+            return true;
         }
 
-        return 0;
+        return false;
     }
 
     /**

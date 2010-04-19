@@ -109,7 +109,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
          */
         void popFront()
         {
-            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ HashMap.stringof);
+            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ HashMultiset.stringof);
             _empty = true;
             position = position.next;
         }
@@ -319,7 +319,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
     cursor remove(cursor it)
     {
         it.position = _hash.remove(it.position);
-        if(it.position == _hash.end)
+        if(it.position is _hash.end)
             it.empty = true;
         return it;
     }
@@ -354,9 +354,10 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      */
     range opSlice(cursor b, cursor e)
     {
-        // for hashmap, we only support ranges that begin on the first cursor,
-        // or end on the last cursor.  This is because to check that b is
-        // before e for arbitrary cursors would be possibly a long operation.
+        // for hash multiset, we only support ranges that begin on the first
+        // cursor, or end on the last cursor.  This is because to check that b
+        // is before e for arbitrary cursors would be possibly a long
+        // operation.
         if((b == begin && belongs(e)) || (e == end && belongs(b)))
         {
             range result;
@@ -383,6 +384,16 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
     }
 
     /**
+     * Returns true if the given value exists in the collection.
+     *
+     * Runs in average O(1) time.
+     */
+    bool contains(V v)
+    {
+        return !elemAt(v).empty;
+    }
+
+    /**
      * find the next cursor that points to a V value.  Note, this does *not*
      * search the cursor passed in, to make it easy to search repetitively.
      *
@@ -390,17 +401,17 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      */
     cursor elemAt(cursor start, V v)
     {
-        if(it.position == _hash.end)
+        if(start.position == _hash.end)
         {
-            it._empty = true;
-            return it;
+            start._empty = true;
+            return start;
         }
-        it.position = _hash.find(v, it.position.next);
-        if(it.position == _hash.end)
-            it._empty = true;
+        start.position = _hash.find(v, start.position.next);
+        if(start.position == _hash.end)
+            start._empty = true;
         else
-            it._empty = false;
-        return it;
+            start._empty = false;
+        return start;
     }
 
     /**
@@ -421,7 +432,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      *
      * Runs in O(n) time.
      */
-    HashMultiset remove(V v, ref bool wasRemoved)
+    HashMultiset remove(V v, out bool wasRemoved)
     {
         cursor it = elemAt(v);
         if(it == end)
@@ -479,7 +490,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      * Runs on average in O(1) * O(m) time, where m is the number of elements
      * in the iterator.
      */
-    HashMultiset add(Iterator!(V) it, ref uint numAdded)
+    HashMultiset add(Iterator!(V) it, out uint numAdded)
     {
         uint origlength = length;
         add(it);
@@ -505,7 +516,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      *
      * Runs on average in O(1) * O(m) time, where m is the array length.
      */
-    HashMultiset add(V[] array, ref uint numAdded)
+    HashMultiset add(V[] array, out uint numAdded)
     {
         uint origlength = length;
         foreach(v; array)

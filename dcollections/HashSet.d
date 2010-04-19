@@ -75,78 +75,124 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     struct cursor
     {
         private Impl.position position;
+        private bool _empty = false;
 
         /**
          * get the value at this position
          */
-        V value()
+        @property V front()
         {
+            assert(!_empty, "Attempting to read the value of an empty cursor of " ~ HashSet.stringof);
             return position.ptr.value;
         }
 
         /**
-         * increment this cursor, returns what the cursor was before
-         * incrementing.
+         * Tell if this cursor is empty (doesn't point to any value)
          */
-        cursor opPostInc()
+        @property bool empty() const
         {
-            cursor tmp = *this;
+            return _empty;
+        }
+
+        /**
+         * Move to the next element.
+         */
+        void popFront()
+        {
+            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ HashSet.stringof);
+            _empty = true;
             position = position.next;
-            return tmp;
         }
 
         /**
-         * decrement this cursor, returns what the cursor was before
-         * decrementing.
-         */
-        cursor opPostDec()
-        {
-            cursor tmp = *this;
-            position = position.prev;
-            return tmp;
-        }
-
-        /**
-         * increment the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * ++i;
-         */
-        cursor opAddAssign(int inc)
-        {
-            if(inc < 0)
-                return opSubAssign(-inc);
-            while(inc--)
-                position = position.next;
-            return *this;
-        }
-
-        /**
-         * decrement the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * --i;
-         */
-        cursor opSubAssign(int inc)
-        {
-            if(inc < 0)
-                return opAddAssign(-inc);
-            while(inc--)
-                position = position.prev;
-            return *this;
-        }
-
-        /**
-         * compare two cursors for equality
+         * compare two cursors for equality.  Note that only the position of
+         * the cursor is checked, whether it's empty or not is not checked.
          */
         bool opEquals(cursor it)
         {
             return it.position == position;
         }
+    }
+
+    /**
+     * A range that can be used to iterate over the elements in the hash.
+     */
+    struct range
+    {
+        private Impl.position _begin;
+        private Impl.position _end;
+
+        /**
+         * is the range empty?
+         */
+        @property bool empty()
+        {
+            return _begin !is _end;
+        }
+
+        /**
+         * Get a cursor to the first element in the range
+         */
+        @property cursor begin()
+        {
+            cursor c;
+            c.position = _begin;
+            return c;
+        }
+
+        /**
+         * Get a cursor to the end element in the range
+         */
+        @property cursor end()
+        {
+            cursor c;
+            c.position = _end;
+            return c;
+        }
+
+        /**
+         * Get the first value in the range
+         */
+        @property V front()
+        {
+            assert(!empty, "Attempting to read front of an range cursor of " ~ HashSet.stringof);
+            return _begin.ptr.value.val;
+        }
+
+        /**
+         * Move the front of the range ahead one element
+         */
+        void popFront()
+        {
+            assert(!empty, "Attempting to popFront() an empty range of " ~ HashSet.stringof);
+            _begin = _begin.next;
+        }
+
+        /**
+         * Move the back of the range to the previous element
+         */
+        void popBack()
+        {
+            assert(!empty, "Attempting to popBack() an empty range of " ~ HashSet.stringof);
+            _end = _end.prev;
+        }
+    }
+
+    /**
+     * Determine if a cursor belongs to the hashset
+     */
+    bool belongs(cursor c)
+    {
+        // rely on the implementation to tell us
+        return _hash.belongs(c.position);
+    }
+
+    /**
+     * Determine if a range belongs to the hashset
+     */
+    bool belongs(range r)
+    {
+        return _hash.belongs(r._begin) && _hash.belongs(r._end);
     }
 
     /**
@@ -161,18 +207,18 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      *   doPurge = ((v & 1) == 1);
      * }
      */
-    final int purge(int delegate(ref bool doPurge, ref V v) dg)
+    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         return _apply(dg);
     }
 
-    private int _apply(int delegate(ref bool doPurge, ref V v) dg)
+    private int _apply(scope int delegate(ref bool doPurge, ref V v) dg)
     {
-        cursor it = begin;
+        Impl.position it = _hash.begin;
         bool doPurge;
         int dgret = 0;
-        cursor _end = end; // cache end so it isn't always being generated
-        while(!dgret && it != _end)
+        Impl.position _end = _hash.end; // cache end so it isn't always being generated
+        while(!dgret && it !is _end)
         {
             //
             // don't allow user to change value
@@ -182,9 +228,9 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
             if((dgret = dg(doPurge, tmpvalue)) != 0)
                 break;
             if(doPurge)
-                it = remove(it);
+                it = _hash.remove(it);
             else
-                it++;
+                it = it.next;
         }
         return dgret;
     }
@@ -192,7 +238,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
         {
@@ -206,7 +252,6 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     this()
     {
-        _hash.setup();
     }
 
     //
@@ -229,7 +274,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    @property uint length()
     {
         return _hash.count;
     }
@@ -237,10 +282,10 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     /**
      * returns a cursor to the first element in the collection.
      */
-    cursor begin()
+    @property cursor begin()
     {
         cursor it;
-        it.position = _hash.begin();
+        it.position = _hash.begin;
         return it;
     }
 
@@ -248,10 +293,11 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    cursor end()
+    @property cursor end()
     {
         cursor it;
-        it.position = _hash.end();
+        it.position = _hash.end;
+        it._empty = true;
         return it;
     }
 
@@ -264,7 +310,52 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     cursor remove(cursor it)
     {
         it.position = _hash.remove(it.position);
+        if(it.position is _hash.end)
+            it.empty = true;
         return it;
+    }
+
+    /**
+     * remove all the elements in the given range.
+     */
+    cursor remove(range r)
+    {
+        auto b = r.begin;
+        auto e = r.end;
+        while(b != e)
+        {
+            b = remove(b);
+        }
+        return b;
+    }
+
+    /**
+     * get a slice of all the elements in this hashmap.
+     */
+    range opSlice()
+    {
+        range result;
+        range._begin = begin;
+        range._end = end;
+    }
+
+    /**
+     * get a slice of the elements between the two cursors.  Runs on average
+     * O(1) time.
+     */
+    range opSlice(cursor b, cursor e)
+    {
+        // for hash set, we only support ranges that begin on the first cursor,
+        // or end on the last cursor.  This is because to check that b is
+        // before e for arbitrary cursors would be possibly a long operation.
+        if((b == begin && belongs(e)) || (e == end && belongs(b)))
+        {
+            range result;
+            result._begin = b.position;
+            result._end = e.position;
+            return result;
+        }
+        throw new RangeError("invalid slice parameters to " ~ HashSet.stringof);
     }
 
     /**
@@ -273,10 +364,12 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      *
      * Runs in average O(1) time.
      */
-    cursor find(V v)
+    cursor elemAt(V v)
     {
         cursor it;
         it.position = _hash.find(v);
+        if(it.position == _hash.end)
+            it._empty = true;
         return it;
     }
 
@@ -287,7 +380,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     bool contains(V v)
     {
-        return find(v) != end;
+        return !elemAt(v).empty;
     }
 
     /**
@@ -298,8 +391,8 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     HashSet remove(V v)
     {
-        cursor it = find(v);
-        if(it != end)
+        cursor it = elemAt(v);
+        if(!it.empty)
             remove(it);
         return this;
     }
@@ -312,7 +405,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     HashSet remove(V v, ref bool wasRemoved)
     {
-        cursor it = find(v);
+        cursor it = elemAt(v);
         if(it == end)
         {
             wasRemoved = false;
@@ -325,6 +418,9 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return this;
     }
 
+    /**
+     * Remove all values that match the given iterator.
+     */
     HashSet remove(Iterator!(V) it)
     {
         foreach(v; it)
@@ -338,7 +434,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      *
      * Returns this.
      */
-    HashSet remove(Iterator!(V) it, ref uint numRemoved)
+    HashSet remove(Iterator!(V) it, out uint numRemoved)
     {
         uint origlength = length;
         remove(it);
@@ -364,7 +460,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      *
      * Runs on average in O(1) time.
      */
-    HashSet add(V v, ref bool wasAdded)
+    HashSet add(V v, out bool wasAdded)
     {
         wasAdded = _hash.add(v);
         return this;
@@ -391,7 +487,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      * Runs on average in O(1) + O(m) time, where m is the number of elements
      * in the iterator.
      */
-    HashSet add(Iterator!(V) it, ref uint numAdded)
+    HashSet add(Iterator!(V) it, out uint numAdded)
     {
         uint origlength = length;
         add(it);
@@ -416,9 +512,9 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      * Adds all the elements from the array to the set.  Returns the number of
      * elements added.
      *
-     * Runs on average in O(1) + O(m) time, where m is the array length.
+     * Runs on average in O(m) time, where m is the array length.
      */
-    HashSet add(V[] array, ref uint numAdded)
+    HashSet add(V[] array, out uint numAdded)
     {
         uint origlength = length;
         add(array);
@@ -448,7 +544,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      *
      * returns this.
      */
-    HashSet intersect(Iterator!(V) subset, ref uint numRemoved)
+    HashSet intersect(Iterator!(V) subset, out uint numRemoved)
     {
         //
         // intersection is more difficult than removal, because we do not have
@@ -467,7 +563,10 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return new HashSet(_hash);
     }
 
-    int opEquals(Object o)
+    /**
+     * compare two sets for equality
+     */
+    bool opEquals(Object o)
     {
         if(o !is null)
         {
@@ -477,19 +576,19 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
                 foreach(elem; s)
                 {
                     if(!contains(elem))
-                        return 0;
+                        return false;
                 }
 
                 //
                 // equal
                 //
-                return 1;
+                return true;
             }
         }
         //
         // no comparison possible.
         //
-        return 0;
+        return false;
     }
 
     /**
