@@ -147,6 +147,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         {
             cursor c;
             c.position = _begin;
+            c._empty = empty;
             return c;
         }
 
@@ -157,6 +158,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         {
             cursor c;
             c.position = _end;
+            c._empty = true;
             return c;
         }
 

@@ -253,7 +253,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     /**
      * Returns a position that points to the first element in the hash.
      */
-    position begin()
+    @property position begin()
     {
         if(count == 0)
             return end;
@@ -270,7 +270,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     /**
      * Returns a position that points past the last element of the hash.
      */
-    position end()
+    @property position end()
     {
         position result;
         result.idx = table.length;

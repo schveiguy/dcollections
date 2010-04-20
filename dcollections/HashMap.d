@@ -188,6 +188,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         {
             cursor c;
             c.position = _begin;
+            c._empty = empty;
             return c;
         }
 
@@ -198,6 +199,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         {
             cursor c;
             c.position = _end;
+            c._empty = true;
             return c;
         }
 
@@ -413,13 +415,19 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      * remove the element pointed at by the given cursor, returning an
      * cursor that points to the next element in the collection.
      *
+     * if the cursor is empty, it does not remove any elements, but returns a
+     * cursor that points to the next element
+     * the next element.
+     *
      * Runs on average in O(1) time.
      */
     cursor remove(cursor it)
     {
-        it.position = _hash.remove(it.position);
-        if(it.position == _hash.end)
-            it.empty = true;
+        if(!it.empty)
+        {
+            it.position = _hash.remove(it.position);
+        }
+        it.empty = (it.position == _hash.end);
         return it;
     }
 
@@ -443,8 +451,8 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     range opSlice()
     {
         range result;
-        range._begin = begin;
-        range._end = end;
+        range._begin = _hash.begin;
+        range._end = _hash.end;
     }
 
     /**

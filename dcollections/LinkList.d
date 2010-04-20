@@ -66,12 +66,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * convenience alias
      */
-    alias LinkHead!(V) Impl;
-
-    /**
-     * convenience alias
-     */
-    alias LinkList!(V, ImplTemp) LinkListType;
+    alias ImplTemp!(V) Impl;
 
     private Impl _link;
 
@@ -81,86 +76,152 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     struct cursor
     {
         private Impl.Node ptr;
+        private bool _empty;
+
+        // needed to implement belongs
+        private LinkList owner;
 
         /**
          * get the value pointed to by this cursor
          */
-        V value()
+        @property V front()
         {
+            assert(!_empty, "Attempting to read the value of an empty cursor of " ~ LinkList.stringof);
             return ptr.value;
         }
 
         /**
          * set the value pointed to by this cursor
          */
-        V value(V v)
+        @property V front(V v)
         {
+            assert(!_empty, "Attempting to write the value of an empty cursor of " ~ LinkList.stringof);
             return (ptr.value = v);
         }
 
         /**
-         * increment this cursor, returns what the cursor was before
-         * incrementing.
+         * return true if the range is empty
          */
-        cursor opPostInc()
+        @property bool empty()
         {
-            cursor tmp = *this;
+            return _empty;
+        }
+
+        /**
+         * Move to the next element.
+         */
+        void popFront()
+        {
+            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ LinkList.stringof);
+            _empty = true;
             ptr = ptr.next;
-            return tmp;
         }
 
         /**
-         * decrement this cursor, returns what the cursor was before
-         * decrementing.
+         * compare two cursors for equality.  Note that only the position of
+         * the cursor is checked, whether it's empty or not is not checked.
          */
-        cursor opPostDec()
-        {
-            cursor tmp = *this;
-            ptr = ptr.prev;
-            return tmp;
-        }
-
-        /**
-         * increment the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * ++i;
-         */
-        cursor opAddAssign(int inc)
-        {
-            if(inc < 0)
-                return opSubAssign(-inc);
-            while(inc--)
-                ptr = ptr.next;
-            return *this;
-        }
-
-        /**
-         * decrement the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * --i;
-         */
-        cursor opSubAssign(int inc)
-        {
-            if(inc < 0)
-                return opAddAssign(-inc);
-            while(inc--)
-                ptr = ptr.prev;
-            return *this;
-        }
-
-        /**
-         * compare two cursors for equality
-         */
-        bool opEquals(cursor it)
+        bool opEquals(const cursor it) const
         {
             return ptr is it.ptr;
         }
+    }
+
+    /**
+     * A cursor for link list
+     */
+    struct range
+    {
+        private Impl.Node _begin;
+        private Impl.Node _end;
+
+        // needed to implement belongs
+        private LinkList owner;
+
+        /**
+         * is the range empty?
+         */
+        @property bool empty()
+        {
+            return _begin !is _end;
+        }
+
+        /**
+         * Get a cursor to the first element in the range
+         */
+        @property cursor begin()
+        {
+            cursor c;
+            c.position = _begin;
+            c.owner = owner;
+            c._empty = empty;
+            return c;
+        }
+
+        /**
+         * Get a cursor to the end element in the range
+         */
+        @property cursor end()
+        {
+            cursor c;
+            c.position = _end;
+            c.owner = owner;
+            c._empty = true;
+            return c;
+        }
+
+        /**
+         * Get the first value in the range
+         */
+        @property V front()
+        {
+            assert(!empty, "Attempting to read front of an range cursor of " ~ LinkList.stringof);
+            return _begin.value;
+        }
+
+        /**
+         * Write the first value in the range.
+         */
+        @property V front(V v)
+        {
+            assert(!empty, "Attempting to write front of an range cursor of " ~ LinkList.stringof);
+            _begin.value = v;
+            return v;
+        }
+
+        /**
+         * Move the front of the range ahead one element
+         */
+        void popFront()
+        {
+            assert(!empty, "Attempting to popFront() an empty range of " ~ LinkList.stringof);
+            _begin = _begin.next;
+        }
+
+        /**
+         * Move the back of the range to the previous element
+         */
+        void popBack()
+        {
+            assert(!empty, "Attempting to popBack() an empty range of " ~ LinkList.stringof);
+            _end = _end.prev;
+        }
+    }
+
+    /**
+     * Determine if a cursor belongs to the container
+     */
+    bool belongs(cursor c)
+    {
+        return c.owner is this;
+    }
+
+    /**
+     * Determine if a range belongs to the container
+     */
+    bool belongs(range r)
+    {
+        return r.owner is this;
     }
 
     /**
@@ -168,7 +229,6 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     this()
     {
-        _link.setup();
     }
 
     //
@@ -182,7 +242,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * Clear the collection of all elements
      */
-    LinkListType clear()
+    LinkList clear()
     {
         _link.clear();
         return this;
@@ -191,7 +251,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    @property uint length() const
     {
         return _link.count;
     }
@@ -199,10 +259,12 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    cursor begin()
+    @property cursor begin()
     {
         cursor it;
+        it.owner = this;
         it.ptr = _link.begin;
+        it._empty = (_link.count == 0);
         return it;
     }
 
@@ -210,10 +272,12 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    cursor end()
+    @property cursor end()
     {
         cursor it;
+        it.owner = this;
         it.ptr = _link.end;
+        it._empty = true;
         return it;
     }
 
@@ -225,128 +289,61 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     cursor remove(cursor it)
     {
-        it.ptr = _link.remove(it.ptr);
+        assert(belongs(it), "Attempting to remove an unowned cursor of type " ~ LinkList.stringof);
+        if(!it.empty)
+            it.ptr = _link.remove(it.ptr);
+        it._empty = (it.ptr == _link.end);
         return it;
     }
 
     /**
-     * remove the elements pointed at by the given cursor range, returning
-     * a cursor that points to the element that last pointed to.
+     * remove the elements pointed at by the given range, returning
+     * a cursor that points to the element just after the range removed.
      *
      * Runs in O(last-first) time.
      */
-    cursor remove(cursor first, cursor last)
+    cursor remove(range r)
     {
-        last.ptr = _link.remove(first.ptr, last.ptr);
-        return last;
+        assert(belongs(r), "Attempting to remove an unowned range of type " ~ LinkList.stringof);
+        last.ptr = _link.remove(r._begin, r._end);
+        cursor c;
+        c.ptr = r._end;
+        c.owner = this;
+        c._empty = (c.ptr == _link.end);
+        return c;
     }
 
-    /**
-     * Removes the first element that has the value v.  Returns true if the
-     * value was present and was removed.
-     *
-     * Runs in O(n) time.
-     */
-    LinkListType remove(V v)
+    range opSlice()
     {
-        bool ignored;
-        return remove(v, ignored);
+        range result;
+        result.owner = this;
+        result._begin = _link.begin;
+        result._end = _link.end;
     }
 
-    /**
-     * Removes the first element that has the value v.  Returns true if the
-     * value was present and was removed.
-     *
-     * Runs in O(n) time.
-     */
-    LinkListType remove(V v, ref bool wasRemoved)
+    range opSlice(cursor b, cursor e)
     {
-        auto it = find(v);
-        if(it == end)
+        if((b == begin && belongs(e)) || (e == end && belongs(b)))
         {
-            wasRemoved = false;
+            range result;
+            result.owner = this;
+            result._begin = b.ptr;
+            result._end = e.ptr;
         }
-        else
-        {
-            wasRemoved = true;
-            remove(it);
-        }
-        return this;
-    }
-
-    /**
-     * find a given value in the collection starting at a given cursor.
-     * This is useful to iterate over all elements that have the same value.
-     *
-     * Runs in O(n) time.
-     */
-    cursor find(cursor it, V v)
-    {
-        return _find(it, end, v);
-    }
-
-    /**
-     * find an instance of a value in the collection.  Equivalent to
-     * find(begin, v);
-     *
-     * Runs in O(n) time.
-     */
-    cursor find(V v)
-    {
-        return _find(begin, end, v);
-    }
-
-    private cursor _find(cursor it, cursor last, V v)
-    {
-        while(it != last && it.value != v)
-            it++;
-        return it;
-    }
-
-    /**
-     * Returns true if the given value exists in the collection.
-     *
-     * Runs in O(n) time.
-     */
-    bool contains(V v)
-    {
-        return find(v) != end;
-    }
-
-    private int _apply(int delegate(ref bool, ref V) dg, cursor start, cursor last)
-    {
-        cursor i = start;
-        int dgret = 0;
-        bool doRemove;
-
-        while(i != last && i.ptr !is _link.end)
-        {
-            doRemove = false;
-            if((dgret = dg(doRemove, i.ptr.value)) != 0)
-                break;
-            if(doRemove)
-                remove(i++);
-            else
-                i++;
-        }
-        return dgret;
-    }
-
-    private int _apply(int delegate(ref V value) dg, cursor first, cursor last)
-    {
-        int retval = 0;
-        for(cursor i = first; i != last; i++)
-            if((retval = dg(i.ptr.value)) != 0)
-                break;
-        return retval;
+        throw new RangeError("invalid slice parameters to " ~ LinkList.stringof);
     }
 
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V value) dg)
+    int opApply(scope int delegate(ref V value) dg)
     {
-        return _apply(dg, begin, end);
+        int retval = 0;
+        auto last = _link.end;
+        for(auto i = _link.begin; i != last; i = i.next)
+            if((retval = dg(i.value)) != 0)
+                break;
+        return retval;
     }
 
     /**
@@ -363,9 +360,24 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * }
      * -----------
      */
-    final int purge(int delegate(ref bool doRemove, ref V value) dg)
+    final int purge(scope int delegate(ref bool doRemove, ref V value) dg)
     {
-        return _apply(dg, begin, end);
+        auto i = _link.begin;
+        auto last = _link.end;
+        int dgret = 0;
+        bool doRemove;
+
+        while(i != last && i.ptr !is _link.end)
+        {
+            doRemove = false;
+            if((dgret = dg(doRemove, i.value)) != 0)
+                break;
+            if(doRemove)
+                i = _link.remove(i);
+            else
+                i = i.next;
+        }
+        return dgret;
     }
 
     /**
@@ -374,7 +386,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Runs in O(1) time.
      */
-    LinkListType add(V v)
+    LinkList add(V v)
     {
         _link.insert(_link.end, v);
         return this;
@@ -386,7 +398,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Runs in O(1) time.
      */
-    LinkListType add(V v, ref bool wasAdded)
+    LinkList add(V v, out bool wasAdded)
     {
         _link.insert(_link.end, v);
         wasAdded = true;
@@ -398,7 +410,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns this.
      */
-    LinkListType add(Iterator!(V) coll)
+    LinkList add(Iterator!(V) coll)
     {
         foreach(v; coll)
             add(v);
@@ -410,7 +422,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns the number of elements added.
      */
-    LinkListType add(Iterator!(V) coll, ref uint numAdded)
+    LinkList add(Iterator!(V) coll, ref uint numAdded)
     {
         uint origLength = length;
         add(coll);
@@ -423,7 +435,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns the number of elements added.
      */
-    LinkListType add(V[] array)
+    LinkList add(V[] array)
     {
         foreach(v; array)
             add(v);
@@ -435,54 +447,11 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns the number of elements added.
      */
-    LinkListType add(V[] array, ref uint numAdded)
+    LinkList add(V[] array, ref uint numAdded)
     {
         foreach(v; array)
             add(v);
         numAdded = array.length;
-        return this;
-    }
-
-    /**
-     * Count the number of occurrences of v
-     *
-     * Runs in O(n) time.
-     */
-    uint count(V v)
-    {
-        uint instances = 0;
-        foreach(x; this)
-            if(v == x)
-                instances++;
-        return instances;
-    }
-
-    /**
-     * Remove all the occurrences of v.  Returns the number of instances that
-     * were removed.
-     *
-     * Runs in O(n) time.
-     */
-    LinkListType removeAll(V v)
-    {
-        foreach(ref dp, x; &purge)
-        {
-            dp = cast(bool)(x == v);
-        }
-        return this;
-    }
-
-    /**
-     * Remove all the occurrences of v.  Returns the number of instances that
-     * were removed.
-     *
-     * Runs in O(n) time.
-     */
-    LinkListType removeAll(V v, ref uint numRemoved)
-    {
-        uint origLength;
-        removeAll(v);
-        numRemoved = origLength - length;
         return this;
     }
 
@@ -495,41 +464,76 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     cursor insert(cursor it, V v)
     {
+        assert(belongs(it), "Attempting to insert a value using an invalid cursor of " ~ LinkList.stringof);
         it.ptr = _link.insert(it.ptr, v);
+        it._empty = false;
         return it;
     }
 
     /**
-     * prepend an element to the first element in the list.  Returns an
-     * cursor to the newly prepended element.
+     * Insert elements from an iterator.  Returns the range just inserted.
      */
-    cursor prepend(V v)
+    range insert(cursor it, Iterator!V r)
     {
-        return insert(begin, v);
+        assert(belongs(it), "Attempting to insert range using invalid cursor for type " ~ LinkList);
+        // ensure we are not inserting ourselves
+        // Although this kinda sucks that we can't do this, allowing it
+        // means a possible infinite loop.
+        if(this is r)
+        {
+            throw new RangeError("Attempting to self insert into " ~ LinkList);
+        }
+        range result;
+        result.owner = this;
+        result._end = it.ptr;
+        foreach(v; r)
+            result._begin = _link.insert(result._end, v);
+        return result;
     }
 
+    
     /**
-     * append an element to the last element in the list.  Returns a cursor
-     * to the newly appended element.
+     * Insert a range of elements.  Returns the range just inserted.
+     *
+     * TODO: this should just be called insert
      */
-    cursor append(V v)
+    range insertRange(R)(cursor it, R r) if (isInputRange!R && is(ElementType!R == V))
     {
-        return insert(end, v);
+        assert(belongs(it), "Attempting to insert range using invalid cursor for type " ~ LinkList);
+        static if(is(R == range))
+        {
+            // ensure we are not inserting a range from our own elements.
+            // Although this kinda sucks that we can't do this, allowing it
+            // means a possible infinite loop.
+            if(belongs(r))
+                throw new RangeError("Attempting to self insert range into " ~ LinkList);
+        }
+        range result;
+        result.owner = this;
+        result._end = it.ptr;
+        foreach(v; r)
+            result._begin = _link.insert(result._end, v);
+        return result;
     }
 
     /**
      * return the last element in the list.  Undefined if the list is empty.
+     *
+     * TODO: should be inout
      */
-    V back()
+    @property V back()
     {
+        assert(!empty, "Attempting to get last element of empty " ~ LinkList.stringof);
         return _link.end.prev.value;
     }
     
     /**
      * return the first element in the list.  Undefined if the list is empty.
+     * TODO: should be inout
      */
-    V front()
+    @property V front()
     {
+        assert(!empty, "Attempting to get first element of empty " ~ LinkList.stringof);
         return _link.begin.value;
     }
 
@@ -540,6 +544,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     V takeFront()
     {
+        assert(!empty, "Attempting to take first element of empty " ~ LinkList.stringof);
         auto retval = front;
         _link.remove(_link.begin);
         return retval;
@@ -551,6 +556,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     V takeBack()
     {
+        assert(!empty, "Attempting to take last element of empty " ~ LinkList.stringof);
         auto retval = back;
         _link.remove(_link.end.prev);
         return retval;
@@ -559,40 +565,42 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * Create a new list with this and the rhs concatenated together
      */
-    LinkListType opCat(List!(V) rhs)
+    LinkList opCat(List!(V) rhs)
     {
-        return dup.add(rhs);
+        return dup().add(rhs);
     }
 
     /**
      * Create a new list with this and the array concatenated together
      */
-    LinkListType opCat(V[] array)
+    LinkList opCat(V[] array)
     {
-        return dup.add(array);
+        return dup().add(array);
     }
 
     /**
      * Create a new list with the array and this list concatenated together.
      */
-    LinkListType opCat_r(V[] array)
+    LinkList opCat_r(V[] array)
     {
-        auto result = new LinkListType(_link, false);
+        auto result = new LinkList(_link, false);
         return result.add(array).add(this);
     }
 
     /**
      * Append the given list to the end of this list.
      */
-    LinkListType opCatAssign(List!(V) rhs)
+    LinkList opCatAssign(List!(V) rhs)
     {
+        if(rhs is this)
+            throw new RangeError("Attempting to self concatenate " ~ LinkList.stringof);
         return add(rhs);
     }
 
     /**
      * Append the given array to the end of this list.
      */
-    LinkListType opCatAssign(V[] array)
+    LinkList opCatAssign(V[] array)
     {
         return add(array);
     }
@@ -600,9 +608,9 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * duplicate the list
      */
-    LinkListType dup()
+    LinkList dup()
     {
-        return new LinkListType(_link, true);
+        return new LinkList(_link, true);
     }
 
     /**
@@ -611,7 +619,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * If o is null or not a List, return 0.
      */
-    int opEquals(Object o)
+    bool opEquals(Object o)
     {
         if(o !is null)
         {
@@ -637,7 +645,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns this after sorting
      */
-    LinkList sort(int delegate(ref V, ref V) comp)
+    LinkList sort(scope int delegate(ref V, ref V) comp)
     {
         _link.sort(comp);
         return this;
@@ -650,7 +658,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns this after sorting
      */
-    LinkList sort(int function(ref V, ref V) comp)
+    LinkList sort(scope int function(ref V, ref V) comp)
     {
         _link.sort(comp);
         return this;
@@ -672,6 +680,8 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * Sort the linked list according to the given compare functor.  This is
      * a templatized version, and so can be used with functors, and might be
      * inlined.
+     *
+     * TODO: this should be called sort
      */
     LinkList sortX(Comparator)(Comparator comp)
     {

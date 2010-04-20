@@ -91,13 +91,20 @@ struct Link(V)
         return c;
     }
 
-    Node dup(Node delegate(V v) createFunction)
+    //
+    // root is the target.  If it is null, a new node is created, otherwise
+    // this node is copied to the root node, and subsequent nodes are allocated
+    // using the createFunction
+    //
+    Node dup(Node delegate(V v) createFunction, Node root = null)
     {
         //
         // create a duplicate of this and all nodes after this.
         //
         auto n = next;
-        auto retval = createFunction(value);
+        if(root)
+            root.value = value;
+        auto retval = root ? root : createFunction(value);
         auto cur = retval;
         while(n !is null && n !is this)
         {
@@ -157,6 +164,8 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
      */
     Node end; // not a valid node
 
+    Link!V _end; // storage for end
+
     /**
      * The number of nodes in the list
      */
@@ -165,7 +174,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * Get the first valid node in the list
      */
-    Node begin()
+    @property Node begin()
     {
         return end.next;
     }
@@ -173,10 +182,9 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * Initialize the list
      */
-    void setup()
+    this()
     {
-        //end = new node;
-        end = allocate();
+        end = &_end;
         Node.attach(end, end);
         count = 0;
     }
@@ -198,7 +206,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * sort the list according to the given compare function
      */
-    void sort(Comparator)(Comparator comp)
+    void sort(Comparator)(scope Comparator comp)
     {
         if(end.next.next is end)
             //
@@ -328,7 +336,6 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     Node insert(Node before, V v)
     {
         count++;
-        //return before.prepend(new node(v)).prev;
         return before.prepend(allocate(v)).prev;
     }
 
@@ -337,6 +344,8 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
      */
     void clear()
     {
+        static if(alloc.freeNeeded)
+            alloc.freeAll();
         Node.attach(end, end);
         count = 0;
     }
@@ -346,22 +355,16 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
      */
     void copyTo(ref LinkHead target, bool copyNodes=true)
     {
-        target = *this;
-        //
-        // reset the allocator
-        //
-        target.alloc = target.alloc.init;
-
         if(copyNodes)
         {
-            target.end = end.dup(&target.allocate);
-        }
-        else
-        {
-            //
-            // set up target like this one
-            //
-            target.setup();
+            // copy fields besides the nodes and allocator
+            target.count = this.count;
+
+            // now, copy the nodes
+            if(count)
+            {
+                end.dup(&target.allocate, target.end);
+            }
         }
     }
 
