@@ -175,7 +175,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
          */
         @property V front()
         {
-            assert(!empty, "Attempting to read front of an range cursor of " ~ LinkList.stringof);
+            assert(!empty, "Attempting to read front of an empty range of " ~ LinkList.stringof);
             return _begin.value;
         }
 
@@ -184,8 +184,27 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
          */
         @property V front(V v)
         {
-            assert(!empty, "Attempting to write front of an range cursor of " ~ LinkList.stringof);
+            assert(!empty, "Attempting to write front of an empty range of " ~ LinkList.stringof);
             _begin.value = v;
+            return v;
+        }
+
+        /**
+         * Get the last value in the range
+         */
+        @property V back()
+        {
+            assert(!empty, "Attempting to read front of an empty range of " ~ LinkList.stringof);
+            return _end.prev.value;
+        }
+
+        /**
+         * Write the last value in the range.
+         */
+        @property V back(V v)
+        {
+            assert(!empty, "Attempting to write front of an empty range of " ~ LinkList.stringof);
+            _end.prev.value = v;
             return v;
         }
 
@@ -319,6 +338,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         result.owner = this;
         result._begin = _link.begin;
         result._end = _link.end;
+        return result;
     }
 
     range opSlice(cursor b, cursor e)
@@ -329,6 +349,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
             result.owner = this;
             result._begin = b.ptr;
             result._end = e.ptr;
+            return result;
         }
         throw new RangeError("invalid slice parameters to " ~ LinkList.stringof);
     }

@@ -167,8 +167,17 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
          */
         @property V front()
         {
-            assert(!empty, "Attempting to read front of an range cursor of " ~ HashMultiset.stringof);
+            assert(!empty, "Attempting to read front of an empty range of " ~ HashMultiset.stringof);
             return _begin.ptr.value.val;
+        }
+
+        /**
+         * Get the last value in the range
+         */
+        @property V back()
+        {
+            assert(!empty, "Attempting to read back of an empty range of " ~ HashMultiset.stringof);
+            return _end.prev.ptr.value.val;
         }
 
         /**
@@ -348,6 +357,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         range result;
         range._begin = begin;
         range._end = end;
+        return result;
     }
 
     /**

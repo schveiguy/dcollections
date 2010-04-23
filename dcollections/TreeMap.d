@@ -109,98 +109,198 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     struct cursor
     {
         private Impl.Node ptr;
+        private bool _empty = false;
 
         /**
          * get the value in this element
          */
-        V value()
+        @property V front()
         {
+            assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeMap.stringof);
             return ptr.value.val;
         }
 
         /**
          * get the key in this element
          */
-        K key()
+        @property K key()
         {
+            assert(!_empty, "Attempting to read the key of an empty cursor of " ~ TreeMap.stringof);
             return ptr.value.key;
         }
 
         /**
          * set the value in this element
          */
-        V value(V v)
+        @property V front(V v)
         {
+            assert(!_empty, "Attempting to write the value of an empty cursor of " ~ TreeMap.stringof);
             ptr.value.val = v;
             return v;
         }
 
         /**
-         * increment this cursor, returns what the cursor was before
-         * incrementing.
+         * Tell if this cursor is empty (doesn't point to any value)
          */
-        cursor opPostInc()
+        @property bool empty() const
         {
-            cursor tmp = *this;
+            return _empty;
+        }
+
+        /**
+         * Move to the next element.
+         */
+        void popFront()
+        {
+            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ TreeMap.stringof);
+            _empty = true;
             ptr = ptr.next;
-            return tmp;
-        }
-
-        /**
-         * decrement this cursor, returns what the cursor was before
-         * decrementing.
-         */
-        cursor opPostDec()
-        {
-            cursor tmp = *this;
-            ptr = ptr.prev;
-            return tmp;
-        }
-
-        /**
-         * increment the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * ++i;
-         */
-        cursor opAddAssign(int inc)
-        {
-            if(inc < 0)
-                return opSubAssign(-inc);
-            while(inc--)
-                ptr = ptr.next;
-            return *this;
-        }
-
-        /**
-         * decrement the cursor by the given amount.
-         *
-         * This is an O(inc) operation!  You should only use this operator in
-         * the form:
-         *
-         * --i;
-         */
-        cursor opSubAssign(int inc)
-        {
-            if(inc < 0)
-                return opAddAssign(-inc);
-            while(inc--)
-                ptr = ptr.prev;
-            return *this;
         }
 
         /**
          * compare two cursors for equality
          */
-        bool opEquals(cursor it)
+        bool opEquals(const cursor it) const
         {
             return it.ptr is ptr;
         }
     }
 
-    final int purge(int delegate(ref bool doPurge, ref V v) dg)
+    /**
+     * A range that can be used to iterate over the elements in the hash.
+     */
+    struct range
+    {
+        private Impl.Node _begin;
+        private Impl.Node _end;
+
+        /**
+         * is the range empty?
+         */
+        @property bool empty()
+        {
+            return _begin !is _end;
+        }
+
+        /**
+         * Get a cursor to the first element in the range
+         */
+        @property cursor begin()
+        {
+            cursor c;
+            c.ptr = _begin;
+            c._empty = empty;
+            return c;
+        }
+
+        /**
+         * Get a cursor to the end element in the range
+         */
+        @property cursor end()
+        {
+            cursor c;
+            c.ptr = _end;
+            c._empty = true;
+            return c;
+        }
+
+        /**
+         * Get the first value in the range
+         */
+        @property V front()
+        {
+            assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeMap.stringof);
+            return _begin.ptr.value.val;
+        }
+
+        /**
+         * Write the first value in the range.
+         */
+        @property V front(V v)
+        {
+            assert(!empty, "Attempting to write front of an empty range cursor of " ~ TreeMap.stringof);
+            _begin.ptr.value.val = v;
+            return v;
+        }
+
+        /**
+         * Get the key of the front element
+         */
+        @property K key()
+        {
+            assert(!empty, "Attempting to read the key of an empty range of " ~ TreeMap.stringof);
+            return _begin.value.key;
+        }
+
+        /**
+         * Get the last value in the range
+         */
+        @property V back()
+        {
+            assert(!empty, "Attempting to read the back of an empty range of " ~ TreeMap.stringof);
+            return _end.prev.value.val;
+        }
+
+        /**
+         * Write the last value in the range
+         */
+        @property V back(V v)
+        {
+            assert(!empty, "Attempting to write the back of an empty range of " ~ TreeMap.stringof);
+            _end.prev.value.val = v;
+            return v;
+        }
+
+        /**
+         * Get the key of the last element in the range
+         */
+        @property K backKey()
+        {
+            assert(!empty, "Attempting to read the back key of an empty range of " ~ TreeMap.stringof);
+            return _end.prev.value.key;
+        }
+
+        /**
+         * Move the front of the range ahead one element
+         */
+        void popFront()
+        {
+            assert(!empty, "Attempting to popFront() an empty range of " ~ TreeMap.stringof);
+            _begin = _begin.next;
+        }
+
+        /**
+         * Move the back of the range to the previous element
+         */
+        void popBack()
+        {
+            assert(!empty, "Attempting to popBack() an empty range of " ~ TreeMap.stringof);
+            _end = _end.prev;
+        }
+    }
+
+    /**
+     * Determine if a cursor belongs to the hashmap
+     */
+    bool belongs(cursor c)
+    {
+        // rely on the implementation to tell us
+        return _tree.belongs(c.ptr);
+    }
+
+    /**
+     * Determine if a range belongs to the hashmap
+     */
+    bool belongs(range r)
+    {
+        return _tree.belongs(r._begin) && _tree.belongs(r._end);
+    }
+
+    /**
+     * Iterate over the collection, deciding which elements should be purged
+     * along the way.
+     */
+    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -209,7 +309,10 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return _apply(&_dg);
     }
 
-    final int keypurge(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    /**
+     * Purge with keys
+     */
+    final int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         return _apply(dg);
     }
@@ -221,7 +324,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
             return this.outer.length;
         }
 
-        final int opApply(int delegate(ref K) dg)
+        final int opApply(scope int delegate(ref K) dg)
         {
             int _dg(ref bool doPurge, ref K k, ref V v)
             {
@@ -232,25 +335,25 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     }
 
 
-    private int _apply(int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    private int _apply(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
-        cursor it = begin;
+        auto it = _tree.begin;
         bool doPurge;
         int dgret = 0;
-        cursor _end = end; // cache end so it isn't always being generated
-        while(!dgret && it != _end)
+        auto _end = _tree.end; // cache end so it isn't always being generated
+        while(it !is _end)
         {
             //
             // don't allow user to change key
             //
-            K tmpkey = it.key;
+            K tmpkey = it.value.key;
             doPurge = false;
-            if((dgret = dg(doPurge, tmpkey, it.ptr.value.val)) != 0)
+            if((dgret = dg(doPurge, tmpkey, it.value.val)) != 0)
                 break;
             if(doPurge)
-                it = remove(it);
+                it = _tree.remove(it);
             else
-                it++;
+                it = it.next;
         }
         return dgret;
     }
@@ -258,7 +361,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     /**
      * iterate over the collection's key/value pairs
      */
-    int opApply(int delegate(ref K k, ref V v) dg)
+    int opApply(scope int delegate(ref K k, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -271,7 +374,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -293,7 +396,6 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     this()
     {
-        _tree.setup();
         _keys = new KeyIterator;
     }
 
@@ -318,7 +420,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     /**
      * returns number of elements in the collection
      */
-    uint length()
+    @property uint length() const
     {
         return _tree.count;
     }
@@ -326,10 +428,11 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     /**
      * returns a cursor to the first element in the collection.
      */
-    cursor begin()
+    @property cursor begin()
     {
         cursor it;
         it.ptr = _tree.begin;
+        it._empty = (_tree.count == 0)
         return it;
     }
 
@@ -337,10 +440,11 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    cursor end()
+    @property cursor end()
     {
         cursor it;
         it.ptr = _tree.end;
+        it._empty = true;
         return it;
     }
 
@@ -348,41 +452,135 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      * remove the element pointed at by the given cursor, returning an
      * cursor that points to the next element in the collection.
      *
+     * if the cursor is empty, it does not remove any elements, but returns a
+     * cursor that points to the next element.
+     *
      * Runs in O(lg(n)) time.
      */
     cursor remove(cursor it)
     {
-        it.ptr = _tree.remove(it.ptr);
+        if(!it.empty)
+        {
+            it.ptr = _tree.remove(it.ptr);
+        }
+        it.empty = (it.ptr == _tree.end);
         return it;
     }
 
     /**
-     * find a given value in the collection starting at a given cursor.
-     * This is useful to iterate over all elements that have the same value.
-     *
-     * Runs in O(n) time.
+     * remove all the elements in the given range.
      */
-    cursor findValue(cursor it, V v)
+    cursor remove(range r)
     {
-        return _findValue(it, end, v);
+        auto b = r.begin;
+        auto e = r.end;
+        while(b != e)
+        {
+            b = remove(b);
+        }
+        return b;
     }
 
     /**
-     * find an instance of a value in the collection.  Equivalent to
-     * findValue(begin, v);
-     *
-     * Runs in O(n) time.
+     * get a slice of all the elements in this collection.
      */
-    cursor findValue(V v)
+    range opSlice()
     {
-        return _findValue(begin, end, v);
+        range result;
+        range._begin = _tree.begin;
+        range._end = _tree.end;
+        return result;
     }
 
-    private cursor _findValue(cursor it, cursor last, V v)
+    /*
+     * Create a range without checks to make sure b and e are part of the
+     * collection.
+     */
+    private range _slice(cursor b, cursor e)
     {
-        while(it != last && it.value != v)
-            it++;
-        return it;
+        range result;
+        result._begin = b.position;
+        result._end = e.position;
+        return result;
+    }
+
+    /**
+     * get a slice of the elements between the two cursors.
+     *
+     * As long as b and e are members of the treemap, and b's position is
+     * before e, the function takes O(lgn) time to complete.  Because the
+     * treemap is sorted, we can always ensure with one function call that b is
+     * before e.  Determining that b and e are part of the collection is a
+     * matter of traversing the tree.
+     */
+    range opSlice(cursor b, cursor e)
+    {
+        // for hashmap, we only support ranges that begin on the first cursor,
+        // or end on the last cursor.
+        if(belongs(b) && belongs(e) && (e.ptr is _tree.end || (b.ptr !is _tree.end && _compareFunction(b.ptr.value, e.ptr.value) <= 0)))
+        {
+            return _slice(b, e);
+        }
+        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+    }
+
+    /**
+     * Create a slice based on keys instead of based on cursors.
+     *
+     * b must be <= e, and b and e must both match elements in the collection.
+     * Note that e cannot match end, so in order to get *all* the elements, you
+     * must call the opSlice(K, cursor) version of the function.
+     *
+     * runs in O(lgn) time.
+     */
+    range opSlice(K b, K e)
+    {
+        if(compareFunc(b, e) <= 0)
+        {
+            auto belem = elemAt(b);
+            auto eelem = elemAt(e);
+            if(!belem.empty && !eelem.empty)
+            {
+                return _slice(belem, eelem);
+            }
+        }
+        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+    }
+
+    /**
+     * Slice between a key and a cursor.
+     *
+     * runs in O(lgn) time.
+     */
+    range opSlice(K b, cursor e)
+    {
+        auto belem = elemAt(b);
+        if(!belem.empty)
+        {
+            if(belongs(e) && (e.ptr is _tree.end || _compareFunction(belem.ptr.value, e.ptr.value) <= 0))
+            {
+                return _slice(belem, e);
+            }
+        }
+        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+    }
+
+    /**
+     * Slice between a cursor and a key
+     *
+     * runs in O(lgn) time.
+     */
+    range opSlice(cursor b, K e)
+    {
+        auto eelem = elemAt(e);
+        if(!eelem.empty)
+        {
+            if(belongs(b) && (b.ptr !is _tree.end && _compareFunction(belem.ptr.value, e.ptr.value) <= 0))
+            {
+                return _slice(b, eelem);
+            }
+        }
+        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
     }
 
     /**
@@ -391,56 +589,14 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * Runs in O(lg(n)) time.
      */
-    cursor find(K k)
+    cursor elemAt(K k)
     {
         cursor it;
         element tmp;
         tmp.key = k;
         it.ptr = _tree.find(tmp);
+        it._empty = (it.ptr == _tree.end);
         return it;
-    }
-
-    /**
-     * Returns true if the given value exists in the collection.
-     *
-     * Runs in O(n) time.
-     */
-    bool contains(V v)
-    {
-        return findValue(v) != end;
-    }
-
-    /**
-     * Removes the first element that has the value v.  Returns true if the
-     * value was present and was removed.
-     *
-     * Runs in O(n) time.
-     */
-    TreeMap remove(V v)
-    {
-        bool ignored;
-        return remove(v, ignored);
-    }
-
-    /**
-     * Removes the first element that has the value v.  Returns true if the
-     * value was present and was removed.
-     *
-     * Runs in O(n) time.
-     */
-    TreeMap remove(V v, ref bool wasRemoved)
-    {
-        cursor it = findValue(v);
-        if(it == end)
-        {
-            wasRemoved = false;
-        }
-        else
-        {
-            wasRemoved = true;
-            remove(it);
-        }
-        return this;
     }
 
     /**
@@ -449,7 +605,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMap removeAt(K key)
+    TreeMap remove(K key)
     {
         cursor it = find(key);
         if(it != end)
@@ -463,7 +619,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * Runs in O(lg(n)) time.
      */
-    TreeMap removeAt(K key, ref bool wasRemoved)
+    TreeMap remove(K key, out bool wasRemoved)
     {
         cursor it = find(key);
         if(it == end)
@@ -496,7 +652,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      * 
      * returns this.
      */
-    TreeMap remove(Iterator!(K) subset, ref uint numRemoved)
+    TreeMap remove(Iterator!(K) subset, out uint numRemoved)
     {
         uint origLength = length;
         remove(subset);
@@ -509,7 +665,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * returns this.
      */
-    TreeMap intersect(Iterator!(K) subset, ref uint numRemoved)
+    TreeMap intersect(Iterator!(K) subset, out uint numRemoved)
     {
         //
         // create a wrapper iterator that generates elements from keys.  Then
@@ -549,9 +705,9 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     V opIndex(K key)
     {
-        cursor it = find(key);
+        cursor it = elemAt(key);
         if(it == end)
-            throw new Exception("Index out of range");
+            throw new RangeError("Index out of range");
         return it.value;
     }
 
@@ -584,7 +740,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * returns this.
      */
-    TreeMap set(K key, V value, ref bool wasAdded)
+    TreeMap set(K key, V value, out bool wasAdded)
     {
         element elem;
         elem.key = key;
@@ -613,7 +769,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * Returns this.
      */
-    TreeMap set(KeyedIterator!(K, V) source, ref uint numAdded)
+    TreeMap set(KeyedIterator!(K, V) source, out uint numAdded)
     {
         uint origLength = length;
         set(source);
@@ -628,46 +784,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     bool containsKey(K key)
     {
-        return find(key) != end;
-    }
-
-    /**
-     * Returns the number of elements that contain the value v
-     *
-     * Runs in O(n) time.
-     */
-    uint count(V v)
-    {
-        uint instances = 0;
-        foreach(x; this)
-            if(x == v)
-                instances++;
-        return instances;
-    }
-
-    /**
-     * Remove all the elements that contain the value v.
-     *
-     * Runs in O(n + m lg(n)) time, where m is the number of elements removed.
-     */
-    TreeMap removeAll(V v)
-    {
-        foreach(ref b, x; &purge)
-            b = cast(bool)(x == v);
-        return this;
-    }
-
-    /**
-     * Remove all the elements that contain the value v.
-     *
-     * Runs in O(n + m lg(n)) time, where m is the number of elements removed.
-     */
-    TreeMap removeAll(V v, ref uint numRemoved)
-    {
-        uint origLength = length;
-        removeAll(v);
-        numRemoved = origLength - length;
-        return this;
+        return elemAt(key) != end;
     }
 
     /**
@@ -686,7 +803,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      * Returns 1 if exactly the key/value pairs contained in the given map are
      * in this TreeMap.
      */
-    int opEquals(Object o)
+    bool opEquals(Object o)
     {
         //
         // try casting to map, otherwise, don't compare
@@ -706,7 +823,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
                 while(c1 != _end)
                 {
                     if(c1.key != c2.key || c1++.value != c2++.value)
-                        return 0;
+                        return false;
                 }
             }
             else
@@ -715,13 +832,13 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
                 {
                     auto cu = find(k);
                     if(cu is _end || cu.value != v)
-                        return 0;
+                        return false;
                 }
             }
-            return 1;
+            return true;
         }
 
-        return 0;
+        return false;
     }
 
     /**
@@ -745,7 +862,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * returns this.
      */
-    TreeMap set(V[K] source, ref uint numAdded)
+    TreeMap set(V[K] source, out uint numAdded)
     {
         uint origLength = length;
         set(source);
@@ -772,7 +889,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * numRemoved is set to the number of elements removed.
      */
-    TreeMap remove(K[] subset, ref uint numRemoved)
+    TreeMap remove(K[] subset, out uint numRemoved)
     {
         uint origLength = length;
         remove(subset);
@@ -798,7 +915,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * returns this.
      */
-    TreeMap intersect(K[] subset, ref uint numRemoved)
+    TreeMap intersect(K[] subset, out uint numRemoved)
     {
         scope iter = new ArrayIterator!(K)(subset);
         return intersect(iter, numRemoved);

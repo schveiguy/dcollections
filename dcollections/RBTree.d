@@ -12,7 +12,7 @@ private import dcollections.DefaultAllocator;
 
 version(RBDoChecks)
 {
-    import tango.io.Stdout;
+    import std.stdio;
 }
 
 /**
@@ -61,7 +61,7 @@ struct RBNode(V)
     /**
      * Get the left child
      */
-    Node left()
+    @property Node left()
     {
         return _left;
     }
@@ -69,7 +69,7 @@ struct RBNode(V)
     /**
      * Get the right child
      */
-    Node right()
+    @property Node right()
     {
         return _right;
     }
@@ -77,7 +77,7 @@ struct RBNode(V)
     /**
      * Get the parent
      */
-    Node parent()
+    @property Node parent()
     {
         return _parent;
     }
@@ -88,7 +88,7 @@ struct RBNode(V)
      *
      * Returns newNode
      */
-    Node left(Node newNode)
+    @property Node left(Node newNode)
     {
         _left = newNode;
         if(newNode !is null)
@@ -102,7 +102,7 @@ struct RBNode(V)
      *
      * Returns newNode
      */
-    Node right(Node newNode)
+    @property Node right(Node newNode)
     {
         _right = newNode;
         if(newNode !is null)
@@ -202,7 +202,7 @@ struct RBNode(V)
      * Note that this should always return a value because the root has a
      * parent which is the marker node.
      */
-    bool isLeftNode()
+    @property bool isLeftNode()
     in
     {
         assert(_parent !is null);
@@ -504,7 +504,7 @@ struct RBNode(V)
     /**
      * Return the leftmost descendant of this node.
      */
-    Node leftmost()
+    @property Node leftmost()
     {
         Node result = this;
         while(result._left !is null)
@@ -515,7 +515,7 @@ struct RBNode(V)
     /**
      * Return the rightmost descendant of this node
      */
-    Node rightmost()
+    @property Node rightmost()
     {
         Node result = this;
         while(result._right !is null)
@@ -529,7 +529,7 @@ struct RBNode(V)
      * You should never call this on the marker node, as it is assumed that
      * there is a valid next node.
      */
-    Node next()
+    @property Node next()
     {
         Node n = this;
         if(n.right is null)
@@ -548,7 +548,7 @@ struct RBNode(V)
      * You should never call this on the leftmost node of the tree as it is
      * assumed that there is a valid previous node.
      */
-    Node prev()
+    @property Node prev()
     {
         Node n = this;
         if(n.left is null)
@@ -624,12 +624,17 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
      */
     Node end;
 
+    /*
+     * the actual marker node, stored in the struct because it never changes.
+     */
+    private RBNode!(V) _end;
+
     /**
      * Setup this RBTree.
      */
-    void setup()
+    this()
     {
-        end = allocate();
+        end = &_end;
     }
 
     /**
@@ -715,7 +720,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     /**
      * Return the lowest-valued Node in the tree
      */
-    Node begin()
+    @property Node begin()
     {
         return end.leftmost;
     }
@@ -733,11 +738,9 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     body
     {
         count--;
-        //printTree(end.left);
         Node result = z.remove(end);
         static if(allocator.freeNeeded)
             alloc.free(z);
-        //printTree(end.left);
         version(RBDoChecks)
             check();
         return result;
@@ -791,6 +794,21 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     }
 
     /**
+     * Returns true if n is a node from this tree.  Runs in O(lgn) time.
+     */
+    bool belongs(Node n)
+    {
+        // check for null
+        if(!n)
+            return false;
+
+        // move up the tree to ensure the parent of the node is our end.
+        while(n.parent)
+            n = n.parent;
+        return n is end;
+    }
+
+    /**
      * clear all the nodes from the tree.
      */
     void clear()
@@ -798,10 +816,8 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
         static if(allocator.freeNeeded)
         {
             alloc.freeAll();
-            end = allocate();
         }
-        else
-            end.left = null;
+        end.left = null;
         count = 0;
     }
 
@@ -818,18 +834,18 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             {
                 printTree(n.right, indent + 2);
                 for(int i = 0; i < indent; i++)
-                    Stdout(".");
-                Stdout(n.color == n.color.Black ? "B" : "R").newline;
+                    write(".");
+                writeln(n.color == n.color.Black ? "B" : "R");
                 printTree(n.left, indent + 2);
             }
             else
             {
                 for(int i = 0; i < indent; i++)
-                    Stdout(".");
-                Stdout("N").newline;
+                    write(".");
+                writeln("N");
             }
             if(indent is 0)
-                Stdout.newline();
+                writeln();
         }
 
         /**
@@ -869,7 +885,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
                 int r = recurse(n.right, path ~ "R");
                 if(l != r)
                 {
-                    Stdout("bad tree at:").newline;
+                    writeln("bad tree at:");
                     printTree(n);
                     throw new Exception("Node at path " ~ path ~ " has different number of black nodes on left and right paths");
                 }
@@ -1058,8 +1074,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             freeNode(end.left);
         }
         //
-        // replace newend with end.  If we don't do this, cursors pointing
-        // to end will be invalidated.
+        // replace newend with end.
         //
         end.left = newend.left;
         return origcount - count;
@@ -1080,10 +1095,10 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
 
     void copyTo(ref RBTree target)
     {
-        target = *this;
-
         // make shallow copy of RBNodes
-        target.end = end.dup(&target.allocate);
+        if(end.left)
+            target.end.left = end.left.dup(&target.allocate);
+        target.count = count;
     }
 
     Node allocate()

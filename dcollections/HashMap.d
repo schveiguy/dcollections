@@ -208,7 +208,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
          */
         @property V front()
         {
-            assert(!empty, "Attempting to read front of an range cursor of " ~ HashMap.stringof);
+            assert(!empty, "Attempting to read front of an empty range of " ~ HashMap.stringof);
             return _begin.ptr.value.val;
         }
 
@@ -217,7 +217,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
          */
         @property V front(V v)
         {
-            assert(!empty, "Attempting to write front of an range cursor of " ~ HashMap.stringof);
+            assert(!empty, "Attempting to write front of an empty range of " ~ HashMap.stringof);
             _begin.ptr.value.val = v;
             return v;
         }
@@ -229,6 +229,34 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         {
             assert(!empty, "Attempting to read the key of an empty range of " ~ HashMap.stringof);
             return _begin.ptr.value.key;
+        }
+
+        /**
+         * Get the last value in the range
+         */
+        @property V back()
+        {
+            assert(!empty, "Attempting to read back of an empty range of " ~ HashMap.stringof);
+            return _end.prev.ptr.value.val;
+        }
+
+        /**
+         * Write the last value in the range.
+         */
+        @property V back(V v)
+        {
+            assert(!empty, "Attempting to write back of an empty range of " ~ HashMap.stringof);
+            _end.prev.ptr.value.val = v;
+            return v;
+        }
+
+        /**
+         * Get the key of the last element
+         */
+        @property K backKey()
+        {
+            assert(!empty, "Attempting to read the back key of an empty range of " ~ HashMap.stringof);
+            return _end.prev.ptr.value.key;
         }
 
         /**
@@ -416,8 +444,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      * cursor that points to the next element in the collection.
      *
      * if the cursor is empty, it does not remove any elements, but returns a
-     * cursor that points to the next element
-     * the next element.
+     * cursor that points to the next element.
      *
      * Runs on average in O(1) time.
      */
@@ -453,11 +480,16 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         range result;
         range._begin = _hash.begin;
         range._end = _hash.end;
+        return result;
     }
 
     /**
-     * get a slice of the elements between the two cursors.  Runs on average
-     * O(1) time.
+     * get a slice of the elements between the two cursors.
+     *
+     * This function only works if either b is the first element in the hashmap
+     * or e is the end element.  The rationale is that we want to ensure that
+     * opSlice returns quickly, and not knowing the implementation, we cannot
+     * know if determining the order of two cursors is an O(n) operation.
      */
     range opSlice(cursor b, cursor e)
     {
