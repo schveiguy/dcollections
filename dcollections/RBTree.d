@@ -809,6 +809,101 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     }
 
     /**
+     * Determine if a and b both belong to this tree, and if so, record the
+     * relative ordering in order (order < 0 means a comes before b, order == 0
+     * means a is b, order > 0 means b comes before a)
+     *
+     * returning false means one or both of the nodes does not belong to this
+     * tree.
+     *
+     * This is used in slicing operations.
+     */
+    bool positionCompare(Node a, Node b, out int order)
+    {
+        if(a is null || b is null)
+            return false; // one or both of these don't belong
+
+        if(a is end)
+        {
+            if(b !is end)
+            {
+                order = 1;
+                return belongs(b);
+            }
+            else
+            {
+                order = 0;
+                return true;
+            }
+        }
+        else if(b is end)
+        {
+            order = -1;
+            return belongs(a);
+        }
+
+        // otherwise, both have values, compare the values.
+        order = compareFunc(a.value, b.value);
+        static if(allowDuplicates)
+        {
+            if(order == 0)
+            {
+                // allowing duplicates, so these might be different nodes.
+                // we want to determine which node comes first in the order,
+                // which is possible by converging the two nodes together into
+                // a common parent, then seeing which branch the two nodes came
+                // from.
+                if(a is b)
+                    // trivial case, both are the same node.
+                    return belongs(a);
+
+                // use special algo to get the height while checking for
+                // ownership.
+                uint hta = 0;
+                auto n = a;
+                while(n.parent)
+                {
+                    n = n.parent;
+                    hta++;
+                }
+                if(n !is end)
+                    return false;
+                uint htb = 0;
+                n = b;
+                while(b.parent)
+                {
+                    b = b.parent;
+                    htb++;
+                }
+                if(n !is end)
+                    return false;
+
+                // now, move the lowest node up to its parent, until both nodes
+                // converge.
+                while(hta | htb)
+                {
+                    if(hta < htb)
+                    {
+                        if(b.parent is a)
+                            return b.isLeftNode ? 1 : -1;
+                        b = b.parent;
+                        htb--;
+                    }
+                    else
+                    {
+                        if(a.parent is b)
+                            return a.isLeftNode ? -1 : 1;
+                        a = a.parent;
+                        hta--;
+                    }
+                }
+                assert(false, "Error, nodes should have converged!");
+            }
+        }
+        return belongs(a) && belongs(b);
+    }
+
+    /**
      * clear all the nodes from the tree.
      */
     void clear()

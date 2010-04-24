@@ -450,6 +450,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      */
     cursor remove(cursor it)
     {
+        assert(belongs(it), "Error, attempting to remove invalid cursor from " ~ HashMap.stringof);
         if(!it.empty)
         {
             it.position = _hash.remove(it.position);
@@ -463,6 +464,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      */
     cursor remove(range r)
     {
+        assert(belongs(r), "Error, attempting to remove invalid cursor from " ~ HashMap.stringof);
         auto b = r.begin;
         auto e = r.end;
         while(b != e)

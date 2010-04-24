@@ -96,7 +96,7 @@ interface Multiset(V) : Addable!(V)
      * guaranteed to be O(lgN).
      * TODO: this should be inout
      */
-    V get();
+    @property V get();
 
     /**
      * Remove the most convenient element in the multiset and return its

@@ -167,7 +167,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     }
 
     /**
-     * A range that can be used to iterate over the elements in the hash.
+     * A range that can be used to iterate over the elements in the tree.
      */
     struct range
     {
@@ -280,7 +280,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     }
 
     /**
-     * Determine if a cursor belongs to the hashmap
+     * Determine if a cursor belongs to the treemap
      */
     bool belongs(cursor c)
     {
@@ -289,7 +289,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     }
 
     /**
-     * Determine if a range belongs to the hashmap
+     * Determine if a range belongs to the treemap
      */
     bool belongs(range r)
     {
@@ -384,15 +384,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     }
 
     /**
-     * Instantiate the tree map using the implementation parameters given.
-     *
-     * Set members of p to their initializer values in order to use the
-     * default values defined by TreeMap.
-     *
-     * The default compare function performs K's compare.
-     *
-     * The default update function sets only the V part of the element, and
-     * leaves the K part alone.
+     * Instantiate the tree map
      */
     this()
     {
@@ -499,8 +491,8 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     private range _slice(cursor b, cursor e)
     {
         range result;
-        result._begin = b.position;
-        result._end = e.position;
+        result._begin = b.ptr;
+        result._end = e.ptr;
         return result;
     }
 
@@ -515,10 +507,10 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     range opSlice(cursor b, cursor e)
     {
-        // for hashmap, we only support ranges that begin on the first cursor,
-        // or end on the last cursor.
-        if(belongs(b) && belongs(e) && (e.ptr is _tree.end || (b.ptr !is _tree.end && _compareFunction(b.ptr.value, e.ptr.value) <= 0)))
+        int order;
+        if(_tree.positionCompare(b, e, order) && order <= 0)
         {
+            // both cursors are part of the tree map and are correctly ordered.
             return _slice(b, e);
         }
         throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
@@ -529,7 +521,14 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      *
      * b must be <= e, and b and e must both match elements in the collection.
      * Note that e cannot match end, so in order to get *all* the elements, you
-     * must call the opSlice(K, cursor) version of the function.
+     * must call the opSlice(K, end) version of the function.
+     *
+     * Note, a valid slice is only returned if both b and e exist in the
+     * collection.  For example, if you have a treemap that contains the keys
+     * "a" and "b", you cannot get a slice ["aa".."b"] because "aa" is not a
+     * member of the collection.  While this seems strict, it is an
+     * interpretation of the rules for slicing normal arrays -- you are not
+     * allowed to pass indexes that don't exist for that array.
      *
      * runs in O(lgn) time.
      */
@@ -539,6 +538,8 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         {
             auto belem = elemAt(b);
             auto eelem = elemAt(e);
+            // note, no reason to check for whether belem and eelem are members
+            // of the tree, we just verified that!
             if(!belem.empty && !eelem.empty)
             {
                 return _slice(belem, eelem);
@@ -557,7 +558,8 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         auto belem = elemAt(b);
         if(!belem.empty)
         {
-            if(belongs(e) && (e.ptr is _tree.end || _compareFunction(belem.ptr.value, e.ptr.value) <= 0))
+            int order;
+            if(_tree.positionCompare(belem, e, order) && order <= 0)
             {
                 return _slice(belem, e);
             }
@@ -575,7 +577,8 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         auto eelem = elemAt(e);
         if(!eelem.empty)
         {
-            if(belongs(b) && (b.ptr !is _tree.end && _compareFunction(belem.ptr.value, e.ptr.value) <= 0))
+            int order;
+            if(_tree.positionCompare(b, eelem, order) && order <= 0)
             {
                 return _slice(b, eelem);
             }
@@ -607,9 +610,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     TreeMap remove(K key)
     {
-        cursor it = find(key);
-        if(it != end)
-            remove(it);
+        remove(elemAt(key));
         return this;
     }
 
@@ -621,16 +622,9 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     TreeMap remove(K key, out bool wasRemoved)
     {
-        cursor it = find(key);
-        if(it == end)
-        {
-            wasRemoved = false;
-        }
-        else
-        {
-            wasRemoved = true;
-            remove(it);
-        }
+        cursor it = elemAt(key);
+        wasRemoved = !it.empty;
+        remove(it);
         return this;
     }
 
