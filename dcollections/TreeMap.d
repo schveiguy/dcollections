@@ -424,7 +424,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     {
         cursor it;
         it.ptr = _tree.begin;
-        it._empty = (_tree.count == 0)
+        it._empty = (_tree.count == 0);
         return it;
     }
 
@@ -917,21 +917,18 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
 
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
+    auto tm = new TreeMap!(uint, uint);
+    Map!(uint, uint) m = tm;
+    for(int i = 0; i < 10; i++)
+        m[i * i + 1] = i;
+    assert(m.length == 10);
+    foreach(ref doPurge, k, v; &m.keypurge)
     {
-        auto tm = new TreeMap!(uint, uint);
-        Map!(uint, uint) m = tm;
-        for(int i = 0; i < 10; i++)
-            m[i * i + 1] = i;
-        assert(m.length == 10);
-        foreach(ref doPurge, k, v; &m.keypurge)
-        {
-            doPurge = (v % 2 == 1);
-        }
-        assert(m.length == 5);
-        assert(m.contains(6));
-        assert(m.containsKey(6 * 6 + 1));
+        doPurge = (v % 2 == 1);
     }
+    assert(m.length == 5);
+    assert(m.contains(6));
+    assert(m.containsKey(6 * 6 + 1));
 }

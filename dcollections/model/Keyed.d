@@ -43,7 +43,7 @@ interface Keyed(K, V) : KeyedIterator!(K, V), KeyPurgeable!(K, V)
      * Same as set, but has a wasAdded boolean to tell the caller whether the
      * value was added or not.
      */
-    Keyed set(K key, V value, ref bool wasAdded);
+    Keyed set(K key, V value, out bool wasAdded);
 
     /**
      * returns true if the collection contains the key

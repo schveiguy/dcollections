@@ -711,18 +711,15 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     }
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
-    {
-        auto ll = new LinkList!(uint);
-        List!(uint) l = ll;
-        l.add([0U, 1, 2, 3, 4, 5]);
-        assert(l.length == 6);
-        assert(l.contains(5));
-        foreach(ref doPurge, i; &l.purge)
-            doPurge = (i % 2 == 1);
-        assert(l.length == 3);
-        assert(!l.contains(5));
-    }
+    auto ll = new LinkList!(uint);
+    List!(uint) l = ll;
+    l.add([0U, 1, 2, 3, 4, 5]);
+    assert(l.length == 6);
+    assert(l.contains(5));
+    foreach(ref doPurge, i; &l.purge)
+        doPurge = (i % 2 == 1);
+    assert(l.length == 3);
+    assert(!l.contains(5));
 }

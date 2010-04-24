@@ -67,7 +67,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         /**
          * compare 2 elements for equality.  Only compares the keys.
          */
-        bool opEquals(ref element e)
+        bool opEquals(ref const(element) e) const
         {
             return key == e.key;
         }
@@ -159,7 +159,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
          * compare two cursors for equality.  Note that only the position of
          * the cursor is checked, whether it's empty or not is not checked.
          */
-        bool opEquals(const cursor it) const
+        bool opEquals(ref const(cursor) it) const
         {
             return it.position is position;
         }
@@ -345,7 +345,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             //
             // don't allow user to change key
             //
-            K tmpkey = it.key;
+            K tmpkey = it.ptr.value.key;
             doPurge = false;
             if((dgret = dg(doPurge, tmpkey, it.ptr.value.val)) != 0)
                 break;
@@ -455,7 +455,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         {
             it.position = _hash.remove(it.position);
         }
-        it.empty = (it.position == _hash.end);
+        it._empty = (it.position == _hash.end);
         return it;
     }
 
@@ -480,8 +480,8 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     range opSlice()
     {
         range result;
-        range._begin = _hash.begin;
-        range._end = _hash.end;
+        result._begin = _hash.begin;
+        result._end = _hash.end;
         return result;
     }
 
@@ -497,7 +497,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     {
         // for hashmap, we only support ranges that begin on the first cursor,
         // or end on the last cursor.
-        if((b == begin && belongs(e)) || (e == end && belongs(b)))
+        if((begin == b && belongs(e)) || (end == e && belongs(b)))
         {
             range result;
             result._begin = b.position;
@@ -542,7 +542,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      *
      * Runs on average in O(1) time.
      */
-    HashMap remove(K key, ref bool wasRemoved)
+    HashMap remove(K key, out bool wasRemoved)
     {
         cursor it = elemAt(key);
         if(it == end)
@@ -597,7 +597,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      * Set a key/value pair.  If the key/value pair doesn't already exist, it
      * is added, and the wasAdded parameter is set to true.
      */
-    HashMap set(K key, V value, ref bool wasAdded)
+    HashMap set(K key, V value, out bool wasAdded)
     {
         element elem;
         elem.key = key;
@@ -766,7 +766,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      *
      * returns this.
      */
-    HashMap set(V[K] source, ref uint numAdded)
+    HashMap set(V[K] source, out uint numAdded)
     {
         uint origLength = length;
         set(source);
@@ -826,20 +826,17 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     }
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
+    HashMap!(uint, uint) hm = new HashMap!(uint, uint);
+    Map!(uint, uint) m = hm;
+    for(int i = 0; i < 10; i++)
+        hm[i * i + 1] = i;
+    assert(hm.length == 10);
+    foreach(ref doPurge, k, v; &hm.keypurge)
     {
-        HashMap!(uint, uint) hm = new HashMap!(uint, uint);
-        Map!(uint, uint) m = hm;
-        for(int i = 0; i < 10; i++)
-            hm[i * i + 1] = i;
-        assert(hm.length == 10);
-        foreach(ref doPurge, k, v; &hm.keypurge)
-        {
-            doPurge = (v % 2 == 1);
-        }
-        assert(hm.length == 5);
-        assert(hm.containsKey(6 * 6 + 1));
+        doPurge = (v % 2 == 1);
     }
+    assert(hm.length == 5);
+    assert(hm.containsKey(6 * 6 + 1));
 }

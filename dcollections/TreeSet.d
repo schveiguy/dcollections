@@ -295,7 +295,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     {
         cursor it;
         it.ptr = _tree.begin;
-        it._empty = (_tree.count == 0)
+        it._empty = (_tree.count == 0);
         return it;
     }
 
@@ -716,17 +716,14 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     }
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
-    {
-        auto ts = new TreeSet!(uint);
-        Set!(uint) s = ts;
-        s.add([0U, 1, 2, 3, 4, 5, 5]);
-        assert(s.length == 6);
-        foreach(ref doPurge, i; &s.purge)
-            doPurge = (i % 2 == 1);
-        assert(s.length == 3);
-        assert(s.contains(4));
-    }
+    auto ts = new TreeSet!(uint);
+    Set!(uint) s = ts;
+    s.add([0U, 1, 2, 3, 4, 5, 5]);
+    assert(s.length == 6);
+    foreach(ref doPurge, i; &s.purge)
+        doPurge = (i % 2 == 1);
+    assert(s.length == 3);
+    assert(s.contains(4));
 }

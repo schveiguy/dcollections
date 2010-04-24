@@ -297,7 +297,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     {
         cursor it;
         it.ptr = _tree.begin;
-        it._empty = (_tree.count == 0)
+        it._empty = (_tree.count == 0);
         return it;
     }
 
@@ -651,18 +651,15 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     }
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
-    {
-        auto tms = new TreeMultiset!(uint);
-        Multiset!(uint) ms = tms;
-        ms.add([0U, 1, 2, 3, 4, 5, 5]);
-        assert(ms.length == 7);
-        assert(ms.count(5U) == 2);
-        foreach(ref doPurge, i; &ms.purge)
-            doPurge = (i % 2 == 1);
-        assert(ms.count(5U) == 0);
-        assert(ms.length == 3);
-    }
+    auto tms = new TreeMultiset!(uint);
+    Multiset!(uint) ms = tms;
+    ms.add([0U, 1, 2, 3, 4, 5, 5]);
+    assert(ms.length == 7);
+    assert(ms.count(5U) == 2);
+    foreach(ref doPurge, i; &ms.purge)
+        doPurge = (i % 2 == 1);
+    assert(ms.count(5U) == 0);
+    assert(ms.length == 3);
 }

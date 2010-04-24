@@ -7,7 +7,8 @@
 **********************************************************/
 module dcollections.ArrayList;
 public import dcollections.model.List,
-       dcollections.model.Keyed;
+       dcollections.model.Keyed,
+       std.array; // needed for range functions on arrays.
 
 private struct Array
 {
@@ -83,7 +84,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         /**
          * get the value pointed to
          */
-        @property V front();
+        @property V front()
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ ArrayList.stringof);
             return *ptr;
@@ -123,7 +124,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
          * compare two cursors for equality.  Note that only the position of
          * the cursor is checked, whether it's empty or not is not checked.
          */
-        bool opEquals(cursor it)
+        bool opEquals(ref const(cursor) it) const
         {
             return it.ptr is ptr;
         }
@@ -159,7 +160,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * return the number of elements in the collection
      */
-    @property uint length()
+    @property uint length() const
     {
         return _array.length;
     }
@@ -220,13 +221,13 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
             {
                 doRemove = false;
                 uint key = i - _array.ptr;
-                if(i >= last || dgret != 0 || (dgret = dg(doRemove, key, *i.ptr)) != 0 || !doRemove)
+                if(i >= last || dgret != 0 || (dgret = dg(doRemove, key, *i)) != 0 || !doRemove)
                 {
                     //
                     // either not calling dg any more or doRemove was
                     // false.
                     //
-                    nextGood.value = i.value;
+                    *nextGood = *i;
                 }
                 else
                 {
@@ -309,7 +310,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         while(it.ptr < last.ptr && *it.ptr != v)
             it.ptr++;
         // set the cursor as not empty only if it is not the last element.
-        it._empty = (it.ptr == last.ptr)
+        it._empty = (it.ptr == last.ptr);
         return it;
     }
 
@@ -327,7 +328,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     cursor elemAt(uint idx)
     {
-        assert(idx < _array.length)
+        assert(idx < _array.length);
         cursor it;
         it.ptr = _array.ptr + idx;
         return it;
@@ -352,7 +353,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * set the value at the given index
      */
-    ArrayList set(uint key, V value, ref bool wasAdded)
+    ArrayList set(uint key, V value, out bool wasAdded)
     {
         this[key] = value;
         wasAdded = false;
@@ -409,7 +410,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * add the given value to the end of the list.  Always returns true.
      */
-    ArrayList add(V v, ref bool wasAdded)
+    ArrayList add(V v, out bool wasAdded)
     {
         //
         // append to this array.
@@ -440,7 +441,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * adds all elements from the given iterator to the end of the list.
      */
-    ArrayList add(Iterator!(V) coll, ref uint numAdded)
+    ArrayList add(Iterator!(V) coll, out uint numAdded)
     {
         auto al = cast(ArrayList)coll;
         if(al)
@@ -488,7 +489,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * appends the array to the end of the list
      */
-    ArrayList add(V[] array, ref uint numAdded)
+    ArrayList add(V[] array, out uint numAdded)
     {
         numAdded = array.length;
         if(array.length)
@@ -554,7 +555,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     range opSlice(cursor b, cursor e)
     {
-        assert(e.ptr >= b.ptr && e.ptr <= end.ptr && b.ptr >= begin.ptr)
+        assert(e.ptr >= b.ptr && e.ptr <= end.ptr && b.ptr >= begin.ptr);
         return b.ptr[0..(e.ptr-b.ptr)];
     }
 
@@ -584,7 +585,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * If o is a List!(V), then this does a list compare.
      * If o is null or not an ArrayList, then the return value is 0.
      */
-    int opEquals(Object o)
+    bool opEquals(Object o)
     {
         if(o !is null)
         {
@@ -659,7 +660,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     uint indexOf(cursor c)
     {
-        assert(c.ptr >= begin.ptr)
+        assert(c.ptr >= begin.ptr);
         return c.ptr - begin.ptr;
     }
 
@@ -697,13 +698,13 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         }
 
         /// Returns a hash of the instance of a type.
-        override hash_t getHash(void *p) { return derivedFrom.getHash(p); }
+        override hash_t getHash(in void *p) { return derivedFrom.getHash(p); }
 
         /// Compares two instances for equality.
-        override int equals(void *p1, void *p2) { return derivedFrom.equals(p1, p2); }
+        override bool equals(in void *p1, in void *p2) { return derivedFrom.equals(p1, p2); }
 
         /// Compares two instances for &lt;, ==, or &gt;.
-        override int compare(void *p1, void *p2)
+        override int compare(in void *p1, in void *p2)
         {
             return cf(*cast(V *)p1, *cast(V *)p2);
         }
@@ -790,9 +791,9 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
 /**
  * Get the begin cursor of an ArrayList range.
  */
-@property ArrayList!T.cursor begin(T)(T[] r)
+@property ArrayList!(T).cursor begin(T)(T[] r)
 {
-    ArrayList!T.cursor c;
+    ArrayList!(T).cursor c;
     c.ptr = r.ptr;
     c._empty = r.empty;
     return c;
@@ -809,21 +810,18 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     return c;
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
-    {
-        auto al = new ArrayList!(uint);
-        al.add([0U, 1, 2, 3, 4, 5]);
-        assert(al.length == 6);
-        al.add(al[0..3]);
-        assert(al.length == 9);
-        foreach(ref dp, uint idx, uint val; &al.keypurge)
-            dp = (val % 2 == 1);
-        assert(al.length == 5);
-        assert(al == [0U, 2, 4, 0, 2]);
-        assert(al == new ArrayList!(uint)([0U, 2, 4, 0, 2]));
-        assert(al.begin.ptr is al[].ptr);
-        assert(al.end.ptr is al[].ptr + al.length);
-    }
+    auto al = new ArrayList!(uint);
+    al.add([0U, 1, 2, 3, 4, 5]);
+    assert(al.length == 6);
+    al.add(al[0..3]);
+    assert(al.length == 9);
+    foreach(ref dp, uint idx, uint val; &al.keypurge)
+        dp = (val % 2 == 1);
+    assert(al.length == 5);
+    assert(al == [0U, 2, 4, 0, 2]);
+    assert(al == new ArrayList!(uint)([0U, 2, 4, 0, 2]));
+    assert(al.begin.ptr is al[].ptr);
+    assert(al.end.ptr is al[].ptr + al.length);
 }

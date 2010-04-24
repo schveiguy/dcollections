@@ -44,7 +44,7 @@ interface Set(V) : Addable!(V)
      * returns this.
      * TODO: rename to remove
      */
-    auto removeRange(R)(R range out uint numRemoved) if (isInputRange!R && is(ElementType!R == V))
+    auto removeRange(R)(R range, out uint numRemoved) if (isInputRange!R && is(ElementType!R == V))
     {
         auto len = length;
         bool wasRemoved;

@@ -627,17 +627,14 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     }
 }
 
-version(UnitTest)
+unittest
 {
-    unittest
-    {
-        auto hs = new HashSet!(uint);
-        Set!(uint) s = hs;
-        s.add([0U, 1, 2, 3, 4, 5, 5]);
-        assert(s.length == 6);
-        foreach(ref doPurge, i; &s.purge)
-            doPurge = (i % 2 == 1);
-        assert(s.length == 3);
-        assert(s.contains(4));
-    }
+    auto hs = new HashSet!(uint);
+    Set!(uint) s = hs;
+    s.add([0U, 1, 2, 3, 4, 5, 5]);
+    assert(s.length == 6);
+    foreach(ref doPurge, i; &s.purge)
+        doPurge = (i % 2 == 1);
+    assert(s.length == 3);
+    assert(s.contains(4));
 }

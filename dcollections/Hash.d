@@ -11,10 +11,10 @@ private import dcollections.Link;
 private import dcollections.model.Iterator;
 private import dcollections.DefaultAllocator;
 
-enum HashDefaults
+struct HashDefaults
 {
-    float loadFactor = .75;
-    uint tableSize = 31;
+    enum float loadFactor = .75;
+    enum uint tableSize = 31;
 }
 
 /**

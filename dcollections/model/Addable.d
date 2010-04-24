@@ -41,7 +41,7 @@ interface Addable(V)
      * add all values retrieved from the collection using the iterator's
      * opApply. numAdded is set to the number of elements added.
      */
-    Addable add(Iterator!(V) it, ref uint numAdded);
+    Addable add(Iterator!(V) it, out uint numAdded);
 
     /**
      * add all the values from the array.  Returns this.
@@ -53,7 +53,7 @@ interface Addable(V)
      *
      * numAdded is set to the number of elements added.
      */
-    Addable add(V[] array, ref uint numAdded);
+    Addable add(V[] array, out uint numAdded);
 
     /**
      * add all the values from a range.  Returns this.
@@ -62,7 +62,7 @@ interface Addable(V)
      *
      * TODO: change name to add
      */
-    Addable addRange(R)(R range, ref uint numAdded) if (isInputRange!R && is(ElementType!R == V))
+    Addable addRange(R)(R range, out uint numAdded) if (isInputRange!R && is(ElementType!R == V))
     {
         numAdded = 0;
         bool wasAdded;

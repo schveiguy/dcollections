@@ -89,7 +89,7 @@ interface List(V) : Iterator!(V), Addable!(V)
     /**
      * Covariant add (from Addable)
      */
-    List add(V v, ref bool wasAdded);
+    List add(V v, out bool wasAdded);
 
     /**
      * Covariant add (from Addable)
@@ -99,7 +99,7 @@ interface List(V) : Iterator!(V), Addable!(V)
     /**
      * Covariant add (from Addable)
      */
-    List add(Iterator!(V) it, ref uint numAdded);
+    List add(Iterator!(V) it, out uint numAdded);
 
     /**
      * Covariant add (from Addable)
@@ -109,7 +109,7 @@ interface List(V) : Iterator!(V), Addable!(V)
     /**
      * Covariant add (from Addable)
      */
-    List add(V[] array, ref uint numAdded);
+    List add(V[] array, out uint numAdded);
 
     /**
      * sort this list according to the default compare routine for V.  Returns
@@ -121,7 +121,7 @@ interface List(V) : Iterator!(V), Addable!(V)
      * sort this list according to the comparison routine given.  Returns a
      * reference to the list after it is sorted.  O(NlgN) runtime or better.
      */
-    List sort(int delegate(ref V v1, ref V v2) comp);
+    List sort(scope int delegate(ref V v1, ref V v2) comp);
 
     /**
      * sort this list according to the comparison routine given.  Returns a
