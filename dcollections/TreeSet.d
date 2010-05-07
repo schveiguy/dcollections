@@ -85,8 +85,8 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         @property V front()
         {
-            assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeMultiset.stringof);
-            return ptr.value.val;
+            assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeSet.stringof);
+            return ptr.value;
         }
 
         /**
@@ -102,7 +102,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         void popFront()
         {
-            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ TreeMultiset.stringof);
+            assert(!_empty, "Attempting to popFront() an empty cursor of " ~ TreeSet.stringof);
             _empty = true;
             ptr = ptr.next;
         }
@@ -110,10 +110,18 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * compare two cursors for equality
          */
-        bool opEquals(const cursor it) const
+        bool opEquals(ref const cursor it) const
         {
             return it.ptr is ptr;
         }
+        /*
+         * TODO: uncomment this when compiler is sane!
+         * compare two cursors for equality
+         */
+        /*bool opEquals(const cursor it) const
+        {
+            return it.ptr is ptr;
+        }*/
     }
 
     /**
@@ -159,8 +167,8 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         @property V front()
         {
-            assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeMultiset.stringof);
-            return _begin.ptr.value.val;
+            assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeSet.stringof);
+            return _begin.value;
         }
 
         /**
@@ -168,8 +176,8 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         @property V back()
         {
-            assert(!empty, "Attempting to read the back of an empty range of " ~ TreeMultiset.stringof);
-            return _end.prev.value.val;
+            assert(!empty, "Attempting to read the back of an empty range of " ~ TreeSet.stringof);
+            return _end.prev.value;
         }
 
         /**
@@ -177,7 +185,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         void popFront()
         {
-            assert(!empty, "Attempting to popFront() an empty range of " ~ TreeMultiset.stringof);
+            assert(!empty, "Attempting to popFront() an empty range of " ~ TreeSet.stringof);
             _begin = _begin.next;
         }
 
@@ -186,7 +194,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         void popBack()
         {
-            assert(!empty, "Attempting to popBack() an empty range of " ~ TreeMultiset.stringof);
+            assert(!empty, "Attempting to popBack() an empty range of " ~ TreeSet.stringof);
             _end = _end.prev;
         }
     }
@@ -221,7 +229,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      * }
      * -------------
      */
-    final int purge(int delegate(ref bool doPurge, ref V v) dg)
+    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         auto it = _tree.begin;
         bool doPurge;
@@ -247,7 +255,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * iterate over the collection's values
      */
-    int opApply(int delegate(ref V v) dg)
+    int opApply(scope int delegate(ref V v) dg)
     {
         int _dg(ref bool doPurge, ref V v)
         {
@@ -261,6 +269,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      */
     this()
     {
+        _tree.setup();
     }
 
     //
@@ -268,6 +277,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     //
     private this(ref Impl dupFrom)
     {
+        _tree.setup();
         dupFrom.copyTo(_tree);
     }
 
@@ -283,7 +293,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * returns number of elements in the collection
      */
-    @property uint length()
+    @property uint length() const
     {
         return _tree.count;
     }
@@ -323,7 +333,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         {
             it.ptr = _tree.remove(it.ptr);
         }
-        it.empty = (it.ptr == _tree.end);
+        it._empty = (it.ptr == _tree.end);
         return it;
     }
 
@@ -347,8 +357,8 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     range opSlice()
     {
         range result;
-        range._begin = _tree.begin;
-        range._end = _tree.end;
+        result._begin = _tree.begin;
+        result._end = _tree.end;
         return result;
     }
 
@@ -374,12 +384,12 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     range opSlice(cursor b, cursor e)
     {
         int order;
-        if(_tree.positionCompare(b, e, order) && order <= 0)
+        if(_tree.positionCompare(b.ptr, e.ptr, order) && order <= 0)
         {
             // both cursors are part of the tree map and are correctly ordered.
             return _slice(b, e);
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
     }
 
     /**
@@ -396,7 +406,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      */
     range opSlice(V b, V e)
     {
-        if(compareFunc(b, e) <= 0)
+        if(compareFunction(b, e) <= 0)
         {
             auto belem = elemAt(b);
             auto eelem = elemAt(e);
@@ -407,7 +417,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
                 return _slice(belem, eelem);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
     }
 
     /**
@@ -421,12 +431,12 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         if(!belem.empty)
         {
             int order;
-            if(_tree.positionCompare(belem, e, order) && order <= 0)
+            if(_tree.positionCompare(belem.ptr, e.ptr, order) && order <= 0)
             {
                 return _slice(belem, e);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
     }
 
     /**
@@ -440,12 +450,12 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         if(!eelem.empty)
         {
             int order;
-            if(_tree.positionCompare(b, eelem, order) && order <= 0)
+            if(_tree.positionCompare(b.ptr, eelem.ptr, order) && order <= 0)
             {
                 return _slice(b, eelem);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
     }
 
     /**
@@ -458,7 +468,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     {
         cursor it;
         it.ptr = _tree.find(v);
-        it.empty = it.ptr is _tree.end;
+        it._empty = it.ptr is _tree.end;
         return it;
     }
 
@@ -492,9 +502,9 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      */
     TreeSet remove(V v, out bool wasRemoved)
     {
-        cursor it = find(v);
-        wasRemoved = !it.empty;
-        remove(it);
+        auto it = elemAt(v);
+        if((wasRemoved = !it.empty) is true)
+            remove(it);
         return this;
     }
 
@@ -516,7 +526,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * Runs in O(lg(n)) time.
      */
-    TreeSet add(V v, ref bool wasAdded)
+    TreeSet add(V v, out bool wasAdded)
     {
         wasAdded = _tree.add(v);
         return this;
@@ -602,7 +612,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * returns this.
      */
-    TreeSet remove(Iterator!(V) subset, ref uint numRemoved)
+    TreeSet remove(Iterator!(V) subset, out uint numRemoved)
     {
         uint origLength = length;
         remove(subset);
@@ -627,7 +637,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * returns this.
      */
-    TreeSet intersect(Iterator!(V) subset, ref uint numRemoved)
+    TreeSet intersect(Iterator!(V) subset, out uint numRemoved)
     {
         numRemoved = _tree.intersect(subset);
         return this;
@@ -658,12 +668,14 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
                     // using cursors.  This makes opEquals O(n) operation,
                     // versus O(n lg(n)) for other set types.
                     //
-                    auto c1 = begin;
-                    auto c2 = ts.begin;
-                    while(c1 != _end)
+                    auto c1 = _tree.begin;
+                    auto c2 = ts._tree.begin;
+                    while(c1 !is _end.ptr)
                     {
-                        if(c1++.value != c2++.value)
+                        if(c1.value != c2.value)
                             return false;
+                        c1 = c1.next;
+                        c2 = c2.next;
                     }
                     return true;
                 }
@@ -699,7 +711,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      */
     V get()
     {
-        return begin.value;
+        return begin.front;
     }
 
     /**
@@ -710,7 +722,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     V take()
     {
         auto c = begin;
-        auto retval = c.value;
+        auto retval = c.front;
         remove(c);
         return retval;
     }

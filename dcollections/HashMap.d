@@ -163,6 +163,17 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         {
             return it.position is position;
         }
+
+        /*
+         * TODO, this should compile, but currently doesn't!
+         *
+         * compare two cursors for equality.  Note that only the position of
+         * the cursor is checked, whether it's empty or not is not checked.
+         */
+        /*bool opEquals(const cursor it) const
+        {
+            return it.position is position;
+        }*/
     }
 
     /**
@@ -389,6 +400,8 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     {
         // create the key iterator
         _keys = new KeyIterator;
+        // setup the hash with defaults
+        _hash.setup();
     }
 
     //
@@ -396,6 +409,8 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     //
     private this(ref Impl dupFrom)
     {
+        // setup the hash with defaults
+        _hash.setup();
         dupFrom.copyTo(_hash);
         _keys = new KeyIterator;
     }
@@ -497,6 +512,8 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     {
         // for hashmap, we only support ranges that begin on the first cursor,
         // or end on the last cursor.
+        // TODO: switch this back when compiler is more sane
+        //if((b == begin && belongs(e)) || (e == end && belongs(b)))
         if((begin == b && belongs(e)) || (end == e && belongs(b)))
         {
             range result;
@@ -504,7 +521,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             result._end = e.position;
             return result;
         }
-        throw new RangeError("invalid slice parameters to " ~ HashMap.stringof);
+        throw new Exception("invalid slice parameters to " ~ HashMap.stringof);
     }
 
     /**
@@ -545,14 +562,9 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     HashMap remove(K key, out bool wasRemoved)
     {
         cursor it = elemAt(key);
-        if(it == end)
-        {
-            wasRemoved = false;
-        }
-        else
+        if((wasRemoved = !it.empty) is true)
         {
             remove(it);
-            wasRemoved = true;
         }
         return this;
     }
@@ -566,9 +578,9 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     V opIndex(K key)
     {
         cursor it = elemAt(key);
-        if(it == end)
-            throw new RangeError("Index out of range");
-        return it.value;
+        if(it.empty)
+            throw new Exception("Index out of range");
+        return it.front;
     }
 
     /**
@@ -697,7 +709,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      */
     bool containsKey(K key)
     {
-        return elemAt(key) != end;
+        return !elemAt(key).empty;
     }
 
     /**
@@ -736,7 +748,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             foreach(K k, V v; m)
             {
                 auto cu = elemAt(k);
-                if(cu.empty || cu.value != v)
+                if(cu.empty || cu.front != v)
                     return false;
             }
             return true;

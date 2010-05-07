@@ -51,6 +51,9 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
      */
     uint count;
 
+    // setup does nothing
+    void setup() {}
+
     /**
      * This is like a pointer, used to point to a given element in the hash.
      */
@@ -65,7 +68,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
          */
         @property position next()
         {
-            position p = *this;
+            position p = this;
             auto table = owner.table;
 
             if(p.ptr !is null)
@@ -104,7 +107,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
          */
         @property position prev()
         {
-            position p = *this;
+            position p = this;
             auto table = owner.table;
             if(p.ptr !is null)
             {
@@ -259,7 +262,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
             return end;
         position result;
         result.ptr = null;
-        result.owner = this;
+        result.owner = &this;
         result.idx = -1;
         //
         // this finds the first valid node
@@ -274,7 +277,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     {
         position result;
         result.idx = table.length;
-        result.owner = this;
+        result.owner = &this;
         return result;
     }
 
@@ -308,7 +311,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         if(table[h] is null || (ptr = findInBucket(table[h], v, table[h])) is null)
             return end;
         position p;
-        p.owner = this;
+        p.owner = &this;
         p.idx = h;
         p.ptr = ptr;
         return p;
@@ -514,7 +517,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         //
         // copy all local values
         //
-        target = *this;
+        target = this;
 
         //
         // reset allocator

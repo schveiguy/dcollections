@@ -13,7 +13,7 @@ public import dcollections.model.Addable;
  * is allowed to exist.  If you add 2 instances of an item, only the first
  * is added.
  */
-interface Set(V) : Addable!(V)
+interface Set(V) : Addable!V, Iterator!V, Purgeable!V
 {
     /**
      * Remove all values that match the given iterator.

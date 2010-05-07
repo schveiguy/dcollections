@@ -500,25 +500,9 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     }
 
     /**
-     * append another list to the end of this list
-     */
-    ArrayList opCatAssign(List!(V) rhs)
-    {
-        return add(rhs);
-    }
-
-    /**
-     * append an array to the end of this list
-     */
-    ArrayList opCatAssign(V[] array)
-    {
-        return add(array);
-    }
-
-    /**
      * returns a concatenation of the array list and another list.
      */
-    ArrayList opCat(List!(V) rhs)
+    ArrayList concat(List!(V) rhs)
     {
         return dup().add(rhs);
     }
@@ -526,7 +510,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * returns a concatenation of the array list and an array.
      */
-    ArrayList opCat(V[] array)
+    ArrayList concat(V[] array)
     {
         return new ArrayList(_array ~ array);
     }
@@ -534,7 +518,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * returns a concatenation of the array list and an array.
      */
-    ArrayList opCat_r(V[] array)
+    ArrayList concat_r(V[] array)
     {
         return new ArrayList(array ~ _array);
     }

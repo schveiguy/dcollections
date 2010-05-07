@@ -108,10 +108,22 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
          * compare two cursors for equality.  Note that only the position of
          * the cursor is checked, whether it's empty or not is not checked.
          */
-        bool opEquals(cursor it)
+        bool opEquals(ref const cursor it) const
         {
             return it.position == position;
         }
+
+        /*
+         * TODO: uncomment this when compiler is sane!
+         * 
+         * compare two cursors for equality.  Note that only the position of
+         * the cursor is checked, whether it's empty or not is not checked.
+         */
+        /*
+        bool opEquals(const cursor it) const
+        {
+            return it.position == position;
+        }*/
     }
 
     /**
@@ -158,7 +170,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         @property V front()
         {
             assert(!empty, "Attempting to read front of an empty range of " ~ HashSet.stringof);
-            return _begin.ptr.value.val;
+            return _begin.ptr.value;
         }
 
         /**
@@ -167,7 +179,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         @property V back()
         {
             assert(!empty, "Attempting to read back of an empty range of " ~ HashSet.stringof);
-            return _end.prev.ptr.value.val;
+            return _end.prev.ptr.value;
         }
 
         /**
@@ -220,11 +232,6 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
-        return _apply(dg);
-    }
-
-    private int _apply(scope int delegate(ref bool doPurge, ref V v) dg)
-    {
         Impl.position it = _hash.begin;
         bool doPurge;
         int dgret = 0;
@@ -234,7 +241,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
             //
             // don't allow user to change value
             //
-            V tmpvalue = it.value;
+            V tmpvalue = it.ptr.value;
             doPurge = false;
             if((dgret = dg(doPurge, tmpvalue)) != 0)
                 break;
@@ -255,7 +262,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         {
             return dg(v);
         }
-        return _apply(&_dg);
+        return purge(&_dg);
     }
 
     /**
@@ -263,6 +270,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     this()
     {
+        _hash.setup();
     }
 
     //
@@ -270,6 +278,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     //
     private this(ref Impl dupFrom)
     {
+        _hash.setup();
         dupFrom.copyTo(_hash);
     }
 
@@ -285,7 +294,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     /**
      * returns number of elements in the collection
      */
-    @property uint length()
+    @property uint length() const
     {
         return _hash.count;
     }
@@ -322,7 +331,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     {
         it.position = _hash.remove(it.position);
         if(it.position is _hash.end)
-            it.empty = true;
+            it._empty = true;
         return it;
     }
 
@@ -346,8 +355,8 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     range opSlice()
     {
         range result;
-        range._begin = begin;
-        range._end = end;
+        result._begin = _hash.begin;
+        result._end = _hash.end;
         return result;
     }
 
@@ -360,14 +369,16 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         // for hash set, we only support ranges that begin on the first cursor,
         // or end on the last cursor.  This is because to check that b is
         // before e for arbitrary cursors would be possibly a long operation.
-        if((b == begin && belongs(e)) || (e == end && belongs(b)))
+        // TODO: fix this when compiler is sane
+        //if((b == begin && belongs(e)) || (e == end && belongs(b)))
+        if((begin == b && belongs(e)) || (end == e && belongs(b)))
         {
             range result;
             result._begin = b.position;
             result._end = e.position;
             return result;
         }
-        throw new RangeError("invalid slice parameters to " ~ HashSet.stringof);
+        throw new Exception("invalid slice parameters to " ~ HashSet.stringof);
     }
 
     /**
@@ -415,16 +426,11 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      *
      * Runs in O(n) time.
      */
-    HashSet remove(V v, ref bool wasRemoved)
+    HashSet remove(V v, out bool wasRemoved)
     {
         cursor it = elemAt(v);
-        if(it == end)
+        if((wasRemoved = !it.empty) is true)
         {
-            wasRemoved = false;
-        }
-        else
-        {
-            wasRemoved = true;
             remove(it);
         }
         return this;
@@ -610,7 +616,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      */
     V get()
     {
-        return begin.value;
+        return begin.front;
     }
 
     /**
@@ -621,7 +627,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     V take()
     {
         auto c = begin;
-        auto retval = c.value;
+        auto retval = c.front;
         remove(c);
         return retval;
     }

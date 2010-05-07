@@ -21,7 +21,7 @@ public import dcollections.model.Addable;
  * operations guarantee better performance than an equivalent list operation
  * would.
  */
-interface Multiset(V) : Addable!(V)
+interface Multiset(V) : Addable!V, Iterator!V, Purgeable!V
 {
     /**
      * clear all elements from the multiset (part of collection

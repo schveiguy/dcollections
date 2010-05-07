@@ -88,7 +88,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         @property V front()
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeMultiset.stringof);
-            return ptr.value.val;
+            return ptr.value;
         }
 
         /**
@@ -112,10 +112,19 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         /**
          * compare two cursors for equality
          */
-        bool opEquals(const cursor it) const
+        bool opEquals(ref const cursor it) const
         {
             return it.ptr is ptr;
         }
+
+        /**
+         * TODO: uncomment when compiler is sane
+         * compare two cursors for equality
+         */
+        /*bool opEquals(const cursor it) const
+        {
+            return it.ptr is ptr;
+        }*/
     }
 
     /**
@@ -162,7 +171,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         @property V front()
         {
             assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeMultiset.stringof);
-            return _begin.ptr.value.val;
+            return _begin.value;
         }
 
         /**
@@ -171,7 +180,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         @property V back()
         {
             assert(!empty, "Attempting to read the back of an empty range of " ~ TreeMultiset.stringof);
-            return _end.prev.value.val;
+            return _end.prev.value;
         }
 
         /**
@@ -263,6 +272,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
      */
     this()
     {
+        _tree.setup();
     }
 
     //
@@ -270,6 +280,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     //
     private this(ref Impl dupFrom)
     {
+        _tree.setup();
         dupFrom.copyTo(_tree);
     }
 
@@ -285,7 +296,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     /**
      * returns number of elements in the collection
      */
-    @property uint length()
+    @property uint length() const
     {
         return _tree.count;
     }
@@ -329,7 +340,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         {
             it.ptr = _tree.remove(it.ptr);
         }
-        it.empty = (it.ptr == _tree.end);
+        it._empty = (it.ptr == _tree.end);
         return it;
     }
 
@@ -353,8 +364,8 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     range opSlice()
     {
         range result;
-        range._begin = _tree.begin;
-        range._end = _tree.end;
+        result._begin = _tree.begin;
+        result._end = _tree.end;
         return result;
     }
 
@@ -380,12 +391,12 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     range opSlice(cursor b, cursor e)
     {
         int order;
-        if(_tree.positionCompare(b, e, order) && order <= 0)
+        if(_tree.positionCompare(b.ptr, e.ptr, order) && order <= 0)
         {
             // both cursors are part of the tree map and are correctly ordered.
             return _slice(b, e);
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
     }
 
     /**
@@ -402,7 +413,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
      */
     range opSlice(V b, V e)
     {
-        if(compareFunc(b, e) <= 0)
+        if(compareFunction(b, e) <= 0)
         {
             auto belem = elemAt(b);
             auto eelem = elemAt(e);
@@ -413,7 +424,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
                 return _slice(belem, eelem);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
     }
 
     /**
@@ -427,12 +438,12 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         if(!belem.empty)
         {
             int order;
-            if(_tree.positionCompare(belem, e, order) && order <= 0)
+            if(_tree.positionCompare(belem.ptr, e.ptr, order) && order <= 0)
             {
                 return _slice(belem, e);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
     }
 
     /**
@@ -446,12 +457,12 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         if(!eelem.empty)
         {
             int order;
-            if(_tree.positionCompare(b, eelem, order) && order <= 0)
+            if(_tree.positionCompare(b.ptr, eelem.ptr, order) && order <= 0)
             {
                 return _slice(b, eelem);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMultiset.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
     }
 
     /**
@@ -634,7 +645,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
      */
     @property V get()
     {
-        return begin.value;
+        return begin.front;
     }
 
     /**
@@ -645,7 +656,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     V take()
     {
         auto c = begin;
-        auto retval = c.value;
+        auto retval = c.front;
         remove(c);
         return retval;
     }

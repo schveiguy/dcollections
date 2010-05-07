@@ -92,7 +92,7 @@ struct RBNode(V)
     {
         _left = newNode;
         if(newNode !is null)
-            newNode._parent = this;
+            newNode._parent = &this;
         return newNode;
     }
 
@@ -106,7 +106,7 @@ struct RBNode(V)
     {
         _right = newNode;
         if(newNode !is null)
-            newNode._parent = this;
+            newNode._parent = &this;
         return newNode;
     }
 
@@ -145,12 +145,12 @@ struct RBNode(V)
         Node tmp = _left._right;
 
         // sets _parent also
-        _left.right = this;
+        _left.right = &this;
 
         // sets tmp._parent also
         left = tmp;
 
-        return this;
+        return &this;
     }
 
     // assumes _right is non null
@@ -188,11 +188,11 @@ struct RBNode(V)
         Node tmp = _right._left;
 
         // sets _parent also
-        _right.left = this;
+        _right.left = &this;
 
         // sets tmp._parent also
         right = tmp;
-        return this;
+        return &this;
     }
 
 
@@ -202,14 +202,14 @@ struct RBNode(V)
      * Note that this should always return a value because the root has a
      * parent which is the marker node.
      */
-    @property bool isLeftNode()
+    @property bool isLeftNode() const
     in
     {
         assert(_parent !is null);
     }
     body
     {
-        return _parent._left is this;
+        return _parent._left is &this;
     }
 
     /**
@@ -225,7 +225,7 @@ struct RBNode(V)
         {
             if(_parent.color == Color.Red)
             {
-                Node cur = this;
+                Node cur = &this;
                 while(true)
                 {
                     // because root is always black, _parent._parent always exists
@@ -359,7 +359,7 @@ struct RBNode(V)
             //
             y.left = _left;
             if(_right is y)
-                y.right = this;
+                y.right = &this;
             else
                 y.right = _right;
             y.color = color;
@@ -372,9 +372,9 @@ struct RBNode(V)
             if(_parent !is y)
             {
                 if(isyleft)
-                    yp.left = this;
+                    yp.left = &this;
                 else
-                    yp.right = this;
+                    yp.right = &this;
             }
             color = yc;
 
@@ -395,7 +395,7 @@ struct RBNode(V)
         if(x is null)
         {
             // pretend this is a null node, remove this on finishing
-            x = this;
+            x = &this;
             removeThis = true;
         }
         else if(isLeftNode)
@@ -506,7 +506,7 @@ struct RBNode(V)
      */
     @property Node leftmost()
     {
-        Node result = this;
+        Node result = &this;
         while(result._left !is null)
             result = result._left;
         return result;
@@ -517,7 +517,7 @@ struct RBNode(V)
      */
     @property Node rightmost()
     {
-        Node result = this;
+        Node result = &this;
         while(result._right !is null)
             result = result._right;
         return result;
@@ -531,7 +531,7 @@ struct RBNode(V)
      */
     @property Node next()
     {
-        Node n = this;
+        Node n = &this;
         if(n.right is null)
         {
             while(!n.isLeftNode)
@@ -550,7 +550,7 @@ struct RBNode(V)
      */
     @property Node prev()
     {
-        Node n = this;
+        Node n = &this;
         if(n.left is null)
         {
             while(n.isLeftNode)
@@ -632,7 +632,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     /**
      * Setup this RBTree.
      */
-    this()
+    void setup()
     {
         end = &_end;
     }
@@ -885,14 +885,20 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
                     if(hta < htb)
                     {
                         if(b.parent is a)
-                            return b.isLeftNode ? 1 : -1;
+                        {
+                            order = b.isLeftNode ? 1 : -1;
+                            return true;
+                        }
                         b = b.parent;
                         htb--;
                     }
                     else
                     {
                         if(a.parent is b)
-                            return a.isLeftNode ? -1 : 1;
+                        {
+                            order =  a.isLeftNode ? -1 : 1;
+                            return true;
+                        }
                         a = a.parent;
                         hta--;
                     }

@@ -35,8 +35,8 @@ struct Link(V)
     Node prepend(Node n)
     {
         attach(prev, n);
-        attach(n, this);
-        return this;
+        attach(n, &this);
+        return &this;
     }
 
     /**
@@ -48,8 +48,8 @@ struct Link(V)
     Node append(Node n)
     {
         attach(n, next);
-        attach(this, n);
-        return this;
+        attach(&this, n);
+        return &this;
     }
 
     /**
@@ -62,7 +62,7 @@ struct Link(V)
     {
         attach(prev, next);
         next = prev = null;
-        return this;
+        return &this;
     }
 
     /**
@@ -81,7 +81,7 @@ struct Link(V)
      */
     uint count(Node endNode = null)
     {
-        Node x = this;
+        Node x = &this;
         uint c = 0;
         while(x !is endNode)
         {
@@ -106,14 +106,14 @@ struct Link(V)
             root.value = value;
         auto retval = root ? root : createFunction(value);
         auto cur = retval;
-        while(n !is null && n !is this)
+        while(n !is null && n !is &this)
         {
             auto x = createFunction(n.value);
             attach(cur, x);
             cur = x;
             n = n.next;
         }
-        if(n is this)
+        if(n is &this)
         {
             //
             // circular list, complete the circle
@@ -182,7 +182,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * Initialize the list
      */
-    this()
+    void setup()
     {
         end = &_end;
         Node.attach(end, end);

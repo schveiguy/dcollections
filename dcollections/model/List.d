@@ -13,7 +13,7 @@ public import dcollections.model.Addable;
  * useful when you need something that keeps track of not only values, but the
  * order added.
  */
-interface List(V) : Iterator!(V), Addable!(V)
+interface List(V) : Addable!V, Iterator!V, Purgeable!V
 {
     /**
      * Concatenate two lists together.  The resulting list type is of the type
@@ -135,7 +135,7 @@ interface List(V) : Iterator!(V), Addable!(V)
      *
      * If o is not a list, then 0 is returned.
      */
-    bool opEquals(const Object o) const;
+    bool opEquals(Object o);
 
     /**
      * Returns the element at the front of the list, or the oldest element
@@ -155,8 +155,9 @@ interface List(V) : Iterator!(V), Addable!(V)
 
     /**
      * Takes the element at the end of the list, and return its value.  This
-     * operation is guaranteed to be O(lgN).  It should always be implementable
-     * as O(lgN) because it is O(lgN) to add an element to the end.
+     * operation is guaranteed to be O(lgN) or better.  It should always be
+     * implementable as O(lgN) because it is O(lgN) to add an element to the
+     * end.
      */
     V take();
 }

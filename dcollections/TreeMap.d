@@ -160,10 +160,19 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         /**
          * compare two cursors for equality
          */
-        bool opEquals(const cursor it) const
+        bool opEquals(ref const cursor it) const
         {
             return it.ptr is ptr;
         }
+
+        /*
+         * TODO: uncomment this when compiler is sane!
+         * compare two cursors for equality
+         */
+        /*bool opEquals(const cursor it) const
+        {
+            return it.ptr is ptr;
+        }*/
     }
 
     /**
@@ -210,7 +219,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         @property V front()
         {
             assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeMap.stringof);
-            return _begin.ptr.value.val;
+            return _begin.value.val;
         }
 
         /**
@@ -219,7 +228,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         @property V front(V v)
         {
             assert(!empty, "Attempting to write front of an empty range cursor of " ~ TreeMap.stringof);
-            _begin.ptr.value.val = v;
+            _begin.value.val = v;
             return v;
         }
 
@@ -319,7 +328,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
 
     private class KeyIterator : Iterator!(K)
     {
-        final uint length()
+        final @property uint length() const
         {
             return this.outer.length;
         }
@@ -388,6 +397,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     this()
     {
+        _tree.setup();
         _keys = new KeyIterator;
     }
 
@@ -396,6 +406,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     //
     private this(ref Impl dupFrom)
     {
+        _tree.setup();
         dupFrom.copyTo(_tree);
         _keys = new KeyIterator;
     }
@@ -455,7 +466,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         {
             it.ptr = _tree.remove(it.ptr);
         }
-        it.empty = (it.ptr == _tree.end);
+        it._empty = (it.ptr == _tree.end);
         return it;
     }
 
@@ -479,8 +490,8 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     range opSlice()
     {
         range result;
-        range._begin = _tree.begin;
-        range._end = _tree.end;
+        result._begin = _tree.begin;
+        result._end = _tree.end;
         return result;
     }
 
@@ -508,12 +519,12 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     range opSlice(cursor b, cursor e)
     {
         int order;
-        if(_tree.positionCompare(b, e, order) && order <= 0)
+        if(_tree.positionCompare(b.ptr, e.ptr, order) && order <= 0)
         {
             // both cursors are part of the tree map and are correctly ordered.
             return _slice(b, e);
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
     }
 
     /**
@@ -545,7 +556,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
                 return _slice(belem, eelem);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
     }
 
     /**
@@ -559,12 +570,12 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         if(!belem.empty)
         {
             int order;
-            if(_tree.positionCompare(belem, e, order) && order <= 0)
+            if(_tree.positionCompare(belem.ptr, e.ptr, order) && order <= 0)
             {
                 return _slice(belem, e);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
     }
 
     /**
@@ -578,12 +589,12 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         if(!eelem.empty)
         {
             int order;
-            if(_tree.positionCompare(b, eelem, order) && order <= 0)
+            if(_tree.positionCompare(b.ptr, eelem.ptr, order) && order <= 0)
             {
                 return _slice(b, eelem);
             }
         }
-        throw new RangeError("invalid slice parameters to " ~ TreeMap.stringof);
+        throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
     }
 
     /**
@@ -636,7 +647,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     TreeMap remove(Iterator!(K) subset)
     {
         foreach(k; subset)
-            removeAt(k);
+            remove(k);
         return this;
     }
 
@@ -700,9 +711,9 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     V opIndex(K key)
     {
         cursor it = elemAt(key);
-        if(it == end)
-            throw new RangeError("Index out of range");
-        return it.value;
+        if(it.empty)
+            throw new Exception("Index out of range");
+        return it.front;
     }
 
     /**
@@ -778,7 +789,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     bool containsKey(K key)
     {
-        return elemAt(key) != end;
+        return !elemAt(key).empty;
     }
 
     /**
@@ -812,20 +823,22 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
                 //
                 // special case, we know that a tree map is sorted.
                 //
-                auto c1 = begin;
-                auto c2 = tm.begin;
-                while(c1 != _end)
+                auto c1 = _tree.begin;
+                auto c2 = tm._tree.begin;
+                while(c1 !is _end.ptr)
                 {
-                    if(c1.key != c2.key || c1++.value != c2++.value)
+                    if(c1.value.key != c2.value.key || c1.value.val != c2.value.val)
                         return false;
+                    c1 = c1.next;
+                    c2 = c2.next;
                 }
             }
             else
             {
                 foreach(K k, V v; m)
                 {
-                    auto cu = find(k);
-                    if(cu is _end || cu.value != v)
+                    auto cu = elemAt(k);
+                    if(cu == _end || cu.front != v)
                         return false;
                 }
             }
@@ -872,7 +885,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     TreeMap remove(K[] subset)
     {
         foreach(k; subset)
-            removeAt(k);
+            remove(k);
         return this;
     }
 
@@ -929,6 +942,6 @@ unittest
         doPurge = (v % 2 == 1);
     }
     assert(m.length == 5);
-    assert(m.contains(6));
     assert(m.containsKey(6 * 6 + 1));
+    assert(m[6*6+1] == 6);
 }
