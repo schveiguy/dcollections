@@ -3,28 +3,26 @@
  * all rights reserved.
  *
  * Examples of how special iterators can be used.
- *
- * Currently only implemented for Tango.
  */
 
 import dcollections.Iterators;
 import dcollections.ArrayList;
-import tango.io.Stdout;
+import std.stdio;
 
-void print(V)(Iterator!(V) s, char[] message)
+void print(V)(Iterator!(V) s, string message)
 {
-    Stdout(message ~ " [");
+    write(message ~ " [");
     foreach(i; s)
-        Stdout(" ")(i);
-    Stdout(" ]").newline;
+        write(" ", i);
+    writeln(" ]");
 }
 
-void print(K, V)(KeyedIterator!(K, V) s, char[] message)
+void printk(K, V)(KeyedIterator!(K, V) s, string message)
 {
-    Stdout(message ~ " [");
+    write(message ~ " [");
     foreach(k, v; s)
-        Stdout(" ")(k)("=>")(v);
-    Stdout(" ]").newline;
+        writef(" %s=>%s", k, v);
+    writeln(" ]");
 }
 
 void main()
@@ -33,7 +31,7 @@ void main()
     for(int i = 0; i < 10; i++)
         x.add(i + 1);
 
-    print!(uint, int)(x, "original list");
+    printk!(uint, int)(x, "original list");
 
     //
     // use a filter iterator to filter only elements you want.
@@ -62,7 +60,7 @@ void main()
     // more optimized.
     //
     auto a = toArray!(int)(x);
-    Stdout("converted to an array: ")(a).newline;
+    writefln("converted to an array: %s", a);
 
     //
     // one can use the keyed transform iterator to transform keyed iterators
@@ -73,15 +71,15 @@ void main()
     //
     // chained keyed iterator
     //
-    print!(uint, int)(new ChainKeyedIterator!(uint, int)(x, x, x),  "prints elements 3 times (keyed)");
+    printk!(uint, int)(new ChainKeyedIterator!(uint, int)(x, x, x),  "prints elements 3 times (keyed)");
 
     //
     // keyed filter iterators
     //
-    print!(uint, int)(new FilterKeyedIterator!(uint, int)(x, function bool(ref uint idx, ref int v){return idx % 2 == 0;}),  "prints values at even indexes");
+    printk!(uint, int)(new FilterKeyedIterator!(uint, int)(x, function bool(ref uint idx, ref int v){return idx % 2 == 0;}),  "prints values at even indexes");
 
     //
     // add all elements to an AA
     //
-    Stdout("converted to an AA: ")(toAA!(uint, int)(x)).newline;
+    writefln("converted to an AA: %s", toAA!(uint, int)(x));
 }

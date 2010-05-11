@@ -188,7 +188,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
          */
         @property bool empty()
         {
-            return _begin !is _end;
+            return _begin is _end;
         }
 
         /**

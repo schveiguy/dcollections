@@ -139,7 +139,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
          */
         @property bool empty()
         {
-            return _begin !is _end;
+            return _begin is _end;
         }
 
         /**

@@ -137,7 +137,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          */
         @property bool empty()
         {
-            return _begin !is _end;
+            return _begin is _end;
         }
 
         /**

@@ -3,19 +3,17 @@
  * all rights reserved.
  *
  * Examples of how lists can be used.
- *
- * Currently only implemented for Tango.
  */
 import dcollections.ArrayList;
 import dcollections.LinkList;
-import tango.io.Stdout;
+import std.stdio;
 
-void print(Iterator!(int) s, char[] message)
+void print(Iterator!(int) s, string message)
 {
-    Stdout(message ~ " [");
+    write(message ~ " [");
     foreach(i; s)
-        Stdout(" ")(i);
-    Stdout(" ]").newline;
+        write(" ", i);
+    writeln(" ]");
 }
 
 
@@ -39,9 +37,9 @@ void main()
     // you can compare lists
     //
     if(arrayList == linkList)
-        Stdout("equal!").newline;
+        writeln("equal!");
     else
-        Stdout("not equal!").newline;
+        writeln("not equal!");
 
     //
     // you can concatenate lists together

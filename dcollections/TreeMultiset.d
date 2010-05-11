@@ -140,7 +140,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
          */
         @property bool empty()
         {
-            return _begin !is _end;
+            return _begin is _end;
         }
 
         /**

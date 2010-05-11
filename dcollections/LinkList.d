@@ -11,6 +11,8 @@ public import dcollections.model.List;
 private import dcollections.Link;
 private import dcollections.DefaultFunctions;
 
+private import std.stdio;
+
 /**
  * This class implements the list interface by using Link nodes.  This gives
  * the advantage of O(1) add and removal, but no random access.
@@ -154,7 +156,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
          */
         @property bool empty()
         {
-            return _begin !is _end;
+            return _begin is _end;
         }
 
         /**
@@ -350,6 +352,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         result.owner = this;
         result._begin = _link.begin;
         result._end = _link.end;
+        writeln("result empty? ", result.empty);
         return result;
     }
 

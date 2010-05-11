@@ -53,6 +53,18 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return _apply(dg, _array);
     }
 
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([0u, 1, 2, 3, 4]);
+        foreach(ref p, i; &al.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(al == [0u, 2, 4]);
+    }
+
     /**
      * Iterate over the elements in the ArrayList, telling it which ones
      * should be removed.
@@ -69,6 +81,18 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     final int keypurge(scope int delegate(ref bool doRemove, ref uint key, ref V value) dg)
     {
         return _apply(dg, _array);
+    }
+
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        foreach(ref p, k, i; &al.keypurge)
+        {
+            p = (k & 1);
+        }
+
+        assert(al == [1u, 3, 5]);
     }
 
     /**
@@ -129,6 +153,22 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
             return it.ptr is ptr;
         }
     }
+
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        auto cu = al.elemAt(2);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        assert((cu.front = 8)  == 8);
+        assert(cu.front  == 8);
+        assert(al == [1u, 2, 8, 4, 5]);
+        cu.popFront();
+        assert(cu.empty);
+        assert(al == [1u, 2, 8, 4, 5]);
+    }
+
 
     /**
      * An array list range is a D builtin array.  Using the builtin array
@@ -285,6 +325,14 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return cursor(r.ptr);
     }
 
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        al.remove(al[2..4]);
+        assert(al == [1u, 2, 5]);
+    }
+
     /**
      * remove the element pointed to by elem.  Returns a cursor to the element
      * just beyond this one.
@@ -296,31 +344,12 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return remove(elem.ptr[0..1]);
     }
 
-    /**
-     * same as find(v), but start at given position.
-     */
-    cursor find(cursor it, V v)
-    in
+    unittest
     {
-        assert(it.ptr >= _array.ptr && it.ptr <= _array.ptr + _array.length);
-    }
-    body
-    {
-        auto last = end;
-        while(it.ptr < last.ptr && *it.ptr != v)
-            it.ptr++;
-        // set the cursor as not empty only if it is not the last element.
-        it._empty = (it.ptr == last.ptr);
-        return it;
-    }
-
-    /**
-     * find the first occurrence of an element in the list.  Runs in O(n)
-     * time.
-     */
-    cursor find(V v)
-    {
-        return find(begin, v);
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        al.remove(al.elemAt(2));
+        assert(al == [1u, 2, 4, 5]);
     }
 
     /**
@@ -369,6 +398,17 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return this;
     }
 
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        bool wasAdded = true;
+        assert(al.set(2, 8, wasAdded)[2] == 8);
+        assert(!wasAdded);
+        assert(al.set(3, 10)[3] == 10);
+        assert(al == [1u, 2, 8, 10, 5]);
+    }
+
     /**
      * iterate over the collection
      */
@@ -395,6 +435,26 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
                 break;
         }
         return retval;
+    }
+
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        uint idx = 0;
+        foreach(i; al)
+        {
+            assert(i == al[idx++]);
+        }
+        assert(idx == al.length);
+        idx = 0;
+        foreach(k, i; al)
+        {
+            assert(idx == k);
+            assert(i == idx + 1);
+            assert(i == al[idx++]);
+        }
+        assert(idx == al.length);
     }
 
     /**
@@ -456,12 +516,12 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         // generic case
         //
         numAdded = coll.length;
-        if(numAdded != cast(uint)-1)
+        if(numAdded != NO_LENGTH_SUPPORT)
         {
             if(numAdded > 0)
             {
                 int i = _array.length;
-                _array.length = _array.length + numAdded;
+                _array.length += numAdded;
                 foreach(v; coll)
                     _array [i++] = v;
             }
@@ -499,6 +559,33 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return this;
     }
 
+    unittest
+    {
+        // add single element
+        bool wasAdded = false;
+        auto al = new ArrayList!uint;
+        al.add(1u);
+        al.add(2u, wasAdded);
+        assert(al.length == 2);
+        assert(al == [1u, 2]);
+        assert(wasAdded);
+
+        // add other collection
+        uint numAdded = 0;
+        al.add(al, numAdded);
+        al.add(al);
+        assert(al == [1u, 2, 1, 2, 1, 2, 1, 2]);
+        assert(numAdded == 2);
+
+        // add array
+        al.clear();
+        al.add([1u, 2, 3, 4, 5]);
+        al.add([1u, 2, 3, 4, 5], numAdded);
+        assert(al == [1u, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(numAdded == 5);
+    }
+
+
     /**
      * returns a concatenation of the array list and another list.
      */
@@ -521,6 +608,45 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     ArrayList concat_r(V[] array)
     {
         return new ArrayList(array ~ _array);
+    }
+
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        auto al2 = al.concat(al);
+        assert(al2 !is al);
+        assert(al2 == [1u, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(al == [1u, 2, 3, 4, 5]);
+
+        al2 = al.concat([6u, 7, 8, 9, 10]);
+        assert(al2 !is al);
+        assert(al2 == [1u, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(al == [1u, 2, 3, 4, 5]);
+
+        al2 = al.concat_r([6u, 7, 8, 9, 10]);
+        assert(al2 !is al);
+        assert(al2 == [6u, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(al == [1u, 2, 3, 4, 5]);
+
+        /** this currently doesn't work but should **/
+        version(none)
+        {
+            al2 = al ~ al;
+            assert(al2 !is al);
+            assert(al2 == [1u, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+            assert(al == [1u, 2, 3, 4, 5]);
+
+            al2 = al ~ [6u, 7, 8, 9, 10];
+            assert(al2 !is al);
+            assert(al2 == [1u, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+            assert(al == [1u, 2, 3, 4, 5]);
+
+            al2 = [6u, 7, 8, 9, 10] ~ al;
+            assert(al2 !is al);
+            assert(al2 == [6u, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+            assert(al == [1u, 2, 3, 4, 5]);
+        }
     }
 
     /**
@@ -561,6 +687,20 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
     ArrayList dup()
     {
         return new ArrayList(_array.dup);
+    }
+
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add(1u);
+        al.add(2u);
+        auto al2 = al.dup;
+        assert(al._array !is al2._array);
+        assert(al == al2);
+        al[0] = 0;
+        al.add(3u);
+        assert(al2 == [1u, 2]);
+        assert(al == [0u, 2, 3]);
     }
 
     /**
@@ -637,6 +777,14 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         _array = _array[0..$-1];
         _array.assumeSafeAppend();
         return retval;
+    }
+
+    unittest
+    {
+        auto al = new ArrayList!uint;
+        al.add([1u, 2, 3, 4, 5]);
+        assert(al.take() == 5);
+        assert(al == [1u, 2, 3, 4]);
     }
 
     /**

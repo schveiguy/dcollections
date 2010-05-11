@@ -7,6 +7,7 @@
 **********************************************************/
 module dcollections.model.List;
 public import dcollections.model.Addable;
+private import std.range;
 
 /**
  * A List is a collection whose elements are in the order added.  These are
@@ -65,7 +66,7 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
     /**
      * Append the given item to the 
      */
-    auto opOpAssign(string op, T)(T other) if (op == "~=" && (is(T == V[]) || !isInputRange!R))
+    final auto opOpAssign(string op, T)(T other) if (op == "~=")// && (is(T == V[]) || is(T : Iterator!V) || is(T == V)))
     {
         return add(other);
     }

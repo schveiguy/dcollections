@@ -112,7 +112,7 @@ class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
     /**
      * Returns the length that the source provides.
      */
-    uint length()
+    @property uint length() const
     {
         return _src.length;
     }
@@ -208,7 +208,7 @@ class ChainIterator(V) : Iterator!(V)
      * returns NO_LENGTH_SUPPORT if a single iterator in the chain does not support
      * length
      */
-    uint length()
+    @property uint length() const
     {
         if(_supLength)
         {
@@ -267,7 +267,7 @@ class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
      *
      * returns NO_LENGTH_SUPPORT if any iterators in the chain return -1 for length
      */
-    uint length()
+    @property uint length() const
     {
         if(_supLength)
         {
@@ -345,7 +345,7 @@ class FilterIterator(V) : Iterator!(V)
     /**
      * Returns NO_LENGTH_SUPPORT
      */
-    uint length()
+    @property uint length() const
     {
         //
         // cannot know what the filter delegate/function will decide.
@@ -417,7 +417,7 @@ class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
     /**
      * Returns NO_LENGTH_SUPPORT
      */
-    uint length()
+    @property uint length() const
     {
         //
         // cannot know what the filter delegate/function will decide.
