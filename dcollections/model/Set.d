@@ -25,6 +25,9 @@ interface Set(V) : Addable!V, Iterator!V, Purgeable!V
      */
     Set remove(Iterator!(V) subset, out uint numRemoved);
 
+    version(testcompiler)
+    {
+
     /**
      * Remove all the values that are in the given range.
      * returns this.
@@ -52,6 +55,8 @@ interface Set(V) : Addable!V, Iterator!V, Purgeable!V
             remove(v, wasRemoved);
         numRemoved = len - length;
         return this;
+    }
+
     }
 
     /**

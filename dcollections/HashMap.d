@@ -13,6 +13,37 @@ private import dcollections.Hash;
 
 private import dcollections.Iterators;
 
+version(unittest)
+{
+    import std.traits;
+    static import std.algorithm;
+
+    bool rangeEqual(R, V, K)(R range, V[K] arr)
+    {
+        uint len = 0;
+        while(!range.empty)
+        {
+            V *x = range.key in arr;
+            if(!x || *x != range.front)
+                return false;
+            ++len;
+            range.popFront();
+        }
+        return len == arr.length;
+    }
+
+    V[K] makeAA(V, K)(HashMap!(K, V).range range)
+    {
+        V[K] result;
+        while(!range.empty)
+        {
+            result[range.key] = range.front;
+            range.popFront();
+        }
+        return result;
+    }
+}
+
 /**
  * A map implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
@@ -56,6 +87,8 @@ private import dcollections.Iterators;
  */
 class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(K, V)
 {
+    version(unittest) enum doUnittest = isIntegral!K && is(V == uint);
+
     /**
      * used to implement the key/value pair stored in the hash implementation
      */
@@ -71,6 +104,19 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         {
             return key == e.key;
         }
+    }
+
+    static if(doUnittest) unittest
+    {
+        element e1, e2;
+        e1.key = 1;
+        e1.val = 2;
+        e2.key = 1;
+        e2.val = 3;
+        assert(e1 == e2);
+        e2.key = 2;
+        e2.val = 2;
+        assert(e1 != e2);
     }
 
     private KeyIterator _keys;
@@ -175,6 +221,22 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             return it.position is position;
         }*/
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto cu = hm.elemAt(3);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        assert((cu.front = 8)  == 8);
+        assert(cu.front == 8);
+        assert(hm == cast(V[K])[1:1, 2:2, 3:8, 4:4, 5:5]);
+        cu.popFront();
+        assert(cu.empty);
+        assert(hm == cast(V[K])[1:1, 2:2, 3:8, 4:4, 5:5]);
+    }
+
 
     /**
      * A range that can be used to iterate over the elements in the hash.
@@ -289,6 +351,37 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        V[K] data = [1:1, 2:2, 3:3, 4:4, 5:5];
+        hm.set(data);
+        auto r = hm[];
+        assert(rangeEqual(r, data));
+        assert(r.front == hm[r.key]);
+        assert(r.back == hm[r.backKey]);
+        r.popFront();
+        r.popBack();
+        assert(r.front == hm[r.key]);
+        assert(r.back == hm[r.backKey]);
+
+        r.front = 10;
+        r.back = 11;
+        data[r.key] = 10;
+        data[r.backKey] = 11;
+        assert(hm[r.key] == 10);
+        assert(hm[r.backKey] == 11);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == 10);
+        auto e = r.end;
+        assert(e.empty);
+
+        assert(hm == data);
+    }
+
+
     /**
      * Determine if a cursor belongs to the hashmap
      */
@@ -306,6 +399,21 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return _hash.belongs(r._begin) && _hash.belongs(r._end);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto cu = hm.elemAt(3);
+        assert(cu.front == 3);
+        assert(hm.belongs(cu));
+        auto r = hm[hm.begin..cu];
+        assert(hm.belongs(r));
+
+        auto hm2 = hm.dup;
+        assert(!hm2.belongs(cu));
+        assert(!hm2.belongs(r));
+    }
+
     /**
      * Iterate over the values of the HashMap, telling it which ones to
      * remove.
@@ -319,6 +427,18 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return _apply(&_dg);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        foreach(ref p, i; &hm.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(hm == cast(V[K])[2:2, 4:4]);
+    }
+
     /**
      * Iterate over the key/value pairs of the HashMap, telling it which ones
      * to remove.
@@ -327,6 +447,19 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     {
         return _apply(dg);
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[0:1, 1:2, 2:3, 3:4, 4:5]);
+        foreach(ref p, k, i; &hm.keypurge)
+        {
+            p = (k & 1);
+        }
+
+        assert(hm == cast(V[K])[0:1, 2:3, 4:5]);
+    }
+
 
     private class KeyIterator : Iterator!(K)
     {
@@ -393,6 +526,29 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return _apply(&_dg);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[0:1, 1:2, 2:3, 3:4, 4:5]);
+        uint idx = 0;
+        foreach(i; hm)
+        {
+            assert(!std.algorithm.find(hm[], i).empty);
+            ++idx;
+        }
+        assert(idx == hm.length);
+        idx = 0;
+        foreach(k, i; hm)
+        {
+            auto cu = hm.elemAt(k);
+            assert(cu.front == i);
+            assert(cu.key == k);
+            ++idx;
+        }
+        assert(idx == hm.length);
+    }
+
+
     /**
      * Instantiate the hash map
      */
@@ -430,6 +586,15 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     @property uint length() const
     {
         return _hash.count;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(hm.length == 5);
+        hm.clear();
+        assert(hm.length == 0);
     }
 
     /**
@@ -474,6 +639,15 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        hm.remove(hm.elemAt(3));
+        assert(hm == cast(V[K])[1:1, 2:2, 4:4, 5:5]);
+    }
+
+
     /**
      * remove all the elements in the given range.
      */
@@ -487,6 +661,18 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             b = remove(b);
         }
         return b;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto r = hm[hm.elemAt(3)..hm.end];
+        V[K] resultAA = [1:1, 2:2, 3:3, 4:4, 5:5];
+        for(auto r2 = r; !r2.empty; r2.popFront())
+            resultAA.remove(r2.key);
+        hm.remove(r);
+        assert(hm == resultAA);
     }
 
     /**
@@ -522,6 +708,33 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             return result;
         }
         throw new Exception("invalid slice parameters to " ~ HashMap.stringof);
+    }
+
+    static if (doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(rangeEqual(hm[], cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]));
+        auto cu = hm.elemAt(3);
+        auto r = hm[hm.begin..cu];
+        V[K] firsthalf = makeAA(r);
+        auto r2 = hm[cu..hm.end];
+        V[K] secondhalf = makeAA(r2);
+        assert(firsthalf.length + secondhalf.length == hm.length);
+        foreach(k, v; firsthalf)
+        {
+            assert(k !in secondhalf);
+        }
+        bool exceptioncaught = false;
+        try
+        {
+            hm[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
     }
 
     /**
@@ -569,6 +782,21 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        bool wasRemoved;
+        hm.remove(1, wasRemoved);
+        assert(hm == cast(V[K])[2:2, 3:3, 4:4, 5:5]);
+        assert(wasRemoved);
+        hm.remove(10, wasRemoved);
+        assert(hm == cast(V[K])[2:2, 3:3, 4:4, 5:5]);
+        assert(!wasRemoved);
+        hm.remove(4);
+        assert(hm == cast(V[K])[2:2, 3:3, 5:5]);
+    }
+
     /**
      * Returns the value that is stored at the element which has the given
      * key.  Throws an exception if the key is not in the collection.
@@ -595,6 +823,22 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return value;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm[1] = 5;
+        assert(hm.length == 1);
+        assert(hm[1] == 5);
+        hm[2] = 6;
+        assert(hm.length == 2);
+        assert(hm[2] == 6);
+        assert(hm[1] == 5);
+        hm[1] = 3;
+        assert(hm.length == 2);
+        assert(hm[2] == 6);
+        assert(hm[1] == 3);
+    }
+
     /**
      * Set a key/value pair.  If the key/value pair doesn't already exist, it
      * is added.
@@ -616,6 +860,25 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         elem.val = value;
         wasAdded = _hash.add(elem);
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        bool wasAdded;
+        hm.set(1, 5, wasAdded);
+        assert(hm.length == 1);
+        assert(hm[1] == 5);
+        assert(wasAdded);
+        hm.set(2, 6);
+        assert(hm.length == 2);
+        assert(hm[2] == 6);
+        assert(hm[1] == 5);
+        hm.set(1, 3, wasAdded);
+        assert(hm.length == 2);
+        assert(hm[2] == 6);
+        assert(hm[1] == 3);
+        assert(!wasAdded);
     }
 
     /**
@@ -645,6 +908,20 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        auto hm2 = new HashMap;
+        uint numAdded;
+        hm2.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        hm.set(hm2);
+        assert(hm2 == hm);
+        hm2[6] = 6;
+        hm.set(hm2, numAdded);
+        assert(hm == hm2);
+        assert(numAdded == 1);
+    }
+
     /**
      * Remove all keys from the map which are in subset.
      */
@@ -665,6 +942,20 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         remove(subset);
         numRemoved = origlength - length;
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[0:0, 1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto ai = new ArrayIterator!K(cast(K[])[0, 2, 4, 6, 8]);
+        uint numRemoved;
+        hm.remove(ai, numRemoved);
+        assert(hm == cast(V[K])[1:1, 3:3, 5:5]);
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!K(cast(K[])[1, 3]);
+        hm.remove(ai);
+        assert(hm == cast(V[K])[5:5]);
     }
 
     HashMap intersect(Iterator!(K) subset)
@@ -702,6 +993,20 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[0:0, 1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto ai = new ArrayIterator!K(cast(K[])[0, 2, 4, 6, 8]);
+        uint numRemoved;
+        hm.intersect(ai, numRemoved);
+        assert(hm == cast(V[K])[0:0, 2:2, 4:4]);
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!K(cast(K[])[0, 4]);
+        hm.intersect(ai);
+        assert(hm == cast(V[K])[0:0, 4:4]);
+    }
+
     /**
      * Returns true if the given key is in the collection.
      *
@@ -712,12 +1017,30 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return !elemAt(key).empty;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(hm.containsKey(3));
+        hm.remove(3);
+        assert(!hm.containsKey(3));
+    }
+
     /**
      * return an iterator that can be used to read all the keys
      */
     Iterator!(K) keys()
     {
         return _keys;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto arr = toArray(hm.keys);
+        std.algorithm.sort(arr);
+        assert(arr == cast(K[])[1, 2, 3, 4, 5]);
     }
 
     /**
@@ -744,7 +1067,6 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         auto m = cast(Map!(K, V))o;
         if(m !is null && m.length == length)
         {
-            auto _end = end;
             foreach(K k, V v; m)
             {
                 auto cu = elemAt(k);
@@ -754,6 +1076,29 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
             return true;
         }
 
+        return false;
+    }
+
+    /**
+     * Compare this HashMap with an AA.
+     *
+     * Returns false if o is not a Map object, is null, or the HashMap does not
+     * contain the same key/value pairs as the given map.
+     * Returns true if exactly the key/value pairs contained in the given map
+     * are in this HashMap.
+     */
+    bool opEquals(V[K] other)
+    {
+        if(other.length == length)
+        {
+            foreach(K k, V v; other)
+            {
+                auto cu = elemAt(k);
+                if(cu.empty || cu.front != v)
+                    return false;
+            }
+            return true;
+        }
         return false;
     }
 
@@ -786,6 +1131,18 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        uint numAdded;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3], numAdded);
+        assert(hm == cast(V[K])[1:1, 2:2, 3:3]);
+        assert(numAdded == 3);
+        hm.set(cast(V[K])[2:2, 3:3, 4:4, 5:5], numAdded);
+        assert(hm == cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(numAdded == 2);
+    }
+
     /**
      * Remove all the given keys from the map.
      *
@@ -813,6 +1170,18 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        uint numRemoved;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        hm.remove(cast(K[])[2, 4, 5]);
+        assert(hm == cast(V[K])[1:1, 3:3]);
+        hm.remove(cast(K[])[2, 3], numRemoved);
+        assert(hm == cast(V[K])[1:1]);
+        assert(numRemoved == 1);
+    }
+
     /**
      * Remove all the keys that are not in the given array.
      *
@@ -836,19 +1205,33 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         scope iter = new ArrayIterator!(K)(subset);
         return intersect(iter, numRemoved);
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[0:0, 1:1, 2:2, 3:3, 4:4, 5:5]);
+        uint numRemoved;
+        hm.intersect(cast(K[])[0, 2, 4, 6, 8], numRemoved);
+        assert(hm == cast(V[K])[0:0, 2:2, 4:4]);
+        assert(numRemoved == 3);
+        hm.intersect(cast(K[])[0, 4]);
+        assert(hm == cast(V[K])[0:0, 4:4]);
+    }
+
 }
 
 unittest
 {
-    HashMap!(uint, uint) hm = new HashMap!(uint, uint);
-    Map!(uint, uint) m = hm;
-    for(int i = 0; i < 10; i++)
-        hm[i * i + 1] = i;
-    assert(hm.length == 10);
-    foreach(ref doPurge, k, v; &hm.keypurge)
-    {
-        doPurge = (v % 2 == 1);
-    }
-    assert(hm.length == 5);
-    assert(hm.containsKey(6 * 6 + 1));
+    // declare the HashMaps that should be tested.  Note that we don't care
+    // about the value type because all interesting parts of the hash map
+    // have to deal with the key.
+
+    HashMap!(ubyte, uint)  hm1;
+    HashMap!(byte, uint)   hm2;
+    HashMap!(ushort, uint) hm3;
+    HashMap!(short, uint)  hm4;
+    HashMap!(uint, uint)   hm5;
+    HashMap!(int, uint)    hm6;
+    HashMap!(ulong, uint)  hm7;
+    HashMap!(long, uint)   hm8;
 }

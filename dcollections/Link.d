@@ -206,7 +206,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * sort the list according to the given compare function
      */
-    void sort(Comparator)(scope Comparator comp)
+    void sort(alias Less)()
     {
         if(end.next.next is end)
             //
@@ -280,8 +280,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
                     }
                     else
                     {
-                        int r = comp(left.value, right.value);
-                        if(r > 0)
+                        if(Less(right.value, left.value))
                         {
                             sortedtail.next = right;
                             right = right.next;
@@ -385,4 +384,110 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
         retval.value = v;
         return retval;
     }
+}
+
+// TODO:  Bug 3051, when fixed should us to call sort in the LinkHead struct
+// itself.
+void mergesort(alias less, V)(ref LinkHead!V lh)
+{
+    if(lh.end.next.next is lh.end)
+        //
+        // no nodes to sort
+        //
+        return;
+
+    //
+    // detach the sentinel
+    //
+    lh.end.prev.next = null;
+
+    //
+    // use merge sort, don't update prev pointers until the sort is
+    // finished.
+    //
+    int K = 1;
+    while(K < lh.count)
+    {
+        //
+        // end.next serves as the sorted list head
+        //
+        auto head = lh.end.next;
+        lh.end.next = null;
+        auto sortedtail = lh.end;
+        int tmpcount = lh.count;
+
+        while(head !is null)
+        {
+
+            if(tmpcount <= K)
+            {
+                //
+                // the rest is alread sorted
+                //
+                sortedtail.next = head;
+                break;
+            }
+            auto left = head;
+            for(int k = 1; k < K && head.next !is null; k++)
+                head = head.next;
+            auto right = head.next;
+
+            //
+            // head now points to the last element in 'left', detach the
+            // left side
+            //
+            head.next = null;
+            int nright = K;
+            while(true)
+            {
+                if(left is null)
+                {
+                    sortedtail.next = right;
+                    while(nright != 0 && sortedtail.next !is null)
+                    {
+                        sortedtail = sortedtail.next;
+                        nright--;
+                    }
+                    head = sortedtail.next;
+                    sortedtail.next = null;
+                    break;
+                }
+                else if(right is null || nright == 0)
+                {
+                    sortedtail.next = left;
+                    sortedtail = head;
+                    head = right;
+                    sortedtail.next = null;
+                    break;
+                }
+                else
+                {
+                    if(less(right.value, left.value))
+                    {
+                        sortedtail.next = right;
+                        right = right.next;
+                        nright--;
+                    }
+                    else
+                    {
+                        sortedtail.next = left;
+                        left = left.next;
+                    }
+                    sortedtail = sortedtail.next;
+                }
+            }
+
+            tmpcount -= 2 * K;
+        }
+
+        K *= 2;
+    }
+
+    //
+    // now, attach all the prev nodes
+    //
+    lh.Node n;
+    for(n = lh.end; n.next !is null; n = n.next)
+        n.next.prev = n;
+    lh.Node.attach(n, lh.end);
 }

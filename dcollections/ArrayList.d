@@ -10,13 +10,7 @@ public import dcollections.model.List,
        dcollections.model.Keyed,
        std.array; // needed for range functions on arrays.
 
-private struct Array
-{
-    int length;
-    void *ptr;
-}
-
-private extern (C) long _adSort(Array arr, TypeInfo ti);
+version(unittest) private import std.traits;
 
 /***
  * This class is a wrapper around an array which provides the necessary
@@ -32,6 +26,8 @@ private extern (C) long _adSort(Array arr, TypeInfo ti);
  */
 class ArrayList(V) : Keyed!(uint, V), List!(V) 
 {
+    version(unittest) enum doUnittest = isIntegral!V;
+
     private V[] _array;
 
     /**
@@ -53,16 +49,16 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return _apply(dg, _array);
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([0u, 1, 2, 3, 4]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[0, 1, 2, 3, 4]);
         foreach(ref p, i; &al.purge)
         {
             p = (i & 1);
         }
 
-        assert(al == [0u, 2, 4]);
+        assert(al == cast(V[])[0, 2, 4]);
     }
 
     /**
@@ -83,16 +79,16 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return _apply(dg, _array);
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         foreach(ref p, k, i; &al.keypurge)
         {
             p = (k & 1);
         }
 
-        assert(al == [1u, 3, 5]);
+        assert(al == cast(V[])[1, 3, 5]);
     }
 
     /**
@@ -154,19 +150,19 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         }
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         auto cu = al.elemAt(2);
         assert(!cu.empty);
         assert(cu.front == 3);
         assert((cu.front = 8)  == 8);
         assert(cu.front  == 8);
-        assert(al == [1u, 2, 8, 4, 5]);
+        assert(al == cast(V[])[1, 2, 8, 4, 5]);
         cu.popFront();
         assert(cu.empty);
-        assert(al == [1u, 2, 8, 4, 5]);
+        assert(al == cast(V[])[1, 2, 8, 4, 5]);
     }
 
 
@@ -325,12 +321,12 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return cursor(r.ptr);
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         al.remove(al[2..4]);
-        assert(al == [1u, 2, 5]);
+        assert(al == cast(V[])[1, 2, 5]);
     }
 
     /**
@@ -344,12 +340,12 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return remove(elem.ptr[0..1]);
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         al.remove(al.elemAt(2));
-        assert(al == [1u, 2, 4, 5]);
+        assert(al == cast(V[])[1, 2, 4, 5]);
     }
 
     /**
@@ -398,15 +394,15 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return this;
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         bool wasAdded = true;
         assert(al.set(2, 8, wasAdded)[2] == 8);
         assert(!wasAdded);
         assert(al.set(3, 10)[3] == 10);
-        assert(al == [1u, 2, 8, 10, 5]);
+        assert(al == cast(V[])[1, 2, 8, 10, 5]);
     }
 
     /**
@@ -437,10 +433,10 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return retval;
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         uint idx = 0;
         foreach(i; al)
         {
@@ -559,29 +555,29 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return this;
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
         // add single element
         bool wasAdded = false;
-        auto al = new ArrayList!uint;
-        al.add(1u);
-        al.add(2u, wasAdded);
+        auto al = new ArrayList;
+        al.add(1);
+        al.add(2, wasAdded);
         assert(al.length == 2);
-        assert(al == [1u, 2]);
+        assert(al == cast(V[])[1, 2]);
         assert(wasAdded);
 
         // add other collection
         uint numAdded = 0;
         al.add(al, numAdded);
         al.add(al);
-        assert(al == [1u, 2, 1, 2, 1, 2, 1, 2]);
+        assert(al == cast(V[])[1, 2, 1, 2, 1, 2, 1, 2]);
         assert(numAdded == 2);
 
         // add array
         al.clear();
-        al.add([1u, 2, 3, 4, 5]);
-        al.add([1u, 2, 3, 4, 5], numAdded);
-        assert(al == [1u, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
+        al.add(cast(V[])[1, 2, 3, 4, 5], numAdded);
+        assert(al == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
         assert(numAdded == 5);
     }
 
@@ -610,43 +606,50 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return new ArrayList(array ~ _array);
     }
 
-    unittest
+    version(testcompiler)
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+    }
+    else
+    {
+        // workaround for compiler deficiencies
+        alias concat opCat;
+        alias concat_r opCat_r;
+        alias add opCatAssign;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         auto al2 = al.concat(al);
         assert(al2 !is al);
-        assert(al2 == [1u, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
-        assert(al == [1u, 2, 3, 4, 5]);
+        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(al == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = al.concat([6u, 7, 8, 9, 10]);
+        al2 = al.concat(cast(V[])[6, 7, 8, 9, 10]);
         assert(al2 !is al);
-        assert(al2 == [1u, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-        assert(al == [1u, 2, 3, 4, 5]);
+        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(al == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = al.concat_r([6u, 7, 8, 9, 10]);
+        al2 = al.concat_r(cast(V[])[6, 7, 8, 9, 10]);
         assert(al2 !is al);
-        assert(al2 == [6u, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
-        assert(al == [1u, 2, 3, 4, 5]);
+        assert(al2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(al == cast(V[])[1, 2, 3, 4, 5]);
 
-        /** this currently doesn't work but should **/
-        version(none)
-        {
-            al2 = al ~ al;
-            assert(al2 !is al);
-            assert(al2 == [1u, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
-            assert(al == [1u, 2, 3, 4, 5]);
+        al2 = al ~ al;
+        assert(al2 !is al);
+        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(al == cast(V[])[1, 2, 3, 4, 5]);
 
-            al2 = al ~ [6u, 7, 8, 9, 10];
-            assert(al2 !is al);
-            assert(al2 == [1u, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-            assert(al == [1u, 2, 3, 4, 5]);
+        al2 = al ~ cast(V[])[6, 7, 8, 9, 10];
+        assert(al2 !is al);
+        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(al == cast(V[])[1, 2, 3, 4, 5]);
 
-            al2 = [6u, 7, 8, 9, 10] ~ al;
-            assert(al2 !is al);
-            assert(al2 == [6u, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
-            assert(al == [1u, 2, 3, 4, 5]);
-        }
+        al2 = cast(V[])[6, 7, 8, 9, 10] ~ al;
+        assert(al2 !is al);
+        assert(al2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(al == cast(V[])[1, 2, 3, 4, 5]);
     }
 
     /**
@@ -665,8 +668,9 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     range opSlice(cursor b, cursor e)
     {
-        assert(e.ptr >= b.ptr && e.ptr <= end.ptr && b.ptr >= begin.ptr);
-        return b.ptr[0..(e.ptr-b.ptr)];
+        if(e.ptr >= b.ptr && e.ptr <= end.ptr && b.ptr >= begin.ptr)
+            return b.ptr[0..(e.ptr-b.ptr)];
+        throw new Exception("invalid slice parameters to " ~ ArrayList.stringof);
     }
 
     /**
@@ -689,18 +693,18 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return new ArrayList(_array.dup);
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add(1u);
-        al.add(2u);
+        auto al = new ArrayList;
+        al.add(1);
+        al.add(2);
         auto al2 = al.dup;
         assert(al._array !is al2._array);
         assert(al == al2);
         al[0] = 0;
-        al.add(3u);
-        assert(al2 == [1u, 2]);
-        assert(al == [0u, 2, 3]);
+        al.add(3);
+        assert(al2 == cast(V[])[1, 2]);
+        assert(al == cast(V[])[0, 2, 3]);
     }
 
     /**
@@ -725,13 +729,13 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
                     foreach(elem; li)
                     {
                         if(elem != _array[i++])
-                            return 0;
+                            return false;
                     }
 
                     //
                     // equal
                     //
-                    return 1;
+                    return true;
                 }
             }
 
@@ -739,7 +743,14 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         //
         // no comparison possible.
         //
-        return 0;
+        return false;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(al == al.dup);
     }
 
     /**
@@ -747,7 +758,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      *
      * equivalent to this[] == array.
      */
-    int opEquals(V[] array)
+    bool opEquals(V[] array)
     {
         return _array == array;
     }
@@ -779,12 +790,12 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return retval;
     }
 
-    unittest
+    static if(doUnittest) unittest
     {
-        auto al = new ArrayList!uint;
-        al.add([1u, 2, 3, 4, 5]);
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
         assert(al.take() == 5);
-        assert(al == [1u, 2, 3, 4]);
+        assert(al == cast(V[])[1, 2, 3, 4]);
     }
 
     /**
@@ -792,7 +803,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     uint indexOf(cursor c)
     {
-        assert(c.ptr >= begin.ptr);
+        assert(belongs(c));
         return c.ptr - begin.ptr;
     }
 
@@ -815,96 +826,38 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
         return(r.ptr >= _array.ptr && r.ptr + r.length <= _array.ptr + _array.length);
     }
 
-    class SpecialTypeInfo(bool useFunction) : TypeInfo
+    static if(doUnittest) unittest
     {
-        static if(useFunction)
-            alias int function(ref V v1, ref V v2) CompareFunction;
-        else
-            alias int delegate(ref V v1, ref V v2) CompareFunction;
-        private CompareFunction cf;
-        private TypeInfo derivedFrom;
-        this(TypeInfo derivedFrom, CompareFunction comp)
-        {
-            this.derivedFrom = derivedFrom;
-            this.cf = comp;
-        }
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto cu = al.elemAt(2);
+        assert(cu.front == 3);
+        assert(al.belongs(cu));
+        assert(al.indexOf(cu) == 2);
+        auto r = al[0..2];
+        assert(al.belongs(r));
+        assert(al.indexOf(r.end) == 2);
 
-        /// Returns a hash of the instance of a type.
-        override hash_t getHash(in void *p) { return derivedFrom.getHash(p); }
-
-        /// Compares two instances for equality.
-        override bool equals(in void *p1, in void *p2) { return derivedFrom.equals(p1, p2); }
-
-        /// Compares two instances for &lt;, ==, or &gt;.
-        override int compare(in void *p1, in void *p2)
-        {
-            return cf(*cast(V *)p1, *cast(V *)p2);
-        }
-
-        /// Returns size of the type.
-        override size_t tsize() { return derivedFrom.tsize(); }
-
-        /// Swaps two instances of the type.
-        override void swap(void *p1, void *p2)
-        {
-            return derivedFrom.swap(p1, p2);
-        }
-
-        /// Get TypeInfo for 'next' type, as defined by what kind of type this is,
-        /// null if none.
-        override TypeInfo next() { return derivedFrom; }
-
-        /// Return default initializer, null if default initialize to 0
-        override void[] init() { return derivedFrom.init(); }
-
-        /// Get flags for type: 1 means GC should scan for pointers
-        override uint flags() { return derivedFrom.flags(); }
-
-        /// Get type information on the contents of the type; null if not available
-        override OffsetTypeInfo[] offTi() { return derivedFrom.offTi(); }
+        auto al2 = al.dup;
+        assert(!al2.belongs(cu));
+        assert(!al2.belongs(r));
     }
 
     /**
      * Sort according to a given comparison function
      */
-    ArrayList sort(scope int delegate(ref V v1, ref V v2) comp)
+    ArrayList sort(scope bool delegate(ref V v1, ref V v2) comp)
     {
-        //
-        // can't really do this without extra library help.  Luckily, the
-        // function to sort an array is always defined by the runtime.  We
-        // just need to access it.  However, it requires that we pass in a
-        // TypeInfo structure to do all the dirty work.  What we need is a
-        // derivative of the real TypeInfo structure with the compare function
-        // overridden to call the comp function.
-        //
-        scope sti = new SpecialTypeInfo!(false)(typeid(V), comp);
-        int x;
-        Array ar;
-        ar.length = _array.length;
-        ar.ptr = _array.ptr;
-        _adSort(ar, sti);
+        std.algorithm.sort!(comp)(_array);
         return this;
     }
 
     /**
      * Sort according to a given comparison function
      */
-    ArrayList sort(int function(ref V v1, ref V v2) comp)
+    ArrayList sort(bool function(ref V v1, ref V v2) comp)
     {
-        //
-        // can't really do this without extra library help.  Luckily, the
-        // function to sort an array is always defined by the runtime.  We
-        // just need to access it.  However, it requires that we pass in a
-        // TypeInfo structure to do all the dirty work.  What we need is a
-        // derivative of the real TypeInfo structure with the compare function
-        // overridden to call the comp function.
-        //
-        scope sti = new SpecialTypeInfo!(true)(typeid(V), comp);
-        int x;
-        Array ar;
-        ar.length = _array.length;
-        ar.ptr = _array.ptr;
-        _adSort(ar, sti);
+        std.algorithm.sort!(comp)(_array);
         return this;
     }
 
@@ -913,8 +866,64 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     ArrayList sort()
     {
-        _array.sort;
+        std.algorithm.sort(_array);
         return this;
+    }
+
+    /**
+     * Sort the list according to the given compare functor.  This is
+     * a templatized version, and so can be used with functors, and might be
+     * inlined.
+     *
+     * TODO: this should be called sort
+     * TODO: if bug 3051 is resolved, then this can probably be
+     * sortX(alias less)()
+     * instead.
+     */
+    ArrayList sortX(T)(T less)
+    {
+        std.algorithm.sort!less(_array);
+        return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto al = new ArrayList;
+        al.add(cast(V[])[1, 3, 5, 6, 4, 2]);
+        al.sort();
+        assert(al == cast(V[])[1, 2, 3, 4, 5, 6]);
+        al.sort(delegate bool (ref V a, ref V b) { return b < a; });
+        assert(al == cast(V[])[6, 5, 4, 3, 2, 1]);
+        al.sort(function bool (ref V a, ref V b) { if((a ^ b) & 1) return cast(bool)(a & 1); return a < b; });
+        assert(al == cast(V[])[1, 3, 5, 2, 4, 6]);
+
+        struct X
+        {
+            V pivot;
+            // if a and b are on both sides of pivot, sort normally, otherwise,
+            // values >= pivot are treated less than values < pivot.
+            bool opCall(V a, V b)
+            {
+                if(a < pivot)
+                {
+                    if(b < pivot)
+                    {
+                        return a < b;
+                    }
+                    return false;
+                }
+                else if(b >= pivot)
+                {
+                    return a < b;
+                }
+                return true;
+            }
+        }
+
+        X x;
+        x.pivot = 4;
+        al.sortX(x);
+        assert(al == cast(V[])[4, 5, 6, 1, 2, 3]);
     }
 }
 
@@ -944,16 +953,13 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
 
 unittest
 {
-    auto al = new ArrayList!(uint);
-    al.add([0U, 1, 2, 3, 4, 5]);
-    assert(al.length == 6);
-    al.add(al[0..3]);
-    assert(al.length == 9);
-    foreach(ref dp, uint idx, uint val; &al.keypurge)
-        dp = (val % 2 == 1);
-    assert(al.length == 5);
-    assert(al == [0U, 2, 4, 0, 2]);
-    assert(al == new ArrayList!(uint)([0U, 2, 4, 0, 2]));
-    assert(al.begin.ptr is al[].ptr);
-    assert(al.end.ptr is al[].ptr + al.length);
+    // declare the array list types that should be unit tested.
+    ArrayList!ubyte  al1;
+    ArrayList!byte   al2;
+    ArrayList!ushort al3;
+    ArrayList!short  al4;
+    ArrayList!uint   al5;
+    ArrayList!int    al6;
+    ArrayList!ulong  al7;
+    ArrayList!long   al8;
 }

@@ -37,10 +37,13 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
      */
     List concat_r(V[] array);
 
+    version(testcompiler)
+    {
+
     /**
      * operator overload for concatenation.
      */
-    auto opBinary(string op, T)(T rhs) if (op == "~" && (is(T == V[]) || is(T == List)))
+    auto opBinary(string op, T)(T rhs) if (op == "~" && (is(T == V[]) || is(T : List)))
     {
         return concat(rhs);
     }
@@ -48,16 +51,16 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
     /**
      * operator overload for concatenation of an array with this object.
      */
-    auto opBinaryRight(string op, T)(T rhs) if (op == "~" && is(T == V[]))
+    auto opBinaryRight(string op, T)(T lhs) if (op == "~" && is(T == V[]))
     {
-        return concat_r(rhs);
+        return concat_r(lhs);
     }
 
     /**
      * Append the given elements in the range to the end of the list.  Returns
      * 'this'
      */
-    auto opOpAssign(string op, R)(R range) if (op == "~=" && !is(R == V[]) && isInputRange!R && is(ElementType!R == V))
+    auto opOpAssign(string op, R)(R range) if (op == "~=" && !(is(R == V[])) && isInputRange!R && is(ElementType!R : V))
     {
         addRange(range);
         return this;
@@ -66,9 +69,19 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
     /**
      * Append the given item to the 
      */
-    final auto opOpAssign(string op, T)(T other) if (op == "~=")// && (is(T == V[]) || is(T : Iterator!V) || is(T == V)))
+    auto opOpAssign(string op, T)(T other) if (op == "~=" && (is(T == V[]) || is(T : Iterator!V) || is(T : V)))
     {
         return add(other);
+    }
+
+    }
+    else
+    {
+        // workaround for compiler deficiencies.  Note you MUST repeat this in
+        // derived classes to achieve covariance (see bug 4182).
+        alias concat opCat;
+        alias concat_r opCat_r;
+        alias add opCatAssign;
     }
 
     /**
@@ -122,13 +135,13 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
      * sort this list according to the comparison routine given.  Returns a
      * reference to the list after it is sorted.  O(NlgN) runtime or better.
      */
-    List sort(scope int delegate(ref V v1, ref V v2) comp);
+    List sort(scope bool delegate(ref V v1, ref V v2) comp);
 
     /**
      * sort this list according to the comparison routine given.  Returns a
      * reference to the list after it is sorted.  O(NlgN) runtime or better.
      */
-    List sort(int function(ref V v1, ref V v2) comp);
+    List sort(bool function(ref V v1, ref V v2) comp);
 
     /**
      * compare this list to another list.  Returns true if they have the same
@@ -137,6 +150,12 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
      * If o is not a list, then 0 is returned.
      */
     bool opEquals(Object o);
+    
+    /**
+     * compare this list to an array.  Returns true if they have the same
+     * number of elements and all the elements are equal.
+     */
+    bool opEquals(V[] arr);
 
     /**
      * Returns the element at the front of the list, or the oldest element

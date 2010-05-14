@@ -81,6 +81,9 @@ interface Map(K, V) : Keyed!(K, V)
      */
     Map remove(K[] subset, out uint numRemoved);
 
+    version(testcompiler)
+    {
+
     /**
      * Remove a range of keys from the map.
      *
@@ -106,6 +109,8 @@ interface Map(K, V) : Keyed!(K, V)
     {
         foreach(k; range)
             removeAt(k);
+    }
+
     }
 
     /**
@@ -189,4 +194,9 @@ interface Map(K, V) : Keyed!(K, V)
      * If o is not a map, then 0 is returned.
      */
     bool opEquals(Object o);
+
+    /**
+     * compare map to an AA
+     */
+    //bool opEquals(V[K] other);
 }

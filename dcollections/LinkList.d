@@ -10,8 +10,10 @@ module dcollections.LinkList;
 public import dcollections.model.List;
 private import dcollections.Link;
 private import dcollections.DefaultFunctions;
+private import std.algorithm;
+private import std.range;
 
-private import std.stdio;
+version(unittest) private import std.traits;
 
 /**
  * This class implements the list interface by using Link nodes.  This gives
@@ -65,6 +67,8 @@ private import std.stdio;
  */
 class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
 {
+    version(unittest) enum doUnittest = isIntegral!V;
+
     /**
      * convenience alias
      */
@@ -140,8 +144,24 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         }*/
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto cu = std.algorithm.find(ll[], 3).begin;
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        assert((cu.front = 8)  == 8);
+        assert(cu.front == 8);
+        assert(ll == cast(V[])[1, 2, 8, 4, 5]);
+        cu.popFront();
+        assert(cu.empty);
+        assert(ll == cast(V[])[1, 2, 8, 4, 5]);
+    }
+
+
     /**
-     * A cursor for link list
+     * A range for link list
      */
     struct range
     {
@@ -240,6 +260,35 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto r = ll[];
+        assert(std.algorithm.equal(r, cast(V[])[1, 2, 3, 4, 5]));
+        assert(r.front == 1);
+        assert(r.back == 5);
+        r.popFront();
+        r.popBack();
+        assert(std.algorithm.equal(r, cast(V[])[2, 3, 4]));
+        assert(r.front == 2);
+        assert(r.back == 4);
+
+        r.front = 10;
+        r.back = 11;
+        assert(std.algorithm.equal(r, cast(V[])[10, 3, 11]));
+        assert(r.front == 10);
+        assert(r.back == 11);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == 10);
+        auto e = r.end;
+        assert(e.empty);
+
+        assert(ll == cast(V[])[1, 10, 3, 11, 5]);
+    }
+
     /**
      * Determine if a cursor belongs to the container
      */
@@ -255,6 +304,22 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         return r.owner is this;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto cu = std.algorithm.find(ll[], 3).begin;
+        assert(cu.front == 3);
+        assert(ll.belongs(cu));
+        auto r = ll[ll.begin..cu];
+        assert(ll.belongs(r));
+
+        auto ll2 = ll.dup;
+        assert(!ll2.belongs(cu));
+        assert(!ll2.belongs(r));
+    }
+
 
     /**
      * Constructor
@@ -280,6 +345,15 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         _link.clear();
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(ll.length == 5);
+        ll.clear();
+        assert(ll.length == 0);
     }
 
     /**
@@ -330,6 +404,14 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        ll.remove(std.algorithm.find(ll[], 3).begin);
+        assert(ll == cast(V[])[1, 2, 4, 5]);
+    }
+
     /**
      * remove the elements pointed at by the given range, returning
      * a cursor that points to the element just after the range removed.
@@ -346,13 +428,22 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         return c;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto r = std.algorithm.find(ll[], 3);
+        r.popBack();
+        ll.remove(r);
+        assert(ll == cast(V[])[1, 2, 5]);
+    }
+
     range opSlice()
     {
         range result;
         result.owner = this;
         result._begin = _link.begin;
         result._end = _link.end;
-        writeln("result empty? ", result.empty);
         return result;
     }
 
@@ -371,6 +462,26 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         throw new Exception("invalid slice parameters to " ~ LinkList.stringof);
     }
 
+    static if (doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(std.algorithm.equal(ll[], cast(V[])[1, 2, 3, 4, 5]));
+        auto cu = std.algorithm.find(ll[], 3).begin;
+        assert(std.algorithm.equal(ll[ll.begin..cu], cast(V[])[1, 2]));
+        assert(std.algorithm.equal(ll[cu..ll.end], cast(V[])[3, 4, 5]));
+        bool exceptioncaught = false;
+        try
+        {
+            ll[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+    }
+
     /**
      * iterate over the collection's values
      */
@@ -382,6 +493,18 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
             if((retval = dg(i.value)) != 0)
                 break;
         return retval;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        V v = 0;
+        foreach(i; ll)
+        {
+            assert(i == ++v);
+        }
+        assert(v == ll.length);
     }
 
     /**
@@ -416,6 +539,18 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
                 i = i.next;
         }
         return dgret;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[0, 1, 2, 3, 4]);
+        foreach(ref p, i; &ll.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(ll == cast(V[])[0, 2, 4]);
     }
 
     /**
@@ -497,6 +632,44 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        // add single element
+        bool wasAdded = false;
+        auto ll = new LinkList;
+        ll.add(1);
+        ll.add(2, wasAdded);
+        assert(ll.length == 2);
+        assert(ll == cast(V[])[1, 2]);
+        assert(wasAdded);
+
+        // add other collection
+        uint numAdded = 0;
+        // need to add duplicate, adding self is not allowed.
+        ll.add(ll.dup, numAdded);
+        ll.add(ll.dup);
+        bool caughtexception = false;
+        try
+        {
+            ll.add(ll);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        assert(caughtexception);
+
+        assert(ll == cast(V[])[1, 2, 1, 2, 1, 2, 1, 2]);
+        assert(numAdded == 2);
+
+        // add array
+        ll.clear();
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        ll.add(cast(V[])[1, 2, 3, 4, 5], numAdded);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(numAdded == 5);
+    }
+
     //
     // handy link-list only functions
     //
@@ -528,8 +701,17 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         range result;
         result.owner = this;
         result._end = it.ptr;
+        result._begin = it.ptr;
+        bool first = true;
         foreach(v; r)
-            result._begin = _link.insert(result._end, v);
+        {
+            auto tmp = _link.insert(result._end, v);
+            if(first)
+            {
+                first = false;
+                result._begin = tmp;
+            }
+        }
         return result;
     }
 
@@ -539,23 +721,77 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * TODO: this should just be called insert
      */
-    range insertRange(R)(cursor it, R r) if (isInputRange!R && is(ElementType!R == V))
+    range insertRange(R)(cursor it, R r) if (isInputRange!R && is(ElementType!R : V))
     {
-        assert(belongs(it), "Attempting to insert range using invalid cursor for type " ~ LinkList);
+        assert(belongs(it), "Attempting to insert range using invalid cursor for type " ~ LinkList.stringof);
         static if(is(R == range))
         {
             // ensure we are not inserting a range from our own elements.
             // Although this kinda sucks that we can't do this, allowing it
             // means a possible infinite loop.
             if(belongs(r))
-                throw new Exception("Attempting to self insert range into " ~ LinkList);
+                throw new Exception("Attempting to self insert range into " ~ LinkList.stringof);
         }
         range result;
         result.owner = this;
-        result._end = it.ptr;
+        result._begin = result._end = it.ptr;
+        if(!r.empty)
+        {
+            result._begin = _link.insert(result._end, r.front);
+            r.popFront();
+        }
         foreach(v; r)
-            result._begin = _link.insert(result._end, v);
+        {
+            _link.insert(result._end, v);
+        }
         return result;
+    }
+
+    static if(doUnittest) unittest
+    {
+        // insert single element
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto cu = std.algorithm.find(ll[], 3).begin;
+        auto cu2 = ll.insert(cu, 7);
+        assert(ll == cast(V[])[1, 2, 7, 3, 4, 5]);
+        assert(cu.front == 3);
+        assert(cu2.front == 7);
+        assert(ll.belongs(cu2));
+
+        // insert another iterator
+        auto r = ll.insert(cu, ll.dup);
+        assert(std.algorithm.equal(r, cast(V[])[1, 2, 7, 3, 4, 5]));
+        assert(ll.belongs(r));
+        assert(ll == cast(V[])[1, 2, 7, 1, 2, 7, 3, 4, 5, 3, 4, 5]);
+
+        // insert a range
+        auto r2 = ll.insertRange(cu2, cast(V[])[8, 9, 10]);
+        assert(std.algorithm.equal(r2, cast(V[])[8, 9, 10]));
+        assert(ll.belongs(r2));
+        assert(ll == cast(V[])[1, 2, 8, 9, 10, 7, 1, 2, 7, 3, 4, 5, 3, 4, 5]);
+
+        // test self insertion
+        bool caughtexception = false;
+        try
+        {
+            ll.insert(ll.begin, ll);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        assert(caughtexception);
+        caughtexception = false;
+        try
+        {
+            ll.insertRange(ll.begin, ll[]);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        assert(caughtexception);
     }
 
     /**
@@ -604,6 +840,16 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         return retval;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(ll.takeBack() == 5);
+        assert(ll == cast(V[])[1, 2, 3, 4]);
+        assert(ll.takeFront() == 1);
+        assert(ll == cast(V[])[2, 3, 4]);
+    }
+
     /**
      * Take the element at the end of the list, and return its value.
      */
@@ -637,6 +883,53 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         return result.add(array).add(this);
     }
 
+    version(testcompiler)
+    {
+    }
+    else
+    {
+        // workaround for compiler deficiencies
+        alias concat opCat;
+        alias concat_r opCat_r;
+        alias add opCatAssign;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto ll2 = ll.concat(ll);
+        assert(ll2 !is ll);
+        assert(ll2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5]);
+
+        ll2 = ll.concat(cast(V[])[6, 7, 8, 9, 10]);
+        assert(ll2 !is ll);
+        assert(ll2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5]);
+
+        ll2 = ll.concat_r(cast(V[])[6, 7, 8, 9, 10]);
+        assert(ll2 !is ll);
+        assert(ll2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5]);
+
+        ll2 = ll ~ ll;
+        assert(ll2 !is ll);
+        assert(ll2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5]);
+
+        ll2 = ll ~ cast(V[])[6, 7, 8, 9, 10];
+        assert(ll2 !is ll);
+        assert(ll2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5]);
+
+        ll2 = cast(V[])[6, 7, 8, 9, 10] ~ ll;
+        assert(ll2 !is ll);
+        assert(ll2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(ll == cast(V[])[1, 2, 3, 4, 5]);
+    }
+
+
     /**
      * duplicate the list
      */
@@ -649,7 +942,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * Compare this list with another list.  Returns true if both lists have
      * the same length and all the elements are the same.
      *
-     * If o is null or not a List, return 0.
+     * If o is null or not a List, return false.
      */
     bool opEquals(Object o)
     {
@@ -662,13 +955,33 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
                 foreach(elem; li)
                 {
                     if(elem != c.front)
-                        return 0;
+                        return false;
                     c.popFront();
                 }
-                return 1;
+                return true;
             }
         }
-        return 0;
+        return false;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(ll == ll.dup);
+    }
+
+    /**
+     * Compare this list with an array.  Returns true if both lists have
+     * the same length and all the elements are the same.
+     */
+    bool opEquals(V[] arr)
+    {
+        if(arr.length == length)
+        {
+            return std.algorithm.equal(this[], arr);
+        }
+        return false;
     }
 
     /**
@@ -678,9 +991,11 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns this after sorting
      */
-    LinkList sort(scope int delegate(ref V, ref V) comp)
+    LinkList sort(scope bool delegate(ref V, ref V) less)
     {
-        _link.sort(comp);
+        // TODO: fix when bug 3051 is resolved.
+        // _link.sort!less();
+        mergesort!(less)(_link);
         return this;
     }
 
@@ -691,9 +1006,11 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * Returns this after sorting
      */
-    LinkList sort(scope int function(ref V, ref V) comp)
+    LinkList sort(scope bool function(ref V, ref V) less)
     {
-        _link.sort(comp);
+        // TODO: fix when bug 3051 is resolved.
+        // _link.sort!less();
+        mergesort!(less)(_link);
         return this;
     }
 
@@ -706,7 +1023,8 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      */
     LinkList sort()
     {
-        return sort(&DefaultCompare!(V));
+        _link.sort!(DefaultLess!V)();
+        return this;
     }
 
     /**
@@ -715,33 +1033,68 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * inlined.
      *
      * TODO: this should be called sort
+     * TODO: if bug 3051 is resolved, then this can probably be
+     * sortX(alias less)()
+     * instead.
      */
-    LinkList sortX(Comparator)(Comparator comp)
+    LinkList sortX(T)(T less)
     {
-        _link.sort(comp);
+        // TODO: fix when bug 3051 is resolved.
+        // _link.sort!less();
+        mergesort!(less)(_link);
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList;
+        ll.add(cast(V[])[1, 3, 5, 6, 4, 2]);
+        ll.sort();
+        assert(ll == cast(V[])[1, 2, 3, 4, 5, 6]);
+        ll.sort(delegate bool (ref V a, ref V b) { return b < a; });
+        assert(ll == cast(V[])[6, 5, 4, 3, 2, 1]);
+        ll.sort(function bool (ref V a, ref V b) { if((a ^ b) & 1) return cast(bool)(a & 1); return a < b; });
+        assert(ll == cast(V[])[1, 3, 5, 2, 4, 6]);
+
+        struct X
+        {
+            V pivot;
+            // if a and b are on both sides of pivot, sort normally, otherwise,
+            // values >= pivot are treated less than values < pivot.
+            bool opCall(V a, V b)
+            {
+                if(a < pivot)
+                {
+                    if(b < pivot)
+                    {
+                        return a < b;
+                    }
+                    return false;
+                }
+                else if(b >= pivot)
+                {
+                    return a < b;
+                }
+                return true;
+            }
+        }
+
+        X x;
+        x.pivot = 4;
+        ll.sortX(x);
+        assert(ll == cast(V[])[4, 5, 6, 1, 2, 3]);
     }
 }
 
-version(unittest) import std.algorithm;
 unittest
 {
-
-    auto ll = new LinkList!(uint);
-    List!(uint) l = ll;
-    bool contains(uint x)
-    {
-        foreach(y; l)
-            if(y == x)
-                return true;
-        return false;
-    }
-
-    l.add([0U, 1, 2, 3, 4, 5]);
-    assert(l.length == 6);
-    assert(contains(5));
-    foreach(ref doPurge, i; &l.purge)
-        doPurge = (i % 2 == 1);
-    assert(l.length == 3);
-    assert(!contains(5));
+    // declare the Link list types that should be unit tested.
+    LinkList!ubyte  ll1;
+    LinkList!byte   ll2;
+    LinkList!ushort ll3;
+    LinkList!short  ll4;
+    LinkList!uint   ll5;
+    LinkList!int    ll6;
+    LinkList!ulong  ll7;
+    LinkList!long   ll8;
 }
