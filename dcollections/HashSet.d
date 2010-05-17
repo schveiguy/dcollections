@@ -11,6 +11,25 @@ public import dcollections.model.Set;
 public import dcollections.DefaultFunctions;
 private import dcollections.Hash;
 
+version(unittest)
+{
+    import std.traits;
+    import std.array;
+    import std.range;
+    import dcollections.Iterators;
+    static import std.algorithm;
+    bool rangeEqual(V)(HashSet!V.range r, V[] arr)
+    {
+        uint len = 0;
+        for(; !r.empty; ++len, r.popFront())
+        {
+            if(std.algorithm.find(arr, r.front).empty)
+                return false;
+        }
+        return len == arr.length;
+    }
+}
+
 /**
  * A set implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
@@ -62,6 +81,25 @@ private import dcollections.Hash;
  */
 class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : Set!(V)
 {
+    version(unittest)
+    {
+        enum doUnittest = isIntegral!V;
+
+        bool arrayEqual(V[] arr)
+        {
+            if(length == arr.length)
+            {
+                foreach(v; arr)
+                {
+                    if(!contains(v))
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
     /**
      * an alias the the implementation template instantiation.
      */
@@ -124,6 +162,19 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         {
             return it.position == position;
         }*/
+    }
+
+    static if(doUnittest) unittest
+    {
+        
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        auto cu = hs.elemAt(3);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        cu.popFront();
+        assert(cu.empty);
+        assert(hs.arrayEqual([1, 2, 3, 4, 5]));
     }
 
     /**
@@ -201,6 +252,29 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto r = hs[];
+        assert(rangeEqual(r, cast(V[])[1, 2, 3, 4, 5]));
+        assert(r.front == hs.begin.front);
+        assert(r.back != r.front);
+        auto oldfront = r.front;
+        auto oldback = r.back;
+        r.popFront();
+        r.popBack();
+        assert(r.front != r.back);
+        assert(r.front != oldfront);
+        assert(r.back != oldback);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == r.front);
+        auto e = r.end;
+        assert(e.empty);
+    }
+
     /**
      * Determine if a cursor belongs to the hashset
      */
@@ -216,6 +290,21 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     bool belongs(range r)
     {
         return _hash.belongs(r._begin) && _hash.belongs(r._end);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        auto cu = hs.elemAt(3);
+        assert(cu.front == 3);
+        assert(hs.belongs(cu));
+        auto r = hs[hs.begin..cu];
+        assert(hs.belongs(r));
+
+        auto hs2 = hs.dup;
+        assert(!hs2.belongs(cu));
+        assert(!hs2.belongs(r));
     }
 
     /**
@@ -253,6 +342,18 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return dgret;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([0, 1, 2, 3, 4]);
+        foreach(ref p, i; &hs.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(hs.arrayEqual([0, 2, 4]));
+    }
+
     /**
      * iterate over the collection's values
      */
@@ -263,6 +364,19 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
             return dg(v);
         }
         return purge(&_dg);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        uint len = 0;
+        foreach(i; hs)
+        {
+            assert(hs.contains(i));
+            ++len;
+        }
+        assert(len == hs.length);
     }
 
     /**
@@ -289,6 +403,15 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     {
         _hash.clear();
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        assert(hs.length == 5);
+        hs.clear();
+        assert(hs.length == 0);
     }
 
     /**
@@ -335,6 +458,14 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        hs.remove(hs.elemAt(3));
+        assert(hs.arrayEqual([1, 2, 4, 5]));
+    }
+
     /**
      * remove all the elements in the given range.
      */
@@ -347,6 +478,17 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
             b = remove(b);
         }
         return b;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        auto r = hs[hs.elemAt(3)..hs.end];
+        V[5] buf;
+        auto remaining = std.algorithm.copy(hs[hs.begin..hs.elemAt(3)], buf[]);
+        hs.remove(r);
+        assert(hs.arrayEqual(buf[0..buf.length - remaining.length]));
     }
 
     /**
@@ -381,6 +523,36 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         throw new Exception("invalid slice parameters to " ~ HashSet.stringof);
     }
 
+    static if (doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        assert(rangeEqual(hs[], cast(V[])[1, 2, 3, 4, 5]));
+        auto fr = hs[];
+        fr.popFront();
+        fr.popFront();
+        auto cu = fr.begin;
+        auto r = hs[hs.begin..cu];
+        auto r2 = hs[cu..hs.end];
+        foreach(x; r2)
+        {
+            assert(std.algorithm.find(r, x).empty);
+        }
+        assert(walkLength(r) + walkLength(r2) == hs.length);
+
+        bool exceptioncaught = false;
+        try
+        {
+            hs[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+    }
+
+
     /**
      * find the instance of a value in the collection.  Returns end if the
      * value is not present.
@@ -405,6 +577,16 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     {
         return !elemAt(v).empty;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        assert(hs.contains(3));
+        hs.remove(3);
+        assert(!hs.contains(3));
+    }
+
 
     /**
      * Removes the first element that has the value v.  Returns true if the
@@ -436,6 +618,21 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        bool wasRemoved;
+        hs.remove(1, wasRemoved);
+        assert(hs.arrayEqual([2, 3, 4, 5]));
+        assert(wasRemoved);
+        hs.remove(10, wasRemoved);
+        assert(hs.arrayEqual([2, 3, 4, 5]));
+        assert(!wasRemoved);
+        hs.remove(4);
+        assert(hs.arrayEqual([2, 3, 5]));
+    }
+
     /**
      * Remove all values that match the given iterator.
      */
@@ -458,6 +655,20 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         remove(it);
         numRemoved = origlength - length;
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([0, 1, 2, 3, 4, 5]);
+        auto ai = new ArrayIterator!V([0, 2, 4, 6, 8]);
+        uint numRemoved;
+        hs.remove(ai, numRemoved);
+        assert(hs.arrayEqual([1, 3, 5]));
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!V([1, 3]);
+        hs.remove(ai);
+        assert(hs.arrayEqual([5]));
     }
 
     /**
@@ -540,6 +751,47 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        // add single element
+        bool wasAdded = false;
+        auto hs = new HashSet;
+        hs.add(1);
+        hs.add(2, wasAdded);
+        assert(hs.length == 2);
+        assert(hs.arrayEqual([1, 2]));
+        assert(wasAdded);
+
+        // add other collection
+        uint numAdded = 0;
+        // need to add duplicate, adding self is not allowed.
+        auto hs2 = hs.dup;
+        hs2.add(3);
+        hs.add(hs2, numAdded);
+        hs.add(hs.dup);
+        bool caughtexception = false;
+        try
+        {
+            hs.add(hs);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        // should always be able to add self
+        assert(!caughtexception);
+
+        assert(hs.arrayEqual([1, 2, 3]));
+        assert(numAdded == 1);
+
+        // add array
+        hs.clear();
+        hs.add([1, 2, 3, 4, 5]);
+        hs.add([3, 4, 5, 6, 7], numAdded);
+        assert(hs.arrayEqual([1, 2, 3, 4, 5, 6, 7]));
+        assert(numAdded == 2);
+    }
+
     /**
      * Remove all the values from the set that are not in the given subset
      *
@@ -571,6 +823,20 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         //
         numRemoved = _hash.intersect(subset);
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([0, 1, 2, 3, 4, 5]);
+        auto ai = new ArrayIterator!V([0, 2, 4, 6, 8]);
+        uint numRemoved;
+        hs.intersect(ai, numRemoved);
+        assert(hs.arrayEqual([0, 2, 4]));
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!V([0, 4]);
+        hs.intersect(ai);
+        assert(hs.arrayEqual([0, 4]));
     }
 
     /**
@@ -619,6 +885,13 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         return begin.front;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], hs.get()).empty);
+    }
+
     /**
      * Remove the most convenient element from the set, and return its value.
      * This is equivalent to remove(get()), except that only one lookup is
@@ -631,16 +904,28 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         remove(c);
         return retval;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        V[] aa = [1, 2, 3, 4, 5];
+        hs.add(aa);
+        auto x = hs.take();
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], x).empty);
+        // remove x from the original array, and check for equality
+        assert(hs.arrayEqual(std.algorithm.partition!((V a) {return a == x;})(aa)));
+    }
 }
 
 unittest
 {
-    auto hs = new HashSet!(uint);
-    Set!(uint) s = hs;
-    s.add([0U, 1, 2, 3, 4, 5, 5]);
-    assert(s.length == 6);
-    foreach(ref doPurge, i; &s.purge)
-        doPurge = (i % 2 == 1);
-    assert(s.length == 3);
-    assert(s.contains(4));
+    // declare the Link list types that should be unit tested.
+    HashSet!ubyte  hs1;
+    HashSet!byte   hs2;
+    HashSet!ushort hs3;
+    HashSet!short  hs4;
+    HashSet!uint   hs5;
+    HashSet!int    hs6;
+    HashSet!ulong  hs7;
+    HashSet!long   hs8;
 }
