@@ -12,6 +12,16 @@ public import dcollections.DefaultFunctions;
 
 private import dcollections.RBTree;
 
+version(unittest)
+{
+    import std.traits;
+    import std.array;
+    import std.range;
+    import std.contracts;
+    import dcollections.Iterators;
+    static import std.algorithm;
+}
+
 /**
  * Implementation of the Set interface using Red-Black trees.  this allows for
  * O(lg(n)) insertion, removal, and lookup times.  It also creates a sorted
@@ -65,6 +75,25 @@ private import dcollections.RBTree;
  */
 class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = DefaultCompare) : Set!(V)
 {
+    version(unittest)
+    {
+        enum doUnittest = isIntegral!V;
+
+        bool arrayEqual(V[] arr)
+        {
+            if(length == arr.length)
+            {
+                foreach(v; arr)
+                {
+                    if(!contains(v))
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
     /**
      * convenience alias.
      */
@@ -123,6 +152,20 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             return it.ptr is ptr;
         }*/
     }
+
+    static if(doUnittest) unittest
+    {
+        
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        auto cu = ts.elemAt(3);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        cu.popFront();
+        assert(cu.empty);
+        assert(ts.arrayEqual([1, 2, 3, 4, 5]));
+    }
+
 
     /**
      * A range that can be used to iterate over the elements in the tree.
@@ -199,6 +242,30 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        auto r = ts[];
+        assert(std.algorithm.equal(r, cast(V[])[1, 2, 3, 4, 5]));
+        assert(r.front == ts.begin.front);
+        assert(r.back != r.front);
+        auto oldfront = r.front;
+        auto oldback = r.back;
+        r.popFront();
+        r.popBack();
+        assert(r.front != r.back);
+        assert(r.front != oldfront);
+        assert(r.back != oldback);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == r.front);
+        auto e = r.end;
+        assert(e.empty);
+    }
+
+
     /**
      * Determine if a cursor belongs to the collection
      */
@@ -214,6 +281,21 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     bool belongs(range r)
     {
         return _tree.belongs(r._begin) && (r.empty || _tree.belongs(r._end));
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        auto cu = ts.elemAt(3);
+        assert(cu.front == 3);
+        assert(ts.belongs(cu));
+        auto r = ts[ts.begin..cu];
+        assert(ts.belongs(r));
+
+        auto ts2 = ts.dup();
+        assert(!ts2.belongs(cu));
+        assert(!ts2.belongs(r));
     }
 
     /**
@@ -252,6 +334,18 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         return dgret;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([0, 1, 2, 3, 4]);
+        foreach(ref p, i; &ts.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(ts.arrayEqual([0, 2, 4]));
+    }
+
     /**
      * iterate over the collection's values
      */
@@ -262,6 +356,19 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             return dg(v);
         }
         return purge(&_dg);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        uint len = 0;
+        foreach(i; ts)
+        {
+            assert(ts.contains(i));
+            ++len;
+        }
+        assert(len == ts.length);
     }
 
     /**
@@ -288,6 +395,15 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     {
         _tree.clear();
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        assert(ts.length == 5);
+        ts.clear();
+        assert(ts.length == 0);
     }
 
     /**
@@ -337,6 +453,14 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        ts.remove(ts.elemAt(3));
+        assert(ts.arrayEqual([1, 2, 4, 5]));
+    }
+
     /**
      * remove all the elements in the given range.
      */
@@ -349,6 +473,18 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             b = remove(b);
         }
         return b;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        auto r = ts[ts.elemAt(3)..ts.end];
+        V[5] buf;
+        auto remaining = std.algorithm.copy(ts[ts.begin..ts.elemAt(3)], buf[]);
+        ts.remove(r);
+        assert(ts.arrayEqual(buf[0..buf.length - remaining.length]));
+        assert(!ts.contains(3));
     }
 
     /**
@@ -458,6 +594,91 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
     }
 
+    static if (doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        auto fr = ts[];
+        fr.popFront();
+        fr.popFront();
+        auto cu = fr.begin;
+        auto r = ts[ts.begin..cu];
+        auto r2 = ts[cu..ts.end];
+        foreach(x; r2)
+        {
+            assert(std.algorithm.find(r, x).empty);
+        }
+        assert(walkLength(r) + walkLength(r2) == ts.length);
+
+        bool exceptioncaught = false;
+        try
+        {
+            ts[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(!exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            auto cu2 = cu;
+            cu2.popFront();
+            ts[cu2..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using values
+        assert(std.algorithm.equal(ts[2..4], cast(V[])[2, 3]));
+
+        assert(std.algorithm.equal(ts[ts.elemAt(2)..4], cast(V[])[2, 3]));
+        assert(std.algorithm.equal(ts[2..ts.elemAt(4)], cast(V[])[2, 3]));
+
+        // test slicing using improperly ordered values
+        exceptioncaught = false;
+        try
+        {
+            ts[4..2];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            ts[ts.elemAt(4)..2];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            ts[4..ts.elemAt(2)];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+    }
+
     /**
      * find the instance of a value in the collection.  Returns end if the
      * value is not present.
@@ -472,6 +693,14 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        assert(ts.elemAt(6).empty);
+    }
+
+
     /**
      * Returns true if the given value exists in the collection.
      *
@@ -480,6 +709,15 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     bool contains(V v)
     {
         return !elemAt(v).empty;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        assert(ts.contains(3));
+        ts.remove(3);
+        assert(!ts.contains(3));
     }
 
     /**
@@ -506,6 +744,21 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         if((wasRemoved = !it.empty) is true)
             remove(it);
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        bool wasRemoved;
+        ts.remove(1, wasRemoved);
+        assert(ts.arrayEqual([2, 3, 4, 5]));
+        assert(wasRemoved);
+        ts.remove(10, wasRemoved);
+        assert(ts.arrayEqual([2, 3, 4, 5]));
+        assert(!wasRemoved);
+        ts.remove(4);
+        assert(ts.arrayEqual([2, 3, 5]));
     }
 
     /**
@@ -587,6 +840,47 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        // add single element
+        bool wasAdded = false;
+        auto ts = new TreeSet;
+        ts.add(1);
+        ts.add(2, wasAdded);
+        assert(ts.length == 2);
+        assert(ts.arrayEqual([1, 2]));
+        assert(wasAdded);
+
+        // add other collection
+        uint numAdded = 0;
+        // need to add duplicate, adding self is not allowed.
+        auto ts2 = ts.dup();
+        ts2.add(3);
+        ts.add(ts2, numAdded);
+        ts.add(ts.dup());
+        bool caughtexception = false;
+        try
+        {
+            ts.add(ts);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        // should always be able to add self
+        assert(!caughtexception);
+
+        assert(ts.arrayEqual([1, 2, 3]));
+        assert(numAdded == 1);
+
+        // add array
+        ts.clear();
+        ts.add([1, 2, 3, 4, 5]);
+        ts.add([3, 4, 5, 6, 7], numAdded);
+        assert(ts.arrayEqual([1, 2, 3, 4, 5, 6, 7]));
+        assert(numAdded == 2);
+    }
+
     /**
      * Return a duplicate treeset containing all the elements in this tree
      * set.
@@ -620,6 +914,20 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([0, 1, 2, 3, 4, 5]);
+        auto ai = new ArrayIterator!V([0, 2, 4, 6, 8]);
+        uint numRemoved;
+        ts.remove(ai, numRemoved);
+        assert(ts.arrayEqual([1, 3, 5]));
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!V([1, 3]);
+        ts.remove(ai);
+        assert(ts.arrayEqual([5]));
+    }
+
     /**
      * Remove all the elements that do NOT match in the subset.
      *
@@ -641,6 +949,20 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     {
         numRemoved = _tree.intersect(subset);
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([0, 1, 2, 3, 4, 5]);
+        auto ai = new ArrayIterator!V([0, 2, 4, 6, 8]);
+        uint numRemoved;
+        ts.intersect(ai, numRemoved);
+        assert(ts.arrayEqual([0, 2, 4]));
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!V([0, 4]);
+        ts.intersect(ai);
+        assert(ts.arrayEqual([0, 4]));
     }
 
     /**
@@ -714,6 +1036,13 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         return begin.front;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], ts.get()).empty);
+    }
+
     /**
      * Remove the most convenient element from the set, and return its value.
      * This is equivalent to remove(get()), except that only one lookup is
@@ -726,16 +1055,28 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         remove(c);
         return retval;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        V[] aa = [1, 2, 3, 4, 5];
+        ts.add(aa);
+        auto x = ts.take();
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], x).empty);
+        // remove x from the original array, and check for equality
+        assert(ts.arrayEqual(std.algorithm.partition!((V a) {return a == x;})(aa)));
+    }
 }
 
 unittest
 {
-    auto ts = new TreeSet!(uint);
-    Set!(uint) s = ts;
-    s.add([0U, 1, 2, 3, 4, 5, 5]);
-    assert(s.length == 6);
-    foreach(ref doPurge, i; &s.purge)
-        doPurge = (i % 2 == 1);
-    assert(s.length == 3);
-    assert(s.contains(4));
+    // declare the Link list types that should be unit tested.
+    TreeSet!ubyte  ts1;
+    TreeSet!byte   ts2;
+    TreeSet!ushort ts3;
+    TreeSet!short  ts4;
+    TreeSet!uint   ts5;
+    TreeSet!int    ts6;
+    TreeSet!ulong  ts7;
+    TreeSet!long   ts8;
 }

@@ -12,6 +12,14 @@ public import dcollections.DefaultFunctions;
 
 private import dcollections.RBTree;
 
+version(unittest)
+{
+    import std.traits;
+    import std.array;
+    import std.range;
+    static import std.algorithm;
+}
+
 /**
  * Implementation of the Multiset interface using Red-Black trees.  this
  * allows for O(lg(n)) insertion, removal, and lookup times.  It also creates
@@ -67,6 +75,31 @@ private import dcollections.RBTree;
  */
 class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultCompare) : Multiset!(V)
 {
+    version(unittest)
+    {
+        enum doUnittest = isIntegral!V;
+
+        bool arrayEqual(V[] arr)
+        {
+            if(length == arr.length)
+            {
+                uint[V] cnt;
+                foreach(v; arr)
+                    cnt[v]++;
+
+                foreach(v; this)
+                {
+                    auto x = v in cnt;
+                    if(!x || *x == 0)
+                        return false;
+                    --(*x);
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
     /**
      * convenience alias
      */
@@ -126,6 +159,20 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
             return it.ptr is ptr;
         }*/
     }
+
+    static if(doUnittest) unittest
+    {
+        
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto cu = tms.elemAt(3);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        cu.popFront();
+        assert(cu.empty);
+        assert(tms.arrayEqual([1, 2, 2, 3, 3, 4, 5]));
+    }
+
 
     /**
      * A range that can be used to iterate over the elements in the tree.
@@ -202,6 +249,31 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto r = tms[];
+        assert(std.algorithm.equal(r, cast(V[])[1, 2, 2, 3, 3, 4, 5]));
+        assert(r.front == tms.begin.front);
+        assert(r.back != r.front);
+        auto oldfront = r.front;
+        auto oldback = r.back;
+        r.popFront();
+        r.popFront();
+        r.popBack();
+        r.popBack();
+        assert(r.front != r.back);
+        assert(r.front != oldfront);
+        assert(r.back != oldback);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == r.front);
+        auto e = r.end;
+        assert(e.empty);
+    }
+
     /**
      * Determine if a cursor belongs to the collection
      */
@@ -217,6 +289,21 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     bool belongs(range r)
     {
         return _tree.belongs(r._begin) && (r.empty || _tree.belongs(r._end));
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto cu = tms.elemAt(3);
+        assert(cu.front == 3);
+        assert(tms.belongs(cu));
+        auto r = tms[tms.begin..cu];
+        assert(tms.belongs(r));
+
+        auto hs2 = tms.dup;
+        assert(!hs2.belongs(cu));
+        assert(!hs2.belongs(r));
     }
 
     /**
@@ -255,6 +342,18 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         return dgret;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([0, 1, 2, 2, 3, 3, 4]);
+        foreach(ref p, i; &tms.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(tms.arrayEqual([0, 2, 2, 4]));
+    }
+
     /**
      * iterate over the collection's values
      */
@@ -265,6 +364,25 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
             return dg(v);
         }
         return purge(&_dg);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 3, 4, 5]);
+        uint[V] cnt;
+        uint len = 0;
+        foreach(i; tms)
+        {
+            assert(tms.contains(i));
+            ++cnt[i];
+            ++len;
+        }
+        assert(len == tms.length);
+        foreach(k, v; cnt)
+        {
+            assert(tms.count(k) == v);
+        }
     }
 
     /**
@@ -291,6 +409,15 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     {
         _tree.clear();
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(tms.length == 7);
+        tms.clear();
+        assert(tms.length == 0);
     }
 
     /**
@@ -344,6 +471,14 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        tms.remove(tms.elemAt(3));
+        assert(tms.arrayEqual([1, 2, 2, 3, 4, 5]));
+    }
+
     /**
      * remove all the elements in the given range.
      */
@@ -356,6 +491,18 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
             b = remove(b);
         }
         return b;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto r = tms[tms.elemAt(3)..tms.end];
+        V[7] buf;
+        auto remaining = std.algorithm.copy(tms[tms.begin..tms.elemAt(3)], buf[]);
+        tms.remove(r);
+        assert(tms.arrayEqual(buf[0..buf.length - remaining.length]));
+        assert(!tms.contains(3));
     }
 
     /**
@@ -465,6 +612,92 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
     }
 
+    static if (doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto fr = tms[];
+        auto prev = fr.front;
+        while(fr.front == prev)
+            fr.popFront();
+        auto cu = fr.begin;
+        auto r = tms[tms.begin..cu];
+        auto r2 = tms[cu..tms.end];
+        foreach(x; r2)
+        {
+            assert(std.algorithm.find(r, x).empty);
+        }
+        assert(walkLength(r) + walkLength(r2) == tms.length);
+
+        bool exceptioncaught = false;
+        try
+        {
+            tms[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(!exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            auto cu2 = cu;
+            cu2.popFront();
+            tms[cu2..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using values
+        assert(std.algorithm.equal(tms[2..4], cast(V[])[2, 2, 3, 3]));
+
+        assert(std.algorithm.equal(tms[tms.elemAt(2)..4], cast(V[])[2, 2, 3, 3]));
+        assert(std.algorithm.equal(tms[2..tms.elemAt(4)], cast(V[])[2, 2, 3, 3]));
+
+        // test slicing using improperly ordered values
+        exceptioncaught = false;
+        try
+        {
+            tms[4..2];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            tms[tms.elemAt(4)..2];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            tms[4..tms.elemAt(2)];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+    }
+
     /**
      * find the first instance of a given value in the collection.  Returns
      * end if the value is not present.
@@ -477,6 +710,32 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         it.ptr = _tree.find(v);
         it._empty = it.ptr == _tree.end;
         return it;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(tms.elemAt(6).empty);
+    }
+
+    range allElemsAt(V v)
+    {
+        range r;
+        auto elem = _tree.find(v);
+        r._begin = elem;
+        while(elem !is _tree.end && elem.value == v)
+            elem = elem.next;
+        r._end = elem;
+        return r;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(tms.allElemsAt(6).empty);
+        assert(std.algorithm.equal(tms.allElemsAt(2), cast(V[])[2, 2]));
     }
 
     /**
@@ -515,6 +774,21 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        bool wasRemoved;
+        tms.remove(1, wasRemoved);
+        assert(tms.arrayEqual([2, 2, 3, 3, 4, 5]));
+        assert(wasRemoved);
+        tms.remove(10, wasRemoved);
+        assert(tms.arrayEqual([2, 2, 3, 3, 4, 5]));
+        assert(!wasRemoved);
+        tms.remove(3);
+        assert(tms.arrayEqual([2, 2, 3, 4, 5]));
+    }
+
     /**
      * Adds a value to the collection.
      * Returns this.
@@ -549,6 +823,8 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
      */
     TreeMultiset add(Iterator!(V) it)
     {
+        if(it is this)
+            throw new Exception("Attempting to self add " ~ TreeMultiset.stringof);
         foreach(v; it)
             _tree.add(v);
         return this;
@@ -597,6 +873,53 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        // add single element
+        bool wasAdded = false;
+        auto tms = new TreeMultiset;
+        tms.add(1);
+        tms.add(2, wasAdded);
+        assert(tms.length == 2);
+        assert(tms.arrayEqual([1, 2]));
+        assert(wasAdded);
+
+        // add a duplicate element
+        wasAdded = false;
+        tms.add(2, wasAdded);
+        assert(wasAdded);
+        assert(tms.arrayEqual([1, 2, 2]));
+
+        // add other collection
+        uint numAdded = 0;
+        // need to add duplicate, adding self is not allowed.
+        auto hs2 = tms.dup;
+        hs2.add(3);
+        tms.add(hs2, numAdded);
+        tms.add(tms.dup);
+        bool caughtexception = false;
+        try
+        {
+            tms.add(tms);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        // should not be able to add self
+        assert(caughtexception);
+
+        assert(tms.arrayEqual([1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3]));
+        assert(numAdded == 4);
+
+        // add array
+        tms.clear();
+        tms.add([1, 2, 3, 4, 5]);
+        tms.add([3, 4, 5, 6, 7], numAdded);
+        assert(tms.arrayEqual([1, 2, 3, 3, 4, 4, 5, 5, 6, 7]));
+        assert(numAdded == 5);
+    }
+
     /**
      * Returns the number of elements in the collection that are equal to v.
      *
@@ -630,6 +953,24 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(tms.count(1) == 1);
+        assert(tms.count(2) == 2);
+        assert(tms.count(3) == 2);
+        uint numRemoved = 0;
+        tms.removeAll(2, numRemoved);
+        assert(numRemoved == 2);
+        assert(tms.arrayEqual([1, 3, 3, 4, 5]));
+        tms.removeAll(10, numRemoved);
+        assert(numRemoved == 0);
+        assert(tms.arrayEqual([1, 3, 3, 4, 5]));
+        tms.removeAll(3);
+        assert(tms.arrayEqual([1, 4, 5]));
+    }
+
     /**
      * duplicate this tree multiset
      */
@@ -648,6 +989,13 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         return begin.front;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], tms.get()).empty);
+    }
+
     /**
      * Remove the most convenient element from the set, and return its value.
      * This is equivalent to remove(get()), except that only one lookup is
@@ -660,17 +1008,29 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
         remove(c);
         return retval;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset;
+        V[] aa = [1, 2, 2, 3, 3, 4, 5];
+        tms.add(aa);
+        auto x = tms.take();
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], x).empty);
+        // remove x from the original array, and check for equality
+        std.algorithm.partition!((V a) {return a == x;})(aa);
+        assert(tms.arrayEqual(aa[1..$]));
+    }
 }
 
 unittest
 {
-    auto tms = new TreeMultiset!(uint);
-    Multiset!(uint) ms = tms;
-    ms.add([0U, 1, 2, 3, 4, 5, 5]);
-    assert(ms.length == 7);
-    assert(ms.count(5U) == 2);
-    foreach(ref doPurge, i; &ms.purge)
-        doPurge = (i % 2 == 1);
-    assert(ms.count(5U) == 0);
-    assert(ms.length == 3);
+    // declare the Link list types that should be unit tested.
+    TreeMultiset!ubyte  tms1;
+    TreeMultiset!byte   tms2;
+    TreeMultiset!ushort tms3;
+    TreeMultiset!short  tms4;
+    TreeMultiset!uint   tms5;
+    TreeMultiset!int    tms6;
+    TreeMultiset!ulong  tms7;
+    TreeMultiset!long   tms8;
 }

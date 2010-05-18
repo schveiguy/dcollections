@@ -13,6 +13,37 @@ public import dcollections.DefaultFunctions;
 private import dcollections.RBTree;
 private import dcollections.Iterators;
 
+version(unittest)
+{
+    import std.traits;
+    static import std.algorithm;
+
+    bool rangeEqual(R, V, K)(R range, V[K] arr)
+    {
+        uint len = 0;
+        while(!range.empty)
+        {
+            V *x = range.key in arr;
+            if(!x || *x != range.front)
+                return false;
+            ++len;
+            range.popFront();
+        }
+        return len == arr.length;
+    }
+
+    V[K] makeAA(V, K)(TreeMap!(K, V).range range)
+    {
+        V[K] result;
+        while(!range.empty)
+        {
+            result[range.key] = range.front;
+            range.popFront();
+        }
+        return result;
+    }
+}
+
 /**
  * Implementation of the Map interface using Red-Black trees.  this allows for
  * O(lg(n)) insertion, removal, and lookup times.  It also creates a sorted
@@ -67,6 +98,8 @@ private import dcollections.Iterators;
  */
 class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : Map!(K, V)
 {
+    version(unittest) enum doUnittest = isIntegral!K && is(V == uint);
+
     /**
      * the elements that are passed to the tree.  Note that if you define a
      * custom update or compare function, it should take element structs, not
@@ -173,6 +206,21 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         {
             return it.ptr is ptr;
         }*/
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto cu = tm.elemAt(3);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        assert((cu.front = 8)  == 8);
+        assert(cu.front == 8);
+        assert(tm == cast(V[K])[1:1, 2:2, 3:8, 4:4, 5:5]);
+        cu.popFront();
+        assert(cu.empty);
+        assert(tm == cast(V[K])[1:1, 2:2, 3:8, 4:4, 5:5]);
     }
 
     /**
@@ -288,6 +336,37 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        V[K] data = [1:1, 2:2, 3:3, 4:4, 5:5];
+        tm.set(data);
+        auto r = tm[];
+        assert(rangeEqual(r, data));
+        assert(r.front == tm[r.key]);
+        assert(r.back == tm[r.backKey]);
+        r.popFront();
+        r.popBack();
+        assert(r.front == tm[r.key]);
+        assert(r.back == tm[r.backKey]);
+
+        r.front = 10;
+        r.back = 11;
+        data[r.key] = 10;
+        data[r.backKey] = 11;
+        assert(tm[r.key] == 10);
+        assert(tm[r.backKey] == 11);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == 10);
+        auto e = r.end;
+        assert(e.empty);
+
+        assert(tm == data);
+    }
+
+
     /**
      * Determine if a cursor belongs to the treemap
      */
@@ -305,6 +384,21 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return _tree.belongs(r._begin) && _tree.belongs(r._end);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto cu = tm.elemAt(3);
+        assert(cu.front == 3);
+        assert(tm.belongs(cu));
+        auto r = tm[tm.begin..cu];
+        assert(tm.belongs(r));
+
+        auto hm2 = tm.dup;
+        assert(!hm2.belongs(cu));
+        assert(!hm2.belongs(r));
+    }
+
     /**
      * Iterate over the collection, deciding which elements should be purged
      * along the way.
@@ -318,12 +412,36 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return _apply(&_dg);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        foreach(ref p, i; &tm.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(tm == cast(V[K])[2:2, 4:4]);
+    }
+
     /**
      * Purge with keys
      */
     final int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         return _apply(dg);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[0:1, 1:2, 2:3, 3:4, 4:5]);
+        foreach(ref p, k, i; &tm.keypurge)
+        {
+            p = (k & 1);
+        }
+
+        assert(tm == cast(V[K])[0:1, 2:3, 4:5]);
     }
 
     private class KeyIterator : Iterator!(K)
@@ -392,6 +510,28 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return _apply(&_dg);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[0:1, 1:2, 2:3, 3:4, 4:5]);
+        uint idx = 0;
+        foreach(i; tm)
+        {
+            assert(!std.algorithm.find(tm[], i).empty);
+            ++idx;
+        }
+        assert(idx == tm.length);
+        idx = 0;
+        foreach(k, i; tm)
+        {
+            auto cu = tm.elemAt(k);
+            assert(cu.front == i);
+            assert(cu.key == k);
+            ++idx;
+        }
+        assert(idx == tm.length);
+    }
+
     /**
      * Instantiate the tree map
      */
@@ -418,6 +558,15 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     {
         _tree.clear();
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(tm.length == 5);
+        tm.clear();
+        assert(tm.length == 0);
     }
 
     /**
@@ -462,6 +611,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      */
     cursor remove(cursor it)
     {
+        assert(belongs(it), "Error, attempting to remove invalid cursor from " ~ TreeMap.stringof);
         if(!it.empty)
         {
             it.ptr = _tree.remove(it.ptr);
@@ -470,11 +620,20 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        tm.remove(tm.elemAt(3));
+        assert(tm == cast(V[K])[1:1, 2:2, 4:4, 5:5]);
+    }
+
     /**
      * remove all the elements in the given range.
      */
     cursor remove(range r)
     {
+        assert(belongs(r), "Error, attempting to remove invalid cursor from " ~ TreeMap.stringof);
         auto b = r.begin;
         auto e = r.end;
         while(b != e)
@@ -482,6 +641,18 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
             b = remove(b);
         }
         return b;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto r = tm[tm.elemAt(3)..tm.end];
+        V[K] resultAA = [1:1, 2:2, 3:3, 4:4, 5:5];
+        for(auto r2 = r; !r2.empty; r2.popFront())
+            resultAA.remove(r2.key);
+        tm.remove(r);
+        assert(tm == resultAA);
     }
 
     /**
@@ -597,6 +768,89 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
     }
 
+    static if (doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(rangeEqual(tm[], cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]));
+        auto cu = tm.elemAt(3);
+        auto r = tm[tm.begin..cu];
+        V[K] firsthalf = makeAA(r);
+        auto r2 = tm[cu..tm.end];
+        V[K] secondhalf = makeAA(r2);
+        assert(firsthalf.length + secondhalf.length == tm.length);
+        foreach(k, v; firsthalf)
+        {
+            assert(!(k in secondhalf));
+        }
+        bool exceptioncaught = false;
+        try
+        {
+            tm[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(!exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            auto cu2 = cu;
+            cu2.popFront();
+            tm[cu2..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using values
+        assert(rangeEqual(tm[2..4], cast(V[K])[2:2, 3:3]));
+
+        assert(rangeEqual(tm[tm.elemAt(2)..4], cast(V[K])[2:2, 3:3]));
+        assert(rangeEqual(tm[2..tm.elemAt(4)], cast(V[K])[2:2, 3:3]));
+
+        // test slicing using improperly ordered values
+        exceptioncaught = false;
+        try
+        {
+            tm[4..2];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            tm[tm.elemAt(4)..2];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+
+        // test slicing using improperly ordered cursors
+        exceptioncaught = false;
+        try
+        {
+            tm[4..tm.elemAt(2)];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+    }
+
     /**
      * find the instance of a key in the collection.  Returns end if the key
      * is not present.
@@ -611,6 +865,13 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         it.ptr = _tree.find(tmp);
         it._empty = (it.ptr == _tree.end);
         return it;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set([1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(tm.elemAt(6).empty);
     }
 
     /**
@@ -639,6 +900,21 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        bool wasRemoved;
+        tm.remove(1, wasRemoved);
+        assert(tm == cast(V[K])[2:2, 3:3, 4:4, 5:5]);
+        assert(wasRemoved);
+        tm.remove(10, wasRemoved);
+        assert(tm == cast(V[K])[2:2, 3:3, 4:4, 5:5]);
+        assert(!wasRemoved);
+        tm.remove(4);
+        assert(tm == cast(V[K])[2:2, 3:3, 5:5]);
+    }
+
     /**
      * Removes all the elements whose keys are in the subset.
      * 
@@ -663,6 +939,20 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         remove(subset);
         numRemoved = origLength - length;
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[0:0, 1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto ai = new ArrayIterator!K(cast(K[])[0, 2, 4, 6, 8]);
+        uint numRemoved;
+        tm.remove(ai, numRemoved);
+        assert(tm == cast(V[K])[1:1, 3:3, 5:5]);
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!K(cast(K[])[1, 3]);
+        tm.remove(ai);
+        assert(tm == cast(V[K])[5:5]);
     }
 
     /**
@@ -697,9 +987,32 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[0:0, 1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto ai = new ArrayIterator!K(cast(K[])[0, 2, 4, 6, 8]);
+        uint numRemoved;
+        tm.intersect(ai, numRemoved);
+        assert(tm == cast(V[K])[0:0, 2:2, 4:4]);
+        assert(numRemoved == 3);
+        ai = new ArrayIterator!K(cast(K[])[0, 4]);
+        tm.intersect(ai);
+        assert(tm == cast(V[K])[0:0, 4:4]);
+    }
+
     Iterator!(K) keys()
     {
         return _keys;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        auto arr = toArray(tm.keys);
+        std.algorithm.sort(arr);
+        assert(arr == cast(K[])[1, 2, 3, 4, 5]);
     }
 
     /**
@@ -728,6 +1041,22 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return value;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm[1] = 5;
+        assert(tm.length == 1);
+        assert(tm[1] == 5);
+        tm[2] = 6;
+        assert(tm.length == 2);
+        assert(tm[2] == 6);
+        assert(tm[1] == 5);
+        tm[1] = 3;
+        assert(tm.length == 2);
+        assert(tm[2] == 6);
+        assert(tm[1] == 3);
+    }
+
     /**
      * set a key and value pair.  If the pair didn't already exist, add it.
      *
@@ -752,6 +1081,25 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         elem.val = value;
         wasAdded = _tree.add(elem);
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        bool wasAdded;
+        tm.set(1, 5, wasAdded);
+        assert(tm.length == 1);
+        assert(tm[1] == 5);
+        assert(wasAdded);
+        tm.set(2, 6);
+        assert(tm.length == 2);
+        assert(tm[2] == 6);
+        assert(tm[1] == 5);
+        tm.set(1, 3, wasAdded);
+        assert(tm.length == 2);
+        assert(tm[2] == 6);
+        assert(tm[1] == 3);
+        assert(!wasAdded);
     }
 
     /**
@@ -782,6 +1130,20 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        auto hm2 = new TreeMap;
+        uint numAdded;
+        hm2.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        tm.set(hm2);
+        assert(hm2 == tm);
+        hm2[6] = 6;
+        tm.set(hm2, numAdded);
+        assert(tm == hm2);
+        assert(numAdded == 1);
+    }
+
     /**
      * Returns true if the given key is in the collection.
      *
@@ -790,6 +1152,15 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     bool containsKey(K key)
     {
         return !elemAt(key).empty;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(tm.containsKey(3));
+        tm.remove(3);
+        assert(!tm.containsKey(3));
     }
 
     /**
@@ -849,6 +1220,29 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     }
 
     /**
+     * Compare this HashMap with an AA.
+     *
+     * Returns false if o is not a Map object, is null, or the HashMap does not
+     * contain the same key/value pairs as the given map.
+     * Returns true if exactly the key/value pairs contained in the given map
+     * are in this HashMap.
+     */
+    bool opEquals(V[K] other)
+    {
+        if(other.length == length)
+        {
+            foreach(K k, V v; other)
+            {
+                auto cu = elemAt(k);
+                if(cu.empty || cu.front != v)
+                    return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Set all the elements from the given associative array in the map.  Any
      * key that already exists will be overridden.
      *
@@ -875,6 +1269,18 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         set(source);
         numAdded = length - origLength;
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        uint numAdded;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3], numAdded);
+        assert(tm == cast(V[K])[1:1, 2:2, 3:3]);
+        assert(numAdded == 3);
+        tm.set(cast(V[K])[2:2, 3:3, 4:4, 5:5], numAdded);
+        assert(tm == cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(numAdded == 2);
     }
 
     /**
@@ -904,6 +1310,18 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        uint numRemoved;
+        tm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        tm.remove(cast(K[])[2, 4, 5]);
+        assert(tm == cast(V[K])[1:1, 3:3]);
+        tm.remove(cast(K[])[2, 3], numRemoved);
+        assert(tm == cast(V[K])[1:1]);
+        assert(numRemoved == 1);
+    }
+
     /**
      * Remove all the keys that are not in the given array.
      *
@@ -928,20 +1346,33 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         return intersect(iter, numRemoved);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto tm = new TreeMap;
+        tm.set(cast(V[K])[0:0, 1:1, 2:2, 3:3, 4:4, 5:5]);
+        uint numRemoved;
+        tm.intersect(cast(K[])[0, 2, 4, 6, 8], numRemoved);
+        assert(tm == cast(V[K])[0:0, 2:2, 4:4]);
+        assert(numRemoved == 3);
+        tm.intersect(cast(K[])[0, 4]);
+        assert(tm == cast(V[K])[0:0, 4:4]);
+    }
+
 }
 
 unittest
 {
-    auto tm = new TreeMap!(uint, uint);
-    Map!(uint, uint) m = tm;
-    for(int i = 0; i < 10; i++)
-        m[i * i + 1] = i;
-    assert(m.length == 10);
-    foreach(ref doPurge, k, v; &m.keypurge)
-    {
-        doPurge = (v % 2 == 1);
-    }
-    assert(m.length == 5);
-    assert(m.containsKey(6 * 6 + 1));
-    assert(m[6*6+1] == 6);
+    // declare the HashMaps that should be tested.  Note that we don't care
+    // about the value type because all interesting parts of the hash map
+    // have to deal with the key.
+
+    TreeMap!(ubyte, uint)  tm1;
+    TreeMap!(byte, uint)   tm2;
+    TreeMap!(ushort, uint) tm3;
+    TreeMap!(short, uint)  tm4;
+    TreeMap!(uint, uint)   tm5;
+    TreeMap!(int, uint)    tm6;
+    TreeMap!(ulong, uint)  tm7;
+    TreeMap!(long, uint)   tm8;
 }
+

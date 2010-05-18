@@ -580,6 +580,16 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(hm.length == 5);
+        hm.clear();
+        assert(hm.length == 0);
+    }
+
+
     /**
      * returns number of elements in the collection
      */
@@ -723,7 +733,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         assert(firsthalf.length + secondhalf.length == hm.length);
         foreach(k, v; firsthalf)
         {
-            assert(k !in secondhalf);
+            assert(!(k in secondhalf));
         }
         bool exceptioncaught = false;
         try
@@ -749,10 +759,17 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
         element tmp;
         tmp.key = k;
         it.position = _hash.find(tmp);
-        if(it.position == _hash.end)
-            it._empty = true;
+        it._empty = (it.position == _hash.end);
         return it;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hm = new HashMap;
+        hm.set([1:1, 2:2, 3:3, 4:4, 5:5]);
+        assert(hm.elemAt(6).empty);
+    }
+
 
     /**
      * Removes the element that has the given key.  Returns true if the

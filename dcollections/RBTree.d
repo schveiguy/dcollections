@@ -10,6 +10,8 @@ module dcollections.RBTree;
 private import dcollections.model.Iterator;
 private import dcollections.DefaultAllocator;
 
+version(unittest) version = RBDoChecks;
+
 version(RBDoChecks)
 {
     import std.stdio;
@@ -958,7 +960,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             //
             // check implementation of the tree
             //
-            int recurse(Node n, char[] path)
+            int recurse(Node n, string path)
             {
                 if(n is null)
                     return 1;

@@ -198,5 +198,5 @@ interface Map(K, V) : Keyed!(K, V)
     /**
      * compare map to an AA
      */
-    //bool opEquals(V[K] other);
+    bool opEquals(V[K] other);
 }
