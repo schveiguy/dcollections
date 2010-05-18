@@ -11,6 +11,32 @@ public import dcollections.model.Multiset;
 public import dcollections.DefaultFunctions;
 private import dcollections.Hash;
 
+version(unittest)
+{
+    import std.traits;
+    import std.array;
+    import std.range;
+    static import std.algorithm;
+    bool rangeEqual(V)(HashMultiset!V.range r, V[] arr)
+    {
+        uint[V] cnt;
+        foreach(v; arr)
+            cnt[v]++;
+        uint len = 0;
+        for(; !r.empty; ++len, r.popFront())
+        {
+            auto x = r.front in cnt;
+            if(!x)
+                return false;
+            if(*x == 1)
+                cnt.remove(r.front);
+            else
+                --(*x);
+        }
+        return cnt.length == 0;
+    }
+}
+
 /**
  * A multi-set implementation which uses a Hash to have near O(1) insertion,
  * deletion and lookup time.
@@ -72,6 +98,31 @@ private import dcollections.Hash;
  */
 class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : Multiset!(V)
 {
+    version(unittest)
+    {
+        enum doUnittest = isIntegral!V;
+
+        bool arrayEqual(V[] arr)
+        {
+            if(length == arr.length)
+            {
+                uint[V] cnt;
+                foreach(v; arr)
+                    cnt[v]++;
+
+                foreach(v; this)
+                {
+                    auto x = v in cnt;
+                    if(!x || *x == 0)
+                        return false;
+                    --(*x);
+                }
+                return true;
+            }
+            return false;
+        }
+    }
+
     /**
      * an alias the the implementation template instantiation.
      */
@@ -134,6 +185,20 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
             return it.position == position;
         }*/
     }
+
+    static if(doUnittest) unittest
+    {
+        
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto cu = hms.elemAt(3);
+        assert(!cu.empty);
+        assert(cu.front == 3);
+        cu.popFront();
+        assert(cu.empty);
+        assert(hms.arrayEqual([1, 2, 2, 3, 3, 4, 5]));
+    }
+
 
     /**
      * A range that can be used to iterate over the elements in the hash.
@@ -210,6 +275,32 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         }
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto r = hms[];
+        assert(rangeEqual(r, cast(V[])[1, 2, 2, 3, 3, 4, 5]));
+        assert(r.front == hms.begin.front);
+        assert(r.back != r.front);
+        auto oldfront = r.front;
+        auto oldback = r.back;
+        r.popFront();
+        r.popFront();
+        r.popBack();
+        r.popBack();
+        assert(r.front != r.back);
+        assert(r.front != oldfront);
+        assert(r.back != oldback);
+
+        auto b = r.begin;
+        assert(!b.empty);
+        assert(b.front == r.front);
+        auto e = r.end;
+        assert(e.empty);
+    }
+
+
     /**
      * Determine if a cursor belongs to the hashmultiset
      */
@@ -227,6 +318,21 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         return _hash.belongs(r._begin) && _hash.belongs(r._end);
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto cu = hms.elemAt(3);
+        assert(cu.front == 3);
+        assert(hms.belongs(cu));
+        auto r = hms[hms.begin..cu];
+        assert(hms.belongs(r));
+
+        auto hs2 = hms.dup;
+        assert(!hs2.belongs(cu));
+        assert(!hs2.belongs(r));
+    }
+
 
     /**
      * Iterate through all the elements of the multiset, indicating which
@@ -242,11 +348,6 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      * }
      */
     int purge(scope int delegate(ref bool doPurge, ref V v) dg)
-    {
-        return _apply(dg);
-    }
-
-    private int _apply(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         Impl.position it = _hash.begin;
         bool doPurge;
@@ -269,6 +370,18 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         return dgret;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([0, 1, 2, 2, 3, 3, 4]);
+        foreach(ref p, i; &hms.purge)
+        {
+            p = (i & 1);
+        }
+
+        assert(hms.arrayEqual([0, 2, 2, 4]));
+    }
+
     /**
      * iterate over the collection's values
      */
@@ -278,7 +391,26 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         {
             return dg(v);
         }
-        return _apply(&_dg);
+        return purge(&_dg);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 3, 4, 5]);
+        uint[V] cnt;
+        uint len = 0;
+        foreach(i; hms)
+        {
+            assert(hms.contains(i));
+            ++cnt[i];
+            ++len;
+        }
+        assert(len == hms.length);
+        foreach(k, v; cnt)
+        {
+            assert(hms.count(k) == v);
+        }
     }
 
     /**
@@ -302,6 +434,16 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
     {
         _hash.clear();
         return this;
+    }
+
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(hms.length == 7);
+        hms.clear();
+        assert(hms.length == 0);
     }
 
     /**
@@ -348,6 +490,14 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         return it;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        hms.remove(hms.elemAt(3));
+        assert(hms.arrayEqual([1, 2, 2, 3, 4, 5]));
+    }
+
     /**
      * remove all the elements in the given range.
      */
@@ -360,6 +510,18 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
             b = remove(b);
         }
         return b;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto r = hms[hms.elemAt(3)..hms.end];
+        V[7] buf;
+        auto remaining = std.algorithm.copy(hms[hms.begin..hms.elemAt(3)], buf[]);
+        hms.remove(r);
+        assert(hms.arrayEqual(buf[0..buf.length - remaining.length]));
+        assert(!hms.contains(3));
     }
 
     /**
@@ -395,6 +557,35 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         throw new Exception("invalid slice parameters to " ~ HashMultiset.stringof);
     }
 
+    static if (doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto fr = hms[];
+        auto prev = fr.front;
+        while(fr.front == prev)
+            fr.popFront();
+        auto cu = fr.begin;
+        auto r = hms[hms.begin..cu];
+        auto r2 = hms[cu..hms.end];
+        foreach(x; r2)
+        {
+            assert(std.algorithm.find(r, x).empty);
+        }
+        assert(walkLength(r) + walkLength(r2) == hms.length);
+
+        bool exceptioncaught = false;
+        try
+        {
+            hms[cu..cu];
+        }
+        catch(Exception)
+        {
+            exceptioncaught = true;
+        }
+        assert(exceptioncaught);
+    }
+
     /**
      * find the first instance of a value in the collection.  Returns end if
      * the value is not present.
@@ -405,9 +596,15 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
     {
         cursor it;
         it.position = _hash.find(v);
-        if(it.position == _hash.end)
-            it._empty = true;
+        it._empty = it.position is _hash.end;
         return it;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(hms.elemAt(6).empty);
     }
 
     /**
@@ -434,11 +631,20 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
             return start;
         }
         start.position = _hash.find(v, start.position.next);
-        if(start.position == _hash.end)
-            start._empty = true;
-        else
-            start._empty = false;
+        start._empty = start.position is _hash.end;
         return start;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto cu = hms.elemAt(3);
+        auto cu2 = hms.elemAt(cu, 3);
+        auto cu3 = hms.elemAt(cu2, 3);
+        assert(!cu.empty && !cu2.empty && cu3.empty);
+        assert(cu.front == 3 && cu2.front == 3);
+        assert(cu != cu2);
     }
 
     /**
@@ -467,6 +673,21 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
             remove(it);
         }
         return this;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        bool wasRemoved;
+        hms.remove(1, wasRemoved);
+        assert(hms.arrayEqual([2, 2, 3, 3, 4, 5]));
+        assert(wasRemoved);
+        hms.remove(10, wasRemoved);
+        assert(hms.arrayEqual([2, 2, 3, 3, 4, 5]));
+        assert(!wasRemoved);
+        hms.remove(3);
+        assert(hms.arrayEqual([2, 2, 3, 4, 5]));
     }
 
     /**
@@ -500,6 +721,8 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      */
     HashMultiset add(Iterator!(V) it)
     {
+        if(it is this)
+            throw new Exception("Attempting to self add " ~ HashMultiset.stringof);
         foreach(v; it)
             _hash.add(v);
         return this;
@@ -547,6 +770,53 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        // add single element
+        bool wasAdded = false;
+        auto hms = new HashMultiset;
+        hms.add(1);
+        hms.add(2, wasAdded);
+        assert(hms.length == 2);
+        assert(hms.arrayEqual([1, 2]));
+        assert(wasAdded);
+
+        // add a duplicate element
+        wasAdded = false;
+        hms.add(2, wasAdded);
+        assert(wasAdded);
+        assert(hms.arrayEqual([1, 2, 2]));
+
+        // add other collection
+        uint numAdded = 0;
+        // need to add duplicate, adding self is not allowed.
+        auto hs2 = hms.dup;
+        hs2.add(3);
+        hms.add(hs2, numAdded);
+        hms.add(hms.dup);
+        bool caughtexception = false;
+        try
+        {
+            hms.add(hms);
+        }
+        catch(Exception)
+        {
+            caughtexception = true;
+        }
+        // should not be able to add self
+        assert(caughtexception);
+
+        assert(hms.arrayEqual([1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3]));
+        assert(numAdded == 4);
+
+        // add array
+        hms.clear();
+        hms.add([1, 2, 3, 4, 5]);
+        hms.add([3, 4, 5, 6, 7], numAdded);
+        assert(hms.arrayEqual([1, 2, 3, 3, 4, 4, 5, 5, 6, 7]));
+        assert(numAdded == 5);
+    }
+
     /**
      * Returns the number of elements in the collection that are equal to v.
      *
@@ -582,6 +852,24 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         return this;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(hms.count(1) == 1);
+        assert(hms.count(2) == 2);
+        assert(hms.count(3) == 2);
+        uint numRemoved = 0;
+        hms.removeAll(2, numRemoved);
+        assert(numRemoved == 2);
+        assert(hms.arrayEqual([1, 3, 3, 4, 5]));
+        hms.removeAll(10, numRemoved);
+        assert(numRemoved == 0);
+        assert(hms.arrayEqual([1, 3, 3, 4, 5]));
+        hms.removeAll(3);
+        assert(hms.arrayEqual([1, 4, 5]));
+    }
+
     /**
      * make a shallow copy of this hash mulitiset.
      */
@@ -599,6 +887,13 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         return begin.front;
     }
 
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], hms.get()).empty);
+    }
+
     /**
      * Remove the most convenient element from the set, and return its value.
      * This is equivalent to remove(get()), except that only one lookup is
@@ -611,19 +906,29 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
         remove(c);
         return retval;
     }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset;
+        V[] aa = [1, 2, 2, 3, 3, 4, 5];
+        hms.add(aa);
+        auto x = hms.take();
+        assert(!std.algorithm.find([1, 2, 3, 4, 5], x).empty);
+        // remove x from the original array, and check for equality
+        std.algorithm.partition!((V a) {return a == x;})(aa);
+        assert(hms.arrayEqual(aa[1..$]));
+    }
 }
 
 unittest
 {
-    auto hms = new HashMultiset!(uint);
-    Multiset!(uint) ms = hms;
-    hms.add([0U, 1, 2, 3, 4, 5, 5]);
-    assert(hms.length == 7);
-    assert(ms.count(5U) == 2);
-    foreach(ref doPurge, i; &ms.purge)
-    {
-        doPurge = (i % 2 == 1);
-    }
-    assert(ms.count(5U) == 0);
-    assert(ms.length == 3);
+    // declare the Link list types that should be unit tested.
+    HashMultiset!ubyte  hms1;
+    HashMultiset!byte   hms2;
+    HashMultiset!ushort hms3;
+    HashMultiset!short  hms4;
+    HashMultiset!uint   hms5;
+    HashMultiset!int    hms6;
+    HashMultiset!ulong  hms7;
+    HashMultiset!long   hms8;
 }

@@ -16,14 +16,16 @@ version(unittest)
     import std.traits;
     import std.array;
     import std.range;
+    import std.contracts;
     import dcollections.Iterators;
     static import std.algorithm;
     bool rangeEqual(V)(HashSet!V.range r, V[] arr)
     {
+        assert(std.algorithm.isSorted(arr));
         uint len = 0;
         for(; !r.empty; ++len, r.popFront())
         {
-            if(std.algorithm.find(arr, r.front).empty)
+            if(std.algorithm.find(assumeSorted(arr), r.front).empty)
                 return false;
         }
         return len == arr.length;
@@ -255,7 +257,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     static if(doUnittest) unittest
     {
         auto hs = new HashSet;
-        hs.add(cast(V[])[1, 2, 3, 4, 5]);
+        hs.add([1, 2, 3, 4, 5]);
         auto r = hs[];
         assert(rangeEqual(r, cast(V[])[1, 2, 3, 4, 5]));
         assert(r.front == hs.begin.front);
@@ -302,7 +304,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         auto r = hs[hs.begin..cu];
         assert(hs.belongs(r));
 
-        auto hs2 = hs.dup;
+        auto hs2 = hs.dup();
         assert(!hs2.belongs(cu));
         assert(!hs2.belongs(r));
     }
@@ -489,6 +491,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         auto remaining = std.algorithm.copy(hs[hs.begin..hs.elemAt(3)], buf[]);
         hs.remove(r);
         assert(hs.arrayEqual(buf[0..buf.length - remaining.length]));
+        assert(!hs.contains(3));
     }
 
     /**
@@ -527,7 +530,6 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     {
         auto hs = new HashSet;
         hs.add([1, 2, 3, 4, 5]);
-        assert(rangeEqual(hs[], cast(V[])[1, 2, 3, 4, 5]));
         auto fr = hs[];
         fr.popFront();
         fr.popFront();
@@ -563,9 +565,15 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     {
         cursor it;
         it.position = _hash.find(v);
-        if(it.position == _hash.end)
-            it._empty = true;
+        it._empty = it.position is _hash.end;
         return it;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        assert(hs.elemAt(6).empty);
     }
 
     /**
@@ -765,10 +773,10 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         // add other collection
         uint numAdded = 0;
         // need to add duplicate, adding self is not allowed.
-        auto hs2 = hs.dup;
+        auto hs2 = hs.dup();
         hs2.add(3);
         hs.add(hs2, numAdded);
-        hs.add(hs.dup);
+        hs.add(hs.dup());
         bool caughtexception = false;
         try
         {

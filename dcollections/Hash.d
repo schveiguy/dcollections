@@ -330,7 +330,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
             else
                 table[pos.idx] = pos.ptr.next;
         }
-        pos.ptr.unlink;
+        pos.ptr.unlink();
         static if(allocator.freeNeeded)
             alloc.free(pos.ptr);
         count--;
@@ -389,11 +389,11 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
 
                 if(head is null)
                 {
-                    tmp[p.idx] = p.ptr.unlink;
+                    tmp[p.idx] = p.ptr.unlink();
                     Node.attach(p.ptr, p.ptr);
                 }
                 else
-                    head.prepend(p.ptr.unlink);
+                    head.prepend(p.ptr.unlink());
                 result--;
             }
         }
@@ -428,8 +428,10 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
 
     static if(allowDuplicates)
     {
-        // private function to do the dirty work of countAll and removeAll
-        private uint _applyAll(V v, bool remove)
+        /**
+         * count the number of times a given value appears in the hash
+         */
+        uint countAll(V v)
         {
             position p = find(v);
             uint result = 0;
@@ -439,20 +441,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
                 do
                 {
                     if(p.ptr.value == v)
-                    {
                         result++;
-                        if(remove)
-                        {
-                            auto orig = p.ptr;
-                            p.ptr = p.ptr.next;
-                            orig.unlink();
-                            static if(allocator.freeNeeded)
-                            {
-                                alloc.free(orig);
-                            }
-                            continue;
-                        }
-                    }
 
                     p.ptr = p.ptr.next;
                 }
@@ -462,26 +451,62 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         }
 
         /**
-         * count the number of times a given value appears in the hash
-         */
-        uint countAll(V v)
-        {
-            return _applyAll(v, false);
-        }
-
-        /**
          * remove all the instances of v that appear in the hash
          */
         uint removeAll(V v)
         {
-            return _applyAll(v, true);
+            position p = find(v);
+            uint result = 0;
+            if(p.idx != table.length)
+            {
+                auto bucket = table[p.idx];
+                if(bucket is p.ptr)
+                {
+                    while(p.ptr && p.ptr.value == v)
+                    {
+                        result++;
+                        if((bucket = p.ptr.next) is p.ptr)
+                            bucket = null;
+                        p.ptr.unlink();
+                        static if(allocator.freeNeeded)
+                        {
+                            alloc.free(p.ptr);
+                        }
+                        p.ptr = bucket;
+                    }
+                    table[p.idx] = bucket;
+                    if(!p.ptr)
+                    {
+                        count -= result;
+                        return result;
+                    }
+                }
+                do
+                {
+                    if(p.ptr.value == v)
+                    {
+                        result++;
+                        auto orig = p.ptr;
+                        p.ptr = p.ptr.next;
+                        orig.unlink();
+                        static if(allocator.freeNeeded)
+                        {
+                            alloc.free(orig);
+                        }
+                    }
+                    else
+                        p.ptr = p.ptr.next;
+                }
+                while(p.ptr !is bucket)
+            }
+            return result;
         }
 
         /**
          * Find a given value in the hash, starting from the given position.
          * If the position is beyond the last instance of v (which can be
          * determined if the position's bucket is beyond the bucket where v
-         * should go).
+         * should go), then end is returned.
          */
         position find(V v, position startFrom)
         {
