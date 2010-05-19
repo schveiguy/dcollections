@@ -100,7 +100,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
 {
     version(unittest)
     {
-        enum doUnittest = isIntegral!V;
+        private enum doUnittest = isIntegral!V;
 
         bool arrayEqual(V[] arr)
         {
@@ -121,6 +121,10 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
             }
             return false;
         }
+    }
+    else
+    {
+        private enum doUnittest = false;
     }
 
     /**

@@ -3,20 +3,17 @@
  * all rights reserved.
  *
  * Examples of how sets can be used.
- *
- * Currently only implemented for Tango.
  */
 import dcollections.HashMultiset;
 import dcollections.TreeMultiset;
-import dcollections.ArrayMultiset;
-import tango.io.Stdout;
+import std.stdio;
 
-void print(Iterator!(int) s, char[] message)
+void print(Iterator!(int) s, string message)
 {
-    Stdout(message ~ " [");
+    write(message ~ " [");
     foreach(i; s)
-        Stdout(" ")(i);
-    Stdout(" ]").newline;
+        write(" ", i);
+    writeln(" ]");
 }
 
 void main()
@@ -37,31 +34,17 @@ void main()
     print(hashMS, "filled in hashMS");
 
     //
-    // create the array multiset with the given array
-    //
-    auto arrayMS = new ArrayMultiset!(int);
-    arrayMS.add([0, 30, 50]);
-    print(arrayMS, "filled in arrayMS");
-    
-    //
-    // you cannot compare multisets, as there is no particular order or lookup
-    // function, so the runtime could be O(n^2)
-    //
-    // you cannot do set operations, as the runtime could be O(n^2)
-    //
-
-    //
     // you can get the most convenient element in the multiset, and remove it
     // with a guaranteed < O(n) runtime.
     //
-    Stdout("convenient element in arrayMS: ")(arrayMS.get).newline;
-    Stdout("removed convenient element in arrayMS: ")(arrayMS.take).newline;
-    print(arrayMS, "arrayMS after take");
+    writeln("convenient element in hashMS: ", hashMS.get());
+    writeln("removed convenient element in hashMS: ", hashMS.take());
+    print(hashMS, "hashMS after take");
 
     //
     // You can dup a multiset, and then add data to it.
     //
     // combine three sets and an array
-    treeMS = treeMS.dup.add(hashMS).add(arrayMS).add([70, 80, 90, 100, 110]);
-    print(treeMS, "dup'd, recombined treeMS, arrayMS, and hashMS, added some elements");
+    treeMS = treeMS.dup.add(hashMS).add([70, 80, 90, 100, 110]);
+    print(treeMS, "dup'd, recombined treeMS and hashMS, added some elements");
 }

@@ -85,7 +85,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
 {
     version(unittest)
     {
-        enum doUnittest = isIntegral!V;
+        private enum doUnittest = isIntegral!V;
 
         bool arrayEqual(V[] arr)
         {
@@ -100,6 +100,10 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
             }
             return false;
         }
+    }
+    else
+    {
+        private enum doUnittest = false;
     }
 
     /**
@@ -881,6 +885,13 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
         // no comparison possible.
         //
         return false;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet;
+        hs.add([1, 2, 3, 4, 5]);
+        assert(hs == hs.dup());
     }
 
     /**

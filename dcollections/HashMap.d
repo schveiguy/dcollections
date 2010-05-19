@@ -87,7 +87,8 @@ version(unittest)
  */
 class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(K, V)
 {
-    version(unittest) enum doUnittest = isIntegral!K && is(V == uint);
+    version(unittest) private enum doUnittest = isIntegral!K && is(V == uint);
+    else private enum doUnittest = false;
 
     /**
      * used to implement the key/value pair stored in the hash implementation

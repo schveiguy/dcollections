@@ -77,7 +77,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
 {
     version(unittest)
     {
-        enum doUnittest = isIntegral!V;
+        private enum doUnittest = isIntegral!V;
 
         bool arrayEqual(V[] arr)
         {
@@ -92,6 +92,10 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             }
             return false;
         }
+    }
+    else
+    {
+        private enum doUnittest = false;
     }
 
     /**
@@ -1009,7 +1013,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
                         // less work then calling contains(), which builds end
                         // each time
                         //
-                        if(!elemAt(elem).empty)
+                        if(elemAt(elem).empty)
                             return false;
                     }
 
@@ -1024,6 +1028,13 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         // no comparison possible.
         //
         return false;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet;
+        ts.add([1, 2, 3, 4, 5]);
+        assert(ts == ts.dup());
     }
 
     /**

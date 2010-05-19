@@ -98,7 +98,8 @@ version(unittest)
  */
 class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : Map!(K, V)
 {
-    version(unittest) enum doUnittest = isIntegral!K && is(V == uint);
+    version(unittest) private enum doUnittest = isIntegral!K && is(V == uint);
+    else private enum doUnittest = false;
 
     /**
      * the elements that are passed to the tree.  Note that if you define a

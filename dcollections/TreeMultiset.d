@@ -77,7 +77,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
 {
     version(unittest)
     {
-        enum doUnittest = isIntegral!V;
+        private enum doUnittest = isIntegral!V;
 
         bool arrayEqual(V[] arr)
         {
@@ -98,6 +98,10 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
             }
             return false;
         }
+    }
+    else
+    {
+        private enum doUnittest = false;
     }
 
     /**

@@ -60,15 +60,6 @@ void main()
     //
     // you can slice ArrayLists
     //
-    List!(int) slice = arrayList[5..10];
-    print(slice, "slice of arrayList");
-
-    //
-    // removing an element from a slice removes it from the parent
-    //
-    // removes all even elements from arrayList
-    foreach(ref doPurge, i; &slice.purge)
-        doPurge = (i % 2 == 0);
-    print(slice, "removed evens from slice");
-    print(arrayList, "arrayList after removal from slice");
+    auto slice = arrayList[5..10];
+    writefln("slice of arrayList: [%s]", slice);
 }

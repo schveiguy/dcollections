@@ -3,20 +3,18 @@
  * all rights reserved.
  *
  * Examples of how sets can be used.
- *
- * Currently only implemented for Tango.
  */
 import dcollections.HashSet;
 import dcollections.TreeSet;
 import dcollections.ArrayList;
-import tango.io.Stdout;
+import std.stdio;
 
-void print(Iterator!(int) s, char[] message)
+void print(Iterator!(int) s, string message)
 {
-    Stdout(message ~ " [");
+    write(message ~ " [");
     foreach(i; s)
-        Stdout(" ")(i);
-    Stdout(" ]").newline;
+        write(" ", i);
+    writeln(" ]");
 }
 
 void main()
@@ -37,9 +35,9 @@ void main()
     // you can compare sets
     //
     if(hashSet == treeSet)
-        Stdout("equal!").newline;
+        writeln("equal!");
     else
-        Stdout("not equal!").newline;
+        writeln("not equal!");
 
     //
     // you can do set operations

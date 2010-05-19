@@ -67,7 +67,8 @@ version(unittest) private import std.traits;
  */
 class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
 {
-    version(unittest) enum doUnittest = isIntegral!V;
+    version(unittest) private enum doUnittest = isIntegral!V;
+    else private enum doUnittest = false;
 
     /**
      * convenience alias

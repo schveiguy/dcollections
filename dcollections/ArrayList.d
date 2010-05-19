@@ -26,7 +26,8 @@ version(unittest) private import std.traits;
  */
 class ArrayList(V) : Keyed!(uint, V), List!(V) 
 {
-    version(unittest) enum doUnittest = isIntegral!V;
+    version(unittest) private enum doUnittest = isIntegral!V;
+    else private enum doUnittest = false;
 
     private V[] _array;
 
