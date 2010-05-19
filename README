@@ -1,7 +1,17 @@
 DOCUMENTATION
 
-All documentation for dcollections is in ddoc, and can be seen online at
-http://www.dsource.org/projects/dcollections/docs/current
+The documentation for the D2 version of dcollections is not yet published
+online.  The automatic doc generator on dsource is D1 only, so I must find a
+different way of generating documentation.
+
+In addition, many docs are outdated.  In particular, the requirements for
+creating alternate implementations are not correct.  This will be fixed in the
+future.
+
+You can build the documentation yourself using dmd's ddoc feature.  I have done
+this in the distribution for your convenience, but I have eliminated the
+candydoc features.  I plan to use a more advanced tool, such as descent, which
+does cross linking.
 
 BUILDING
 
@@ -26,8 +36,16 @@ system
 
 COMPILER
 
-This library was tested with Tango, using DMD version 1.046.
+This library was tested with DMD version 2.046.  Since D2 is not officially
+released yet, and some bugs still exist, I suggest using that version or later.
 
-It *REQUIRES* version 1.045 or later, since this fixed an interface bug.  Without the change, you will have access violations because the compiler calls the wrong vtable function.
+There are several outstanding bugs in dmd that are blocking some features of
+dcollections.  Two of the major ones are 4174 and 3659.  There are some
+workarounds in place, but you may run into some of these.
 
-So before you report a bug that you can't figure out, MAKE SURE you are using compiler 1.045 or later!
+CONCEPTS
+
+Read the concepts.txt document in the distribution to understand some of the
+concepts behind dcollections for D2.  For those of you experienced with
+dcollections for D1, please read this document, there are some significant
+changes.  I plan to make these documents more official on the web site in time.
