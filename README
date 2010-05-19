@@ -1,3 +1,10 @@
+STATUS
+
+dcollections version 1.0 is released, and only bug fixes will be incorporated,
+no new features.  dcollections version 2.0 for the D2 compiler is in alpha
+stage, and will be developed moving forward replacement for 1.0.  Please see
+the web site for the latest version.
+
 DOCUMENTATION
 
 All documentation for dcollections is in ddoc, and can be seen online at
