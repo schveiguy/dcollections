@@ -350,6 +350,7 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
      * {
      *   doPurge = ((v & 1) == 1);
      * }
+     * ----------
      */
     int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {

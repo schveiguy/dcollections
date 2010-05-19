@@ -324,6 +324,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      * {
      *   doPurge = ((v & 1) == 1);
      * }
+     * ---------------
      */
     final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
