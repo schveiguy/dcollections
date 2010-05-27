@@ -1,2 +1,18 @@
-for %%i in (dcollections\*.d) do dmd -c -I. %%i
-lib -c dcollections.lib ArrayList.obj ArrayMultiset.obj DefaultAllocator.obj Functions.obj Hash.obj HashMap.obj HashMultiset.obj HashSet.obj Iterators.obj Link.obj LinkList.obj RBTree.obj TreeMap.obj TreeMultiset.obj TreeSet.obj
+@echo off
+setlocal EnableDelayedExpansion
+set "files="
+for %%i in (dcollections\*.d dcollections\model\*.d) do set files=!files! %%i
+echo %1
+if %1 == unittest goto unittest
+@echo on
+dmd -lib -ofdcollections.lib %files%
+@goto end
+:unittest
+echo void main(^){} > unit_test.d
+@echo on
+dmd -unittest unit_test.d %files%
+@echo off
+echo running unit tests...
+.\unit_test
+del unit_test.d
+:end
