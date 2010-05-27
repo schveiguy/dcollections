@@ -945,7 +945,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      *
      * If o is null or not a List, return false.
      */
-    bool opEquals(Object o)
+    override bool opEquals(Object o)
     {
         if(o !is null)
         {

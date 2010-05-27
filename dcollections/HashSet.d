@@ -863,7 +863,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     /**
      * compare two sets for equality
      */
-    bool opEquals(Object o)
+    override bool opEquals(Object o)
     {
         if(o !is null)
         {

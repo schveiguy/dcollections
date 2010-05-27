@@ -714,7 +714,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * If o is a List!(V), then this does a list compare.
      * If o is null or not an ArrayList, then the return value is 0.
      */
-    bool opEquals(Object o)
+    override bool opEquals(Object o)
     {
         if(o !is null)
         {

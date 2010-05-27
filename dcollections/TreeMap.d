@@ -1180,7 +1180,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      * Returns 1 if exactly the key/value pairs contained in the given map are
      * in this TreeMap.
      */
-    bool opEquals(Object o)
+    override bool opEquals(Object o)
     {
         //
         // try casting to map, otherwise, don't compare

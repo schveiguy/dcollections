@@ -975,7 +975,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * If o is null or not a Set, return 0.
      */
-    bool opEquals(Object o)
+    override bool opEquals(Object o)
     {
         if(o !is null)
         {
