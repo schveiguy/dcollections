@@ -1090,4 +1090,9 @@ unittest
     TreeSet!int    ts6;
     TreeSet!ulong  ts7;
     TreeSet!long   ts8;
+
+    // ensure that reference types can be used
+    TreeSet!(uint*) al9;
+    class C {}
+    TreeSet!C al10;
 }

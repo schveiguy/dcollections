@@ -1098,4 +1098,9 @@ unittest
     LinkList!int    ll6;
     LinkList!ulong  ll7;
     LinkList!long   ll8;
+
+    // ensure that reference types can be used
+    LinkList!(uint*) al9;
+    class C {}
+    LinkList!C al10;
 }

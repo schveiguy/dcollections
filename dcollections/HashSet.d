@@ -948,4 +948,9 @@ unittest
     HashSet!int    hs6;
     HashSet!ulong  hs7;
     HashSet!long   hs8;
+
+    // ensure that reference types can be used
+    HashSet!(uint*) al9;
+    class C {}
+    HashSet!C al10;
 }

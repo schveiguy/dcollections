@@ -1037,4 +1037,9 @@ unittest
     TreeMultiset!int    tms6;
     TreeMultiset!ulong  tms7;
     TreeMultiset!long   tms8;
+
+    // ensure that reference types can be used
+    TreeMultiset!(uint*) al9;
+    class C {}
+    TreeMultiset!C al10;
 }

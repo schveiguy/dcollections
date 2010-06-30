@@ -1100,9 +1100,9 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     /**
      * Compare this HashMap with an AA.
      *
-     * Returns false if o is not a Map object, is null, or the HashMap does not
-     * contain the same key/value pairs as the given map.
-     * Returns true if exactly the key/value pairs contained in the given map
+     * Returns false if the HashMap does not contain the same key/value pairs
+     * as the given AA.
+     * Returns true if exactly the key/value pairs contained in the given AA
      * are in this HashMap.
      */
     bool opEquals(V[K] other)
@@ -1252,4 +1252,9 @@ unittest
     HashMap!(int, uint)    hm6;
     HashMap!(ulong, uint)  hm7;
     HashMap!(long, uint)   hm8;
+
+    // ensure that reference types can be used
+    // disabled, this is a phobos bug TBD HashMap!(uint*, uint) al9;
+    class C {}
+    HashMap!(C, uint) al10;
 }

@@ -1375,5 +1375,10 @@ unittest
     TreeMap!(int, uint)    tm6;
     TreeMap!(ulong, uint)  tm7;
     TreeMap!(long, uint)   tm8;
+
+    // ensure that reference types can be used
+    // disabled, this is a phobos bug TBD TreeMap!(uint*, uint) al9;
+    class C {}
+    TreeMap!(C, uint) al10;
 }
 

@@ -766,16 +766,18 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
 
     /**
      *  Look at the element at the front of the ArrayList.
+     *  TODO: this should be inout
      */
-    @property V front() const
+    @property V front()
     {
         return _array[0];
     }
 
     /**
      * Look at the element at the end of the ArrayList.
+     * TODO: this should be inout
      */
-    @property V back() const
+    @property V back()
     {
         return _array[$-1];
     }
@@ -963,4 +965,9 @@ unittest
     ArrayList!int    al6;
     ArrayList!ulong  al7;
     ArrayList!long   al8;
+
+    // ensure that reference types can be used
+    ArrayList!(uint*) al9;
+    class C {}
+    ArrayList!C al10;
 }

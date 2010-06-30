@@ -936,4 +936,9 @@ unittest
     HashMultiset!int    hms6;
     HashMultiset!ulong  hms7;
     HashMultiset!long   hms8;
+
+    // ensure that reference types can be used
+    HashMultiset!(uint*) al9;
+    class C {}
+    HashMultiset!C al10;
 }
