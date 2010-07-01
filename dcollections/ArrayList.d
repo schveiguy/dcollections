@@ -9,6 +9,7 @@ module dcollections.ArrayList;
 public import dcollections.model.List,
        dcollections.model.Keyed,
        std.array; // needed for range functions on arrays.
+private import dcollections.DefaultFunctions;
 
 version(unittest) private import std.traits;
 
@@ -869,7 +870,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     ArrayList sort()
     {
-        std.algorithm.sort(_array);
+        std.algorithm.sort!(DefaultLess!(V))(_array);
         return this;
     }
 
