@@ -15,7 +15,7 @@ public import dcollections.model.Iterator;
  * This iterator transforms every element from another iterator using a
  * transformation function.
  */
-class TransformIterator(V, U=V) : Iterator!(V)
+final class TransformIterator(V, U=V) : Iterator!(V)
 {
     private Iterator!(U) _src;
     private void delegate(ref U, ref V) _dg;
@@ -81,7 +81,7 @@ class TransformIterator(V, U=V) : Iterator!(V)
 /**
  * Transform for a keyed iterator
  */
-class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
+final class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
 {
     private KeyedIterator!(J, U) _src;
     private void delegate(ref J, ref U, ref K, ref V) _dg;
@@ -178,7 +178,7 @@ class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
 /**
  * A Chain iterator chains several iterators together.
  */
-class ChainIterator(V) : Iterator!(V)
+final class ChainIterator(V) : Iterator!(V)
 {
     private Iterator!(V)[] _chain;
     private bool _supLength;
@@ -238,7 +238,7 @@ class ChainIterator(V) : Iterator!(V)
 /**
  * A Chain iterator chains several iterators together.
  */
-class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
+final class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
 {
     private KeyedIterator!(K, V)[] _chain;
     private bool _supLength;
@@ -312,7 +312,7 @@ class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
  * A Filter iterator filters out unwanted elements based on a function or
  * delegate.
  */
-class FilterIterator(V) : Iterator!(V)
+final class FilterIterator(V) : Iterator!(V)
 {
     private Iterator!(V) _src;
     private bool delegate(ref V) _dg;
@@ -384,7 +384,7 @@ class FilterIterator(V) : Iterator!(V)
  * A Filter iterator filters out unwanted elements based on a function or
  * delegate.  This version filters on a keyed iterator.
  */
-class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
+final class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
 {
     private KeyedIterator!(K, V) _src;
     private bool delegate(ref K, ref V) _dg;
@@ -481,7 +481,7 @@ class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
 /**
  * Simple iterator wrapper for an array.
  */
-class ArrayIterator(V) : Iterator!(V)
+final class ArrayIterator(V) : Iterator!(V)
 {
     private V[] _array;
 
@@ -517,7 +517,7 @@ class ArrayIterator(V) : Iterator!(V)
 /**
  * Wrapper iterator for an associative array
  */
-class AAIterator(K, V) : KeyedIterator!(K, V)
+final class AAIterator(K, V) : KeyedIterator!(K, V)
 {
     private V[K] _array;
 

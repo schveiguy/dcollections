@@ -85,7 +85,7 @@ version(unittest)
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(K, V)
+final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(K, V)
 {
     version(unittest) private enum doUnittest = isIntegral!K && is(V == uint);
     else private enum doUnittest = false;
@@ -419,7 +419,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      * Iterate over the values of the HashMap, telling it which ones to
      * remove.
      */
-    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
+    int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -444,7 +444,7 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
      * Iterate over the key/value pairs of the HashMap, telling it which ones
      * to remove.
      */
-    final int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         return _apply(dg);
     }
@@ -462,14 +462,14 @@ class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(
     }
 
 
-    private class KeyIterator : Iterator!(K)
+    final private class KeyIterator : Iterator!(K)
     {
-        @property final uint length() const
+        @property uint length() const
         {
             return this.outer.length;
         }
 
-        final int opApply(scope int delegate(ref K) dg)
+        int opApply(scope int delegate(ref K) dg)
         {
             int _dg(ref bool doPurge, ref K k, ref V v)
             {
@@ -1254,7 +1254,7 @@ unittest
     HashMap!(long, uint)   hm8;
 
     // ensure that reference types can be used
-    // disabled, this is a phobos bug TBD HashMap!(uint*, uint) al9;
+    // disabled, due to dmd bug 4410 HashMap!(uint*, uint) al9;
     class C {}
     HashMap!(C, uint) al10;
 }

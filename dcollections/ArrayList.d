@@ -25,7 +25,7 @@ version(unittest) private import std.traits;
  * function.  Neither of these make copies of the array, so you can continue
  * to use the array in both forms.
  */
-class ArrayList(V) : Keyed!(uint, V), List!(V) 
+final class ArrayList(V) : Keyed!(uint, V), List!(V) 
 {
     version(unittest) private enum doUnittest = isIntegral!V;
     else private enum doUnittest = false;
@@ -46,7 +46,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * }
      * ------------
      */
-    final int purge(scope int delegate(ref bool doRemove, ref V value) dg)
+    int purge(scope int delegate(ref bool doRemove, ref V value) dg)
     {
         return _apply(dg, _array);
     }
@@ -76,7 +76,7 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * }
      * ------------
      */
-    final int keypurge(scope int delegate(ref bool doRemove, ref uint key, ref V value) dg)
+    int keypurge(scope int delegate(ref bool doRemove, ref uint key, ref V value) dg)
     {
         return _apply(dg, _array);
     }
@@ -178,9 +178,26 @@ class ArrayList(V) : Keyed!(uint, V), List!(V)
      * Use an array as the backing storage.  This does not duplicate the
      * array.  Use new ArrayList(storage.dup) to make a distinct copy.
      */
-    this(V[] storage = null)
+    this(V[] storage...)
     {
         _array = storage;
+    }
+
+    /**
+     * Constructor that uses the given iterator to get the initial elements.
+     */
+    this(Iterator!V initialElements)
+    {
+        add(initialElements);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto al = new ArrayList(1, 2, 3, 4, 5);
+        auto al2 = new ArrayList(al);
+        assert(al == al2);
+        al[0] = 2;
+        assert(al != al2);
     }
 
     /**

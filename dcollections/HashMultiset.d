@@ -16,6 +16,7 @@ version(unittest)
     import std.traits;
     import std.array;
     import std.range;
+    import dcollections.Iterators;
     static import std.algorithm;
     bool rangeEqual(V)(HashMultiset!V.range r, V[] arr)
     {
@@ -96,7 +97,7 @@ version(unittest)
  * void copyTo(ref Hash h) -> make a duplicate copy of this hash into the
  * target h.
  */
-class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : Multiset!(V)
+final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : Multiset!(V)
 {
     version(unittest)
     {
@@ -421,9 +422,27 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
     /**
      * Instantiate the hash map using the default implementation parameters.
      */
-    this()
+    this(V[] initialElems...)
     {
         _hash.setup();
+        add(initialElems);
+    }
+
+    /**
+     * Constructor which takes an iterator to form the elements to be added
+     * to the hash multiset initiallly
+     */
+    this(Iterator!V initialElems)
+    {
+        _hash.setup();
+        add(initialElems);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hms = new HashMultiset(1, 2, 3, 3, 4, 4, 5);
+        auto hms2 = new HashMultiset(hms);
+        assert(hms.arrayEqual(toArray!V(hms2)));
     }
 
     private this(ref Impl dupFrom)
@@ -444,8 +463,8 @@ class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHash) : 
 
     static if(doUnittest) unittest
     {
-        auto hms = new HashMultiset;
-        hms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto hms = new HashMultiset(1, 2, 2, 3, 3, 4, 5);
+        //hms.add([1, 2, 2, 3, 3, 4, 5]);
         assert(hms.length == 7);
         hms.clear();
         assert(hms.length == 0);

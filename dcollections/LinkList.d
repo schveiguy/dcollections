@@ -65,7 +65,7 @@ version(unittest) private import std.traits;
  * compare function
  *
  */
-class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
+final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
 {
     version(unittest) private enum doUnittest = isIntegral!V;
     else private enum doUnittest = false;
@@ -325,9 +325,26 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * Constructor
      */
-    this()
+    this(V[] initialElems...)
     {
         _link.setup();
+        add(initialElems);
+    }
+
+    /**
+     * Constructor which uses an iterator to create the Linked List
+     */
+    this(Iterator!V initialElems)
+    {
+        _link.setup();
+        add(initialElems);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ll = new LinkList(1, 2, 3, 4, 5);
+        auto ll2 = new LinkList(ll);
+        assert(ll == ll2);
     }
 
     //
@@ -350,8 +367,8 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
 
     static if(doUnittest) unittest
     {
-        auto ll = new LinkList;
-        ll.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto ll = new LinkList(1, 2, 3, 4, 5);
+        //ll.add(cast(V[])[1, 2, 3, 4, 5]);
         assert(ll.length == 5);
         ll.clear();
         assert(ll.length == 0);
@@ -522,7 +539,7 @@ class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
      * }
      * -----------
      */
-    final int purge(scope int delegate(ref bool doRemove, ref V value) dg)
+    int purge(scope int delegate(ref bool doRemove, ref V value) dg)
     {
         auto i = _link.begin;
         auto last = _link.end;

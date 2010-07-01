@@ -96,7 +96,7 @@ version(unittest)
  *
  * void clear() -> removes all elements from the tree, sets count to 0.
  */
-class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : Map!(K, V)
+final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : Map!(K, V)
 {
     version(unittest) private enum doUnittest = isIntegral!K && is(V == uint);
     else private enum doUnittest = false;
@@ -404,7 +404,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
      * Iterate over the collection, deciding which elements should be purged
      * along the way.
      */
-    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
+    int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         int _dg(ref bool doPurge, ref K k, ref V v)
         {
@@ -428,7 +428,7 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
     /**
      * Purge with keys
      */
-    final int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
+    int keypurge(scope int delegate(ref bool doPurge, ref K k, ref V v) dg)
     {
         return _apply(dg);
     }
@@ -445,14 +445,14 @@ class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompare) : M
         assert(tm == cast(V[K])[0:1, 2:3, 4:5]);
     }
 
-    private class KeyIterator : Iterator!(K)
+    private final class KeyIterator : Iterator!(K)
     {
-        final @property uint length() const
+        @property uint length() const
         {
             return this.outer.length;
         }
 
-        final int opApply(scope int delegate(ref K) dg)
+        int opApply(scope int delegate(ref K) dg)
         {
             int _dg(ref bool doPurge, ref K k, ref V v)
             {
@@ -1377,7 +1377,7 @@ unittest
     TreeMap!(long, uint)   tm8;
 
     // ensure that reference types can be used
-    // disabled, this is a phobos bug TBD TreeMap!(uint*, uint) al9;
+    // disabled, due to dmd bug 4410 TreeMap!(uint*, uint) al9;
     class C {}
     TreeMap!(C, uint) al10;
 }

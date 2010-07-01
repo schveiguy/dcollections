@@ -81,7 +81,7 @@ version(unittest)
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : Set!(V)
+final class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : Set!(V)
 {
     version(unittest)
     {
@@ -326,7 +326,7 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
      * }
      * ---------------
      */
-    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
+    int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         Impl.position it = _hash.begin;
         bool doPurge;
@@ -389,9 +389,27 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
     /**
      * Instantiate the hash set using the implementation parameters given.
      */
-    this()
+    this(V[] initialElems...)
     {
         _hash.setup();
+        add(initialElems);
+    }
+
+    /**
+     * Constructor which uses initialElems as the initial elements for the hash
+     * set.
+     */
+    this(Iterator!V initialElems)
+    {
+        _hash.setup();
+        add(initialElems);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto hs = new HashSet(1, 2, 3, 4, 5);
+        auto hs2 = new HashSet(hs);
+        assert(hs == hs2);
     }
 
     //
@@ -414,8 +432,8 @@ class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHash) : 
 
     static if(doUnittest) unittest
     {
-        auto hs = new HashSet;
-        hs.add([1, 2, 3, 4, 5]);
+        auto hs = new HashSet(1, 2, 3, 4, 5);
+        //hs.add([1, 2, 3, 4, 5]);
         assert(hs.length == 5);
         hs.clear();
         assert(hs.length == 0);

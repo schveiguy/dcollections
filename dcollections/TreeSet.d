@@ -378,9 +378,26 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * Instantiate the tree set
      */
-    this()
+    this(V[] initialElems...)
     {
         _tree.setup();
+        add(initialElems);
+    }
+
+    /**
+     * Instantiate the tree set with the given initial elements
+     */
+    this(Iterator!V initialElems)
+    {
+        _tree.setup();
+        add(initialElems);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto ts = new TreeSet(1, 2, 3, 4, 5);
+        auto ts2 = new TreeSet(ts);
+        assert(ts == ts2);
     }
 
     //
@@ -403,8 +420,8 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
 
     static if(doUnittest) unittest
     {
-        auto ts = new TreeSet;
-        ts.add([1, 2, 3, 4, 5]);
+        auto ts = new TreeSet(1, 2, 3, 4, 5);
+        //ts.add([1, 2, 3, 4, 5]);
         assert(ts.length == 5);
         ts.clear();
         assert(ts.length == 0);
@@ -797,8 +814,16 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      */
     TreeSet add(Iterator!(V) it)
     {
-        foreach(v; it)
-            _tree.add(v);
+        auto tr = cast(TreeSet)it;
+        if(tr && !length)
+        {
+            tr._tree.copyTo(_tree);
+        }
+        else
+        {
+            foreach(v; it)
+                _tree.add(v);
+        }
         return this;
     }
 

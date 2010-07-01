@@ -14,6 +14,7 @@ private import dcollections.RBTree;
 
 version(unittest)
 {
+    import dcollections.Iterators;
     import std.traits;
     import std.array;
     import std.range;
@@ -73,7 +74,7 @@ version(unittest)
  *
  * node removeAll(V v) -> removes all the given values from the tree.
  */
-class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultCompare) : Multiset!(V)
+final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultCompare) : Multiset!(V)
 {
     version(unittest)
     {
@@ -323,7 +324,7 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
      * }
      * -------------
      */
-    final int purge(scope int delegate(ref bool doPurge, ref V v) dg)
+    int purge(scope int delegate(ref bool doPurge, ref V v) dg)
     {
         auto it = _tree.begin;
         bool doPurge;
@@ -392,9 +393,26 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     /**
      * Instantiate the tree multiset
      */
-    this()
+    this(V[] initialElems...)
     {
         _tree.setup();
+        add(initialElems);
+    }
+
+    /**
+     * Instantiate the tree multiset with data from another iterator
+     */
+    this(Iterator!V initialElems)
+    {
+        _tree.setup();
+        add(initialElems);
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto tms = new TreeMultiset(1, 2, 3, 4, 4, 5, 5);
+        auto tms2 = new TreeMultiset(tms);
+        assert(tms.arrayEqual(toArray!V(tms2)));
     }
 
     //
@@ -417,8 +435,8 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
 
     static if(doUnittest) unittest
     {
-        auto tms = new TreeMultiset;
-        tms.add([1, 2, 2, 3, 3, 4, 5]);
+        auto tms = new TreeMultiset(1, 2, 2, 3, 3, 4, 5);
+        //tms.add([1, 2, 2, 3, 3, 4, 5]);
         assert(tms.length == 7);
         tms.clear();
         assert(tms.length == 0);
@@ -829,8 +847,16 @@ class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultC
     {
         if(it is this)
             throw new Exception("Attempting to self add " ~ TreeMultiset.stringof);
-        foreach(v; it)
-            _tree.add(v);
+        auto tr = cast(TreeMultiset) it;
+        if(tr && !length)
+        {
+                tr._tree.copyTo(_tree);
+        }
+        else
+        {
+            foreach(v; it)
+                _tree.add(v);
+        }
         return this;
     }
 
