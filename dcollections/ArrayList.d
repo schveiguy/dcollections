@@ -143,6 +143,33 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
         }
 
         /**
+         * Length is trivial to add, allows cursors to be used in more
+         * algorithms.
+         */
+        @property size_t length()
+        {
+            return _empty ? 0 : 1;
+        }
+
+        /**
+         * opIndex costs nothing, and it allows more algorithms to accept
+         * cursors.
+         */
+        @property V opIndex(size_t idx)
+        {
+            assert(idx < length, "Attempt to access invalid index on cursor");
+            return *ptr;
+        }
+
+        /**
+         * Save property needed to satisfy forwardRange requirements.
+         */
+        @property cursor save()
+        {
+            return this;
+        }
+
+        /**
          * compare two cursors for equality.  Note that only the position of
          * the cursor is checked, whether it's empty or not is not checked.
          */

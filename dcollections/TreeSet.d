@@ -141,6 +141,33 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         }
 
         /**
+         * length of the cursor range, which is always either 0 or 1.
+         */
+        @property size_t length()
+        {
+            return _empty ? 0 : 1;
+        }
+
+        /**
+         * opIndex costs nothing, and it allows more algorithms to accept
+         * cursors.
+         */
+        @property V opIndex(size_t idx)
+        {
+            assert(idx < length, "Attempt to access invalid index on cursor");
+            return ptr.value;
+        }
+
+        /**
+         * trivial save implementation to implement forward range
+         * functionality.
+         */
+        @property cursor save()
+        {
+            return this;
+        }
+
+        /**
          * compare two cursors for equality
          */
         bool opEquals(ref const cursor it) const
@@ -243,6 +270,14 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         {
             assert(!empty, "Attempting to popBack() an empty range of " ~ TreeSet.stringof);
             _end = _end.prev;
+        }
+
+        /**
+         * Implement save as required by forward ranges now.
+         */
+        @property range save()
+        {
+            return this;
         }
     }
 

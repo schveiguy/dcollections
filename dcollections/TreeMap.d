@@ -192,6 +192,23 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         }
 
         /**
+         * length of the cursor range, which is always either 0 or 1.
+         */
+        @property size_t length()
+        {
+            return _empty ? 0 : 1;
+        }
+
+        /**
+         * trivial save implementation to implement forward range
+         * functionality.
+         */
+        @property cursor save()
+        {
+            return this;
+        }
+
+        /**
          * compare two cursors for equality
          */
         bool opEquals(ref const cursor it) const
@@ -334,6 +351,14 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         {
             assert(!empty, "Attempting to popBack() an empty range of " ~ TreeMap.stringof);
             _end = _end.prev;
+        }
+
+        /**
+         * Implement save as required by forward ranges now.
+         */
+        @property range save()
+        {
+            return this;
         }
     }
 
