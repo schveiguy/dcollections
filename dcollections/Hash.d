@@ -289,11 +289,23 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     }
     body
     {
-        if(startFrom.value == v)
-            return startFrom;
         Node n;
-        for(n = startFrom.next; n !is bucket && n.value != v; n = n.next)
+        // this is to work around compiler bug 4088
+        static if(is(V == interface))
         {
+            if(cast(Object)startFrom.value == cast(Object)v)
+                return startFrom;
+            for(n = startFrom.next; n !is bucket && cast(Object)n.value != cast(Object)v; n = n.next)
+            {
+            }
+        }
+        else
+        {
+            if(startFrom.value == v)
+                return startFrom;
+            for(n = startFrom.next; n !is bucket && n.value != v; n = n.next)
+            {
+            }
         }
         return (n is bucket ? null : n);
     }

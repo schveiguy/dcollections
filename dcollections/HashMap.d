@@ -103,7 +103,15 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
          */
         bool opEquals(ref const(element) e) const
         {
-            return key == e.key;
+            // this is to work around compiler bug 4088 and bug 1824
+            static if(is(K == interface) || is(K == class))
+            {
+                return cast(Object)key == cast(Object)e.key;
+            }
+            else
+            {
+                return key == e.key;
+            }
         }
     }
 
@@ -1113,8 +1121,17 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
             foreach(K k, V v; m)
             {
                 auto cu = elemAt(k);
-                if(cu.empty || cu.front != v)
-                    return false;
+                // this is to work around compiler bug 4088
+                static if(is(V == interface))
+                {
+                    if(cu.empty || cast(Object)cu.front != cast(Object)v)
+                        return false;
+                }
+                else
+                {
+                    if(cu.empty || cu.front != v)
+                        return false;
+                }
             }
             return true;
         }
@@ -1137,8 +1154,17 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
             foreach(K k, V v; other)
             {
                 auto cu = elemAt(k);
-                if(cu.empty || cu.front != v)
-                    return false;
+                // this is to work around compiler bug 4088
+                static if(is(V == interface))
+                {
+                    if(cu.empty || cast(Object)cu.front != cast(Object)v)
+                        return false;
+                }
+                else
+                {
+                    if(cu.empty || cu.front != v)
+                        return false;
+                }
             }
             return true;
         }
@@ -1279,7 +1305,11 @@ unittest
     HashMap!(long, uint)   hm8;
 
     // ensure that reference types can be used
-    // disabled, due to dmd bug 4410 HashMap!(uint*, uint) al9;
-    class C {}
-    HashMap!(C, uint) al10;
+    // disabled, due to dmd bug 4410 HashMap!(uint*, uint) hm9;
+    interface I {}
+    class C : I {}
+    HashMap!(C, uint) hm10;
+    HashMap!(I, uint) hm11;
+    HashMap!(uint, C) hm12;
+    HashMap!(uint, I) hm13;
 }

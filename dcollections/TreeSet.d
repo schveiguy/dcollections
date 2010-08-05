@@ -1043,23 +1043,29 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             if(s !is null && s.length == length)
             {
                 auto ts = cast(TreeSet)o;
-                auto _end = end;
-                if(ts !is null)
+                if(auto ts = cast(TreeSet)o)
                 {
-                    if(length != ts.length)
-                        return false;
-
                     //
                     // since we know treesets are sorted, compare elements
                     // using cursors.  This makes opEquals O(n) operation,
                     // versus O(n lg(n)) for other set types.
                     //
+                    auto _end = end;
                     auto c1 = _tree.begin;
                     auto c2 = ts._tree.begin;
                     while(c1 !is _end.ptr)
                     {
-                        if(c1.value != c2.value)
-                            return false;
+                        // this is a workaround for compiler bug 4088
+                        static if(is(V == interface))
+                        {
+                            if(cast(Object)c1.value != cast(Object)c2.value)
+                                return false;
+                        }
+                        else
+                        {
+                            if(c1.value != c2.value)
+                                return false;
+                        }
                         c1 = c1.next;
                         c2 = c2.next;
                     }
@@ -1152,7 +1158,9 @@ unittest
     TreeSet!long   ts8;
 
     // ensure that reference types can be used
-    TreeSet!(uint*) al9;
-    class C {}
-    TreeSet!C al10;
+    TreeSet!(uint*) ts9;
+    interface I {}
+    class C : I {}
+    TreeSet!C ts10;
+    TreeSet!I ts11;
 }

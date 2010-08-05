@@ -1007,8 +1007,17 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
                 auto c = this[];
                 foreach(elem; li)
                 {
-                    if(elem != c.front)
-                        return false;
+                    // NOTE this is a workaround for compiler bug 4088
+                    static if(is(V == interface))
+                    {
+                        if(cast(Object)elem != cast(Object)c.front)
+                            return false;
+                    }
+                    else
+                    {
+                        if(elem != c.front)
+                            return false;
+                    }
                     c.popFront();
                 }
                 return true;
@@ -1032,7 +1041,15 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     {
         if(arr.length == length)
         {
-            return std.algorithm.equal(this[], arr);
+            // NOTE this is a workaround for compiler bug 4088
+            static if(is(V == interface))
+            {
+                return std.algorithm.equal!"cast(Object)a == cast(Object)b"(this[], arr);
+            }
+            else
+            {
+                return std.algorithm.equal(this[], arr);
+            }
         }
         return false;
     }
@@ -1151,8 +1168,10 @@ unittest
     LinkList!ulong  ll7;
     LinkList!long   ll8;
 
-    // ensure that reference types can be used
-    LinkList!(uint*) al9;
-    class C {}
-    LinkList!C al10;
+    // ensure that reference types can at least *compile*
+    LinkList!(uint*) ll9;
+    interface I {}
+    class C : I {}
+    LinkList!C ll10;
+    LinkList!I ll11;
 }

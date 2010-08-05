@@ -766,16 +766,24 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
             auto li = cast(List!(V))o;
             if(li !is null && li.length == length)
             {
-                auto al = cast(ArrayList)o;
-                if(al !is null)
-                    return _array == al._array;
+                if(auto al = cast(ArrayList)o)
+                    return this == al._array;
                 else
                 {
                     int i = 0;
                     foreach(elem; li)
                     {
-                        if(elem != _array[i++])
-                            return false;
+                        // NOTE this is a workaround for compiler bug 4088
+                        static if(is(V == interface))
+                        {
+                            if(cast(Object)elem != cast(Object)_array[i++])
+                                return false;
+                        }
+                        else
+                        {
+                            if(elem != _array[i++])
+                                return false;
+                        }
                     }
 
                     //
@@ -784,7 +792,6 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
                     return true;
                 }
             }
-
         }
         //
         // no comparison possible.
@@ -806,7 +813,15 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     bool opEquals(V[] array)
     {
-        return _array == array;
+        // this is to work around compiler bug 4088 and 4589
+        static if(is(V == interface))
+        {
+            return std.algorithm.equal!"cast(Object)a == cast(Object)b"(this[], array);
+        }
+        else
+        {
+            return _array == array;
+        }
     }
 
     /**
@@ -1013,6 +1028,8 @@ unittest
 
     // ensure that reference types can be used
     ArrayList!(uint*) al9;
-    class C {}
+    interface I {}
+    class C : I {}
     ArrayList!C al10;
+    ArrayList!I al11;
 }

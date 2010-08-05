@@ -1003,7 +1003,9 @@ unittest
     HashSet!long   hs8;
 
     // ensure that reference types can be used
-    HashSet!(uint*) al9;
-    class C {}
-    HashSet!C al10;
+    HashSet!(uint*) hs9;
+    interface I {}
+    class C : I {}
+    HashSet!C hs10;
+    HashSet!I hs11;
 }

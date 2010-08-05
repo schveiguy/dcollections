@@ -1213,19 +1213,28 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         auto m = cast(Map!(K, V))o;
         if(m !is null && m.length == length)
         {
-            auto _end = end;
-            auto tm = cast(TreeMap)o;
-            if(tm !is null)
+            if(auto tm = cast(TreeMap)o)
             {
                 //
-                // special case, we know that a tree map is sorted.
+                // special case, we know that the other object is sorted
+                // according to our predicate.
                 //
                 auto c1 = _tree.begin;
                 auto c2 = tm._tree.begin;
+                auto _end = end;
                 while(c1 !is _end.ptr)
                 {
-                    if(c1.value.key != c2.value.key || c1.value.val != c2.value.val)
-                        return false;
+                    // this is to work around compiler bug 4088
+                    static if(is(V == interface))
+                    {
+                        if(compareFunc(c1.value.key, c2.value.key) || cast(Object)c1.value.val != cast(Object)c2.value.val)
+                            return false;
+                    }
+                    else
+                    {
+                        if(compareFunc(c1.value.key, c2.value.key) || c1.value.val != c2.value.val)
+                            return false;
+                    }
                     c1 = c1.next;
                     c2 = c2.next;
                 }
@@ -1235,8 +1244,17 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
                 foreach(K k, V v; m)
                 {
                     auto cu = elemAt(k);
-                    if(cu == _end || cu.front != v)
-                        return false;
+                    // this is to work around compiler bug 4088
+                    static if(is(V == interface))
+                    {
+                        if(cu.empty || cast(Object)cu.front != cast(Object)v)
+                            return false;
+                    }
+                    else
+                    {
+                        if(cu.empty || cu.front != v)
+                            return false;
+                    }
                 }
             }
             return true;
@@ -1260,8 +1278,17 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
             foreach(K k, V v; other)
             {
                 auto cu = elemAt(k);
-                if(cu.empty || cu.front != v)
-                    return false;
+                // this is to work around compiler bug 4088
+                static if(is(V == interface))
+                {
+                    if(cu.empty || cast(Object)cu.front != cast(Object)v)
+                        return false;
+                }
+                else
+                {
+                    if(cu.empty || cu.front != v)
+                        return false;
+                }
             }
             return true;
         }
@@ -1402,8 +1429,12 @@ unittest
     TreeMap!(long, uint)   tm8;
 
     // ensure that reference types can be used
-    // disabled, due to dmd bug 4410 TreeMap!(uint*, uint) al9;
-    class C {}
-    TreeMap!(C, uint) al10;
+    // disabled, due to dmd bug 4410 TreeMap!(uint*, uint) tm9;
+    interface I {}
+    class C : I {}
+    TreeMap!(C, uint) tm10;
+    TreeMap!(I, uint) tm11;
+    TreeMap!(uint, I) tm12;
+    TreeMap!(uint, C) tm13;
 }
 
