@@ -16,16 +16,16 @@ version(unittest)
     import std.traits;
     import std.array;
     import std.range;
-    import std.contracts;
     import dcollections.Iterators;
     static import std.algorithm;
     bool rangeEqual(V)(HashSet!V.range r, V[] arr)
     {
-        assert(std.algorithm.isSorted(arr));
+        //assert(std.algorithm.isSorted(arr));
         uint len = 0;
         for(; !r.empty; ++len, r.popFront())
         {
-            if(std.algorithm.find(assumeSorted(arr), r.front).empty)
+            //if(std.algorithm.find(assumeSorted(arr), r.front).empty)
+            if(std.algorithm.find(arr, r.front).empty)
                 return false;
         }
         return len == arr.length;

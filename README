@@ -36,7 +36,7 @@ system
 
 COMPILER
 
-This library was tested with DMD version 2.046.  Since D2 is not officially
+This library was tested with DMD version 2.048.  Since D2 is not officially
 released yet, and some bugs still exist, I suggest using that version or later.
 
 There are several outstanding bugs in dmd that are blocking some features of

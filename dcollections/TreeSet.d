@@ -17,7 +17,6 @@ version(unittest)
     import std.traits;
     import std.array;
     import std.range;
-    import std.contracts;
     import dcollections.Iterators;
     static import std.algorithm;
 }
