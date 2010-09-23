@@ -6,6 +6,7 @@
  */
 import dcollections.ArrayList;
 import dcollections.LinkList;
+import dcollections.Deque;
 import std.stdio;
 
 void print(Iterator!(int) s, string message)
@@ -21,6 +22,7 @@ void main()
 {
     auto arrayList = new ArrayList!(int);
     auto linkList = new LinkList!(int);
+    auto deque = new Deque!(int);
 
     for(int i = 0; i < 10; i++)
         arrayList.add(i*5);
@@ -32,6 +34,8 @@ void main()
     //
     linkList.add(arrayList);
     print(linkList, "filled in linkList");
+    deque.add(linkList);
+    print(deque, "filled in deque");
 
     //
     // you can compare lists
@@ -62,4 +66,16 @@ void main()
     //
     auto slice = arrayList[5..10];
     writefln("slice of arrayList: [%s]", slice);
+
+    //
+    // pushing to a deque front is as efficient as pushing to the back  It also
+    // does not invalidate any ranges.
+    //
+    deque.pushFront(1).pushFront(2).pushFront(3);
+    print(deque, "pushed 1 2 3 to front");
+
+    //
+    // and slices seamlessly can get data from both front and back
+    //
+    writefln("slice of deque[0..2]: %s, [0..5]: %s, [1..5]: %s, [4..8]: %s", deque[0..2], deque[0..5], deque[1..5], deque[4..8]);
 }

@@ -1,5 +1,5 @@
 /*********************************************************
-   Copyright: (C) 2008 by Steven Schveighoffer.
+   Copyright: (C) 2008-2010 by Steven Schveighoffer.
               All rights reserved
 
    License: $(LICENSE)
@@ -25,7 +25,7 @@ version(unittest) private import std.traits;
  * function.  Neither of these make copies of the array, so you can continue
  * to use the array in both forms.
  */
-final class ArrayList(V) : Keyed!(uint, V), List!(V) 
+final class ArrayList(V) : Keyed!(size_t, V), List!(V) 
 {
     version(unittest) private enum doUnittest = isIntegral!V;
     else private enum doUnittest = false;
@@ -76,7 +76,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
      * }
      * ------------
      */
-    int keypurge(scope int delegate(ref bool doRemove, ref uint key, ref V value) dg)
+    int keypurge(scope int delegate(ref bool doRemove, ref size_t key, ref V value) dg)
     {
         return _apply(dg, _array);
     }
@@ -242,7 +242,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * return the number of elements in the collection
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _array.length;
     }
@@ -264,7 +264,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
         return _array.end;
     }
 
-    private int _apply(scope int delegate(ref bool, ref uint, ref V) dg, range r)
+    private int _apply(scope int delegate(ref bool, ref size_t, ref V) dg, range r)
     {
         int dgret;
         auto i = r.ptr;
@@ -280,7 +280,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
         for(; dgret == 0 && i != last; i++, nextGood++)
         {
             doRemove = false;
-            uint key = i - _array.ptr;
+            size_t key = i - _array.ptr;
             if((dgret = dg(doRemove, key, *i)) == 0)
             {
                 if(doRemove)
@@ -302,7 +302,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
             for(; i < endref; i++, nextGood++)
             {
                 doRemove = false;
-                uint key = i - _array.ptr;
+                size_t key = i - _array.ptr;
                 if(i >= last || dgret != 0 || (dgret = dg(doRemove, key, *i)) != 0 || !doRemove)
                 {
                     //
@@ -319,13 +319,10 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
                     nextGood--;
                 }
             }
-        }
 
-        //
-        // shorten the length
-        //
-        if(nextGood != endref)
-        {
+            //
+            // shorten the length
+            //
             // TODO: we know we are always shrinking.  So we should probably
             // set the length value directly rather than calling the runtime
             // function.
@@ -337,7 +334,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
 
     private int _apply(scope int delegate(ref bool, ref V) dg, range r)
     {
-        int _dg(ref bool b, ref uint k, ref V v)
+        int _dg(ref bool b, ref size_t k, ref V v)
         {
             return dg(b, v);
         }
@@ -383,6 +380,9 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     cursor remove(cursor elem)
     {
+        if(elem.empty)
+            // nothing to remove, but we should get the next element.
+            return cursor(elem.ptr);
         return remove(elem.ptr[0..1]);
     }
 
@@ -397,7 +397,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * get a cursor at the given index
      */
-    cursor elemAt(uint idx)
+    cursor elemAt(size_t idx)
     {
         assert(idx < _array.length);
         cursor it;
@@ -408,7 +408,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * get the value at the given index.
      */
-    V opIndex(uint key)
+    V opIndex(size_t key)
     {
         return _array[key];
     }
@@ -416,7 +416,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * set the value at the given index.
      */
-    V opIndexAssign(V value, uint key)
+    V opIndexAssign(V value, size_t key)
     {
         return _array[key] = value;
     }
@@ -424,7 +424,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * set the value at the given index
      */
-    ArrayList set(uint key, V value, out bool wasAdded)
+    ArrayList set(size_t key, V value, out bool wasAdded)
     {
         this[key] = value;
         wasAdded = false;
@@ -434,7 +434,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * set the value at the given index
      */
-    ArrayList set(uint key, V value)
+    ArrayList set(size_t key, V value)
     {
         this[key] = value;
         return this;
@@ -468,7 +468,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     /**
      * iterate over the collection with key and value
      */
-    int opApply(scope int delegate(ref uint key, ref V value) dg)
+    int opApply(scope int delegate(ref size_t key, ref V value) dg)
     {
         int retval = 0;
         foreach(i, ref v; _array)
@@ -483,7 +483,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
     {
         auto al = new ArrayList;
         al.add(cast(V[])[1, 2, 3, 4, 5]);
-        uint idx = 0;
+        size_t idx = 0;
         foreach(i; al)
         {
             assert(i == al[idx++]);
@@ -504,7 +504,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
      *
      * Runs in O(1) time
      */
-    bool containsKey(uint key)
+    bool containsKey(size_t key)
     {
         return key < length;
     }
@@ -536,7 +536,7 @@ final class ArrayList(V) : Keyed!(uint, V), List!(V)
      */
     ArrayList add(Iterator!(V) coll)
     {
-        uint ignored;
+        size_t ignored;
         return add(coll, ignored);
     }
 
