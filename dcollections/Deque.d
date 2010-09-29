@@ -12,19 +12,42 @@ public import dcollections.model.List,
 
 private import dcollections.DefaultFunctions;
 
+version(unittest) private import std.traits;
+
 /**
- * A list similar to ArrayList, but has O(1) append and prepend performance,
- * and random access.
+ * A Deque is similar to an array, but has O(1) amortized append and prepend
+ * performance.  The constant factor is slightly larger than an array for
+ * operations.
  */
 class Deque(V) : Keyed!(size_t, V), List!V
 {
+    // implementation notes:  The _pre array contains all the elements
+    // prepended, in reverse order.  The reason it's in reverse order is
+    // because array appending is supported with O(1) performance.  _post
+    // contains all the elements appended.
     private V[] _pre, _post;
-    enum doUnittest = false;
+
+    version(unittest)
+    {
+        enum doUnittest = isIntegral!V;
+
+        static Deque create(V[] elems...)
+        {
+            // create the deque by prepending the first half of the elements,
+            // then appending the second half.
+            return (new Deque(elems[$/2..$])).prepend(elems[0..$/2]);
+        }
+    }
+    else enum doUnittest = false;
+
     /**
      * The cursor type, used to refer to individual elements
      */
     struct cursor
     {
+        // note, when _pre is set, ptr actually points to the end of the
+        // element (i.e. next element in memory).  This is to prevent the
+        // pointer from pointing outside the memory block.
         private V *ptr;
         private bool _pre = false;
         private bool _empty = false;
@@ -104,9 +127,8 @@ class Deque(V) : Keyed!(size_t, V), List!V
          *
          * also note that it's possible for two cursors to compare not equal
          * even though they point to the same element.  This situation is
-         * caused by the fact that we have two separate arrays, and a cursor
-         * pointing at the beginning of either array is pointing to the same
-         * element.
+         * caused by the implementation of Deque.  However, it can only happen
+         * if one uses popFront.
          */
         bool opEquals(ref const(cursor) it) const
         {
@@ -122,32 +144,27 @@ class Deque(V) : Keyed!(size_t, V), List!V
         // a range that combines both the pre and post ranges.
         private V[] _pre, _post;
 
+        /**
+         * Get/set the first element in the range.  Illegal to call this on an
+         * empty range.
+         */
         @property ref V front()
         {
             return _pre.length ? _pre[$-1] : _post[0];
         }
 
-        /* Note, we have disabled this and instead am using ref returns to get
-         * sorting to work.  Need to work out how to use auto ref to avoid
-         * this.
-        @property V front(V v)
-        {
-            return (_pre.length ? _pre[$-1] : _post[0]) = v;
-        }*/
-
+        /**
+         * Get/set the last element in the range.  Illegal to call this on an
+         * empty range.
+         */
         @property ref V back()
         {
             return _post.length ? _post[$-1] : _pre[0];
         }
 
-        /* Note, we have disabled this and instead am using ref returns to get
-         * sorting to work.  Need to work out how to use auto ref to avoid
-         * this.
-        @property V back(V v)
-        {
-            return (_post.length ? _post[$-1] : _pre[0]) = v;
-        }*/
-
+        /**
+         * Pop the first element from the front of the range.
+         */
         void popFront()
         {
             if(_pre.length)
@@ -156,6 +173,9 @@ class Deque(V) : Keyed!(size_t, V), List!V
                 _post = _post[1..$];
         }
 
+        /**
+         * Pop the last element from the back of the range.
+         */
         void popBack()
         {
             if(_post.length)
@@ -164,6 +184,9 @@ class Deque(V) : Keyed!(size_t, V), List!V
                 _pre = _pre[1..$];
         }
 
+        /**
+         * Get the item at the given index.
+         */
         ref V opIndex(size_t key)
         {
             if(_pre.length > key)
@@ -172,17 +195,10 @@ class Deque(V) : Keyed!(size_t, V), List!V
                 return _post[key - _pre.length];
         }
 
-        /* Note, we have disabled this and instead am using ref returns to get
-         * sorting to work.  Need to work out how to use auto ref to avoid
-         * this.
-           V opIndexAssign(V v, size_t key)
-        {
-            if(_pre.length > key)
-                return _pre[$-1-key] = v;
-            else
-                return _post[key - _pre.length] = v;
-        }*/
-
+        /**
+         * Slice a range according to two indexes.  This is required for random
+         * access ranges.
+         */
         range opSlice(size_t low, size_t hi)
         {
             assert(low <= hi, "invalid parameters used to slice " ~ Deque.stringof);
@@ -204,21 +220,33 @@ class Deque(V) : Keyed!(size_t, V), List!V
             return result;
         }
 
+        /**
+         * The length of the range.
+         */
         @property size_t length()
         {
             return _pre.length + _post.length;
         } 
 
+        /**
+         * Does this range contain any elements?
+         */
         @property bool empty()
         {
             return length == 0;
         }
 
+        /**
+         * Required save function to satisfy isForwardRange
+         */
         @property range save()
         {
             return this;
         }
 
+        /**
+         * Get a cursor that points to the beginning of this range.
+         */
         @property cursor begin()
         {
             cursor result;
@@ -228,6 +256,9 @@ class Deque(V) : Keyed!(size_t, V), List!V
             return result;
         }
 
+        /**
+         * Get a cursor that points to the end of this range.
+         */
         @property cursor end()
         {
             cursor result;
@@ -256,7 +287,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto dq = new Deque(1, 2, 3, 4, 5);
+        auto dq = create(1, 2, 3, 4, 5);
         auto dq2 = new Deque(dq);
         assert(dq == dq2);
         dq[0] = 2;
@@ -456,7 +487,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      *
      * -------------
      * // remove all odd elements
-     * foreach(ref doRemove, v; &arrayList.purge)
+     * foreach(ref doRemove, v; &deque.purge)
      * {
      *   doRemove = (v & 1) != 0;
      * }
@@ -469,24 +500,23 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[0, 1, 2, 3, 4]);
-        foreach(ref p, i; &al.purge)
+        auto dq = create(0,1,2,3,4);
+        foreach(ref p, i; &dq.purge)
         {
             p = (i & 1);
         }
 
-        assert(al == cast(V[])[0, 2, 4]);
+        assert(dq == cast(V[])[0, 2, 4]);
     }
 
     /**
-     * Iterate over the elements in the Deque, telling it which ones
+     * Iterate over the keys and elements in the Deque, telling it which ones
      * should be removed.
      *
      * Use like this:
      * -------------
      * // remove all odd indexes
-     * foreach(ref doRemove, k, v; &arrayList.purge)
+     * foreach(ref doRemove, k, v; &deque.purge)
      * {
      *   doRemove = (k & 1) != 0;
      * }
@@ -499,14 +529,17 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        foreach(ref p, k, i; &al.keypurge)
+        auto dq = create(1,2,3,4,5);
+        size_t lastk = ~0;
+        foreach(ref p, k, i; &dq.keypurge)
         {
+            if(lastk != ~0)
+                assert(lastk + 1 == k);
+            lastk = k;
             p = (k & 1);
         }
 
-        assert(al == cast(V[])[1, 3, 5]);
+        assert(dq == cast(V[])[1, 3, 5]);
     }
 
     /**
@@ -551,10 +584,9 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        al.remove(al[2..4]);
-        assert(al == cast(V[])[1, 2, 5]);
+        auto dq = create(1, 2, 3, 4, 5);
+        dq.remove(dq[1..4]);
+        assert(dq == cast(V[])[1, 5]);
     }
 
     /**
@@ -564,6 +596,11 @@ class Deque(V) : Keyed!(size_t, V), List!V
      * Runs in O(n) time
      */
     cursor remove(cursor elem)
+    in
+    {
+        assert(belongs(elem));
+    }
+    body
     {
         if(elem._empty)
         {
@@ -598,18 +635,21 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        al.remove(al.elemAt(2));
-        assert(al == cast(V[])[1, 2, 4, 5]);
+        auto dq = create(1, 2, 3, 4, 5);
+        dq.remove(dq.elemAt(2));
+        assert(dq == cast(V[])[1, 2, 4, 5]);
     }
 
     /**
      * get a cursor at the given index
      */
     cursor elemAt(size_t idx)
+    in
     {
         assert(idx < length);
+    }
+    body
+    {
         cursor it;
         if(idx < _pre.length)
         {
@@ -621,6 +661,17 @@ class Deque(V) : Keyed!(size_t, V), List!V
             it.ptr = _post.ptr + (idx - _pre.length);
         }
         return it;
+    }
+
+    static if(doUnittest) unittest
+    {
+        auto dq = create(1,2,3,4,5);
+        foreach(i; 0..dq.length)
+        {
+            auto cu = dq.elemAt(i);
+            assert(!cu.empty);
+            assert(cu.front == i + 1);
+        }
     }
 
     /**
@@ -660,13 +711,12 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto dq = create(1, 2, 3, 4, 5);
         bool wasAdded = true;
-        assert(al.set(2, 8, wasAdded)[2] == 8);
+        assert(dq.set(2, 8, wasAdded)[2] == 8);
         assert(!wasAdded);
-        assert(al.set(3, 10)[3] == 10);
-        assert(al == cast(V[])[1, 2, 8, 10, 5]);
+        assert(dq.set(3, 10)[3] == 10);
+        assert(dq == cast(V[])[1, 2, 8, 10, 5]);
     }
 
     /**
@@ -703,22 +753,21 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto dq = create(1, 2, 3, 4, 5);
         size_t idx = 0;
-        foreach(i; al)
+        foreach(i; dq)
         {
-            assert(i == al[idx++]);
+            assert(i == dq[idx++]);
         }
-        assert(idx == al.length);
+        assert(idx == dq.length);
         idx = 0;
-        foreach(k, i; al)
+        foreach(k, i; dq)
         {
             assert(idx == k);
             assert(i == idx + 1);
-            assert(i == al[idx++]);
+            assert(i == dq[idx++]);
         }
-        assert(idx == al.length);
+        assert(idx == dq.length);
     }
 
     /**
@@ -818,40 +867,82 @@ class Deque(V) : Keyed!(size_t, V), List!V
     {
         // add single element
         bool wasAdded = false;
-        auto al = new Deque;
-        al.add(1);
-        al.add(2, wasAdded);
-        assert(al.length == 2);
-        assert(al == cast(V[])[1, 2]);
+        auto dq = new Deque;
+        dq.add(1);
+        dq.add(2, wasAdded);
+        assert(dq.length == 2);
+        assert(dq == cast(V[])[1, 2]);
         assert(wasAdded);
 
         // add other collection
         uint numAdded = 0;
-        al.add(al, numAdded);
-        al.add(al);
-        assert(al == cast(V[])[1, 2, 1, 2, 1, 2, 1, 2]);
+        dq.add(dq, numAdded);
+        dq.add(dq);
+        assert(dq == cast(V[])[1, 2, 1, 2, 1, 2, 1, 2]);
         assert(numAdded == 2);
 
         // add array
-        al.clear();
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        al.add(cast(V[])[1, 2, 3, 4, 5], numAdded);
-        assert(al == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        dq.clear();
+        dq.add(cast(V[])[1, 2, 3, 4, 5]);
+        dq.add(cast(V[])[1, 2, 3, 4, 5], numAdded);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
         assert(numAdded == 5);
     }
 
     // Deque specific functions
-    Deque pushFront(V value, out bool wasAdded)
+    Deque prepend(V value, out bool wasAdded)
     {
         _pre ~= value;
         wasAdded = true;
         return this;
     }
 
-    Deque pushFront(V value)
+    Deque prepend(V value)
     {
-        bool dummy;
-        return pushFront(value, dummy);
+        bool dummy = void;
+        return prepend(value, dummy);
+    }
+
+    Deque prepend(Iterator!V values, out size_t numAdded)
+    {
+        // append to pre, then reverse that portion of the array
+        auto len = values.length;
+        if(len != NO_LENGTH_SUPPORT)
+        {
+            _pre.length += len;
+            auto ptr = _pre.ptr + _pre.length-1;
+            foreach(v; values)
+                *ptr-- = v;
+            numAdded = len;
+        }
+        else
+        {
+            // prepend them in reverse order, then reverse the portion added.
+            len = _pre.length;
+            foreach(v; values)
+                _pre ~= v;
+            _pre[len..$].reverse;
+            numAdded =  _pre.length - len;
+        }
+        return this;
+    }
+
+    Deque prepend(Iterator!V values)
+    {
+        size_t dummy = void;
+        return prepend(values, dummy);
+    }
+
+    Deque prepend(V[] values)
+    {
+        if(values.length)
+        {
+            _pre.length += values.length;
+            auto ptr = _pre.ptr + _pre.length-1;
+            foreach(v; values)
+                *ptr-- = v;
+        }
+        return this;
     }
 
 
@@ -881,12 +972,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
     {
         auto retval = dup();
 
-        if(array.length)
-        {
-            retval._pre ~= array; // prepending is easy, but we have to reverse
-                                  // the order.
-            retval._pre[_pre.length..$].reverse;
-        }
+        retval.prepend(array);
         return retval;
     }
 
@@ -903,37 +989,36 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        auto al2 = al.concat(al);
-        assert(al2 !is al);
-        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
-        assert(al == cast(V[])[1, 2, 3, 4, 5]);
+        auto dq = create(1, 2, 3, 4, 5);
+        auto dq2 = dq.concat(dq);
+        assert(dq2 !is dq);
+        assert(dq2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = al.concat(cast(V[])[6, 7, 8, 9, 10]);
-        assert(al2 !is al);
-        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-        assert(al == cast(V[])[1, 2, 3, 4, 5]);
+        dq2 = dq.concat(cast(V[])[6, 7, 8, 9, 10]);
+        assert(dq2 !is dq);
+        assert(dq2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = al.concat_r(cast(V[])[6, 7, 8, 9, 10]);
-        assert(al2 !is al);
-        assert(al2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
-        assert(al == cast(V[])[1, 2, 3, 4, 5]);
+        dq2 = dq.concat_r(cast(V[])[6, 7, 8, 9, 10]);
+        assert(dq2 !is dq);
+        assert(dq2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = al ~ al;
-        assert(al2 !is al);
-        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
-        assert(al == cast(V[])[1, 2, 3, 4, 5]);
+        dq2 = dq ~ dq;
+        assert(dq2 !is dq);
+        assert(dq2 == cast(V[])[1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = al ~ cast(V[])[6, 7, 8, 9, 10];
-        assert(al2 !is al);
-        assert(al2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-        assert(al == cast(V[])[1, 2, 3, 4, 5]);
+        dq2 = dq ~ cast(V[])[6, 7, 8, 9, 10];
+        assert(dq2 !is dq);
+        assert(dq2 == cast(V[])[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5]);
 
-        al2 = cast(V[])[6, 7, 8, 9, 10] ~ al;
-        assert(al2 !is al);
-        assert(al2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
-        assert(al == cast(V[])[1, 2, 3, 4, 5]);
+        dq2 = cast(V[])[6, 7, 8, 9, 10] ~ dq;
+        assert(dq2 !is dq);
+        assert(dq2 == cast(V[])[6, 7, 8, 9, 10, 1, 2, 3, 4, 5]);
+        assert(dq == cast(V[])[1, 2, 3, 4, 5]);
     }
 
     /**
@@ -991,6 +1076,11 @@ class Deque(V) : Keyed!(size_t, V), List!V
         return result;
     }
 
+    static if(doUnittest) unittest
+    {
+        pragma(msg, "Deque No unittest here yet " ~ __LINE__.stringof);
+    }
+
     /**
      * Returns a copy of an array list
      */
@@ -1004,16 +1094,17 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(1);
-        al.add(2);
-        auto al2 = al.dup;
-        assert(al._array !is al2._array);
-        assert(al == al2);
-        al[0] = 0;
-        al.add(3);
-        assert(al2 == cast(V[])[1, 2]);
-        assert(al == cast(V[])[0, 2, 3]);
+        auto dq = new Deque;
+        dq.add(2);
+        dq.prepend(1);
+        auto dq2 = dq.dup;
+        assert(dq._pre !is dq2._pre);
+        assert(dq._post !is dq2._post);
+        assert(dq == dq2);
+        dq[0] = 0;
+        dq.add(3);
+        assert(dq2 == cast(V[])[1, 2]);
+        assert(dq == cast(V[])[0, 2, 3]);
     }
 
     /**
@@ -1060,9 +1151,9 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        assert(al == al.dup);
+        auto dq = new Deque;
+        dq.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(dq == dq.dup);
     }
 
     /**
@@ -1127,10 +1218,10 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        assert(al.take() == 5);
-        assert(al == cast(V[])[1, 2, 3, 4]);
+        auto dq = new Deque;
+        dq.add(cast(V[])[1, 2, 3, 4, 5]);
+        assert(dq.take() == 5);
+        assert(dq == cast(V[])[1, 2, 3, 4]);
     }
 
     /**
@@ -1196,19 +1287,19 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 2, 3, 4, 5]);
-        auto cu = al.elemAt(2);
+        auto dq = new Deque;
+        dq.add(cast(V[])[1, 2, 3, 4, 5]);
+        auto cu = dq.elemAt(2);
         assert(cu.front == 3);
-        assert(al.belongs(cu));
-        assert(al.indexOf(cu) == 2);
-        auto r = al[0..2];
-        assert(al.belongs(r));
-        assert(al.indexOf(r.end) == 2);
+        assert(dq.belongs(cu));
+        assert(dq.indexOf(cu) == 2);
+        auto r = dq[0..2];
+        assert(dq.belongs(r));
+        assert(dq.indexOf(r.end) == 2);
 
-        auto al2 = al.dup;
-        assert(!al2.belongs(cu));
-        assert(!al2.belongs(r));
+        auto dq2 = dq.dup;
+        assert(!dq2.belongs(cu));
+        assert(!dq2.belongs(r));
     }
 
     /**
@@ -1256,14 +1347,14 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        auto al = new Deque;
-        al.add(cast(V[])[1, 3, 5, 6, 4, 2]);
-        al.sort();
-        assert(al == cast(V[])[1, 2, 3, 4, 5, 6]);
-        al.sort(delegate bool (ref V a, ref V b) { return b < a; });
-        assert(al == cast(V[])[6, 5, 4, 3, 2, 1]);
-        al.sort(function bool (ref V a, ref V b) { if((a ^ b) & 1) return cast(bool)(a & 1); return a < b; });
-        assert(al == cast(V[])[1, 3, 5, 2, 4, 6]);
+        auto dq = new Deque;
+        dq.add(cast(V[])[1, 3, 5, 6, 4, 2]);
+        dq.sort();
+        assert(dq == cast(V[])[1, 2, 3, 4, 5, 6]);
+        dq.sort(delegate bool (ref V a, ref V b) { return b < a; });
+        assert(dq == cast(V[])[6, 5, 4, 3, 2, 1]);
+        dq.sort(function bool (ref V a, ref V b) { if((a ^ b) & 1) return cast(bool)(a & 1); return a < b; });
+        assert(dq == cast(V[])[1, 3, 5, 2, 4, 6]);
 
         struct X
         {
@@ -1290,7 +1381,27 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
         X x;
         x.pivot = 4;
-        al.sortX(x);
-        assert(al == cast(V[])[4, 5, 6, 1, 2, 3]);
+        dq.sortX(x);
+        assert(dq == cast(V[])[4, 5, 6, 1, 2, 3]);
     }
+}
+
+unittest
+{
+    // declare the array list types that should be unit tested.
+    Deque!ubyte  dq1;
+    Deque!byte   dq2;
+    Deque!ushort dq3;
+    Deque!short  dq4;
+    Deque!uint   dq5;
+    Deque!int    dq6;
+    Deque!ulong  dq7;
+    Deque!long   dq8;
+
+    // ensure that reference types can be used
+    Deque!(uint*) dq9;
+    interface I {}
+    class C : I {}
+    Deque!C dq10;
+    Deque!I dq11;
 }
