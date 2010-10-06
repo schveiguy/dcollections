@@ -911,7 +911,14 @@ class Deque(V) : Keyed!(size_t, V), List!V
 
     static if(doUnittest) unittest
     {
-        pragma(msg, "missing unit test for prepend, line " ~ __LINE__.stringof);
+        auto dq = new Deque(3,4,5);
+        auto dq2 = new Deque(4,5);
+        dq.prepend(1,2);
+        dq2.prepend(1,2,3);
+        assert(dq == dq2);
+        assert(dq == cast(V[])[1,2,3,4,5]);
+        dq.prepend(dq2);
+        assert(dq == cast(V[])[1,2,3,4,5,1,2,3,4,5]);
     }
 
     /**
