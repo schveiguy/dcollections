@@ -117,3 +117,38 @@ the way the Hash and Tree implementations are defined, the same implementation
 is used in all the Hash-based and all the Tree-based classes.  This allows as
 much code reuse as possible, and allows a clever implementor to cover Map, Set
 and Multiset classes with one implementation.
+
+Chaining:
+
+Containers and their respective interfaces all support chaining when possible.  This means you can perform multiple operations on one object in the same expression.  For example:
+
+list.add(1,2,3,4,5).add(someOtherList).sort();
+
+Due to covariance, this works even if you call interface functions.
+
+Determing the length effects of operations:
+
+In many container libraries, a function like add(x) will let you know how many
+elements were added (in the case of a set, this can be 1 or 0).  However, due
+to chaining, we cannot return that value.
+
+Dcollections provides a standard method to determine such things, implemented
+via a wrapper type.  This type is accessed through the trackLength function
+(defined in dcollections.util).  You should only use this function if you
+intend to track the length changes, as it adds unnecessary overhead if you
+don't care.  It's used like this:
+
+auto numAdded = trackLength(list).add(1,2,3,4,5).add(6,7,8).delta;
+assert(numAdded == 8);
+
+Note that you can still use chaining.  However, you cannot call functions that
+do not support chaining.  This restriction is because doing so would mean you
+didn't care about the length to begin with.
+
+If you want to use such functions, then you can keep track of the length by
+assigning the result of trackLength to a variable, and calling those functions
+directly on the container:
+
+auto ltracker = trackLength(list);
+list.add(1,2,3,4,5).remove(somerange);
+auto lengthdiff = ltracker.delta;
