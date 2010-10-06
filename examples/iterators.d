@@ -5,7 +5,7 @@
  * Examples of how special iterators can be used.
  */
 
-import dcollections.Iterators;
+import dcollections.util;
 import dcollections.ArrayList;
 import std.stdio;
 

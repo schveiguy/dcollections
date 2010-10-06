@@ -71,7 +71,7 @@ void main()
     // pushing to a deque front is as efficient as pushing to the back  It also
     // does not invalidate any ranges.
     //
-    deque.pushFront(1).pushFront(2).pushFront(3);
+    deque.prepend(1).prepend(2).prepend(3);
     print(deque, "pushed 1 2 3 to front");
 
     //
