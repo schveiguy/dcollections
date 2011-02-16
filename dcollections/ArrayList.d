@@ -997,5 +997,5 @@ unittest
     interface I {}
     class C : I {}
     ArrayList!C al10;
-    ArrayList!I al11;
+    ArrayList!I al11; // fails with 2.050
 }
