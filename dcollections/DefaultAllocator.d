@@ -235,7 +235,7 @@ struct ChunkAllocator(V, uint elemsPerChunk)
             //
             if(cur !is used)
             {
-                if(used.numFree != 0)
+                if(used !is null && used.numFree != 0)
                 {
                     //
                     // first, unlink cur from its current location
@@ -250,6 +250,10 @@ struct ChunkAllocator(V, uint elemsPerChunk)
                     cur.next = used;
                     used.prev = cur;
                     cur.prev.next = cur;
+                }
+                else
+                {
+                    cur.next = cur.prev = cur;
                 }
                 used = cur;
             }
@@ -329,22 +333,14 @@ template DefaultAllocator(V)
 {
     //
     // if there will be more than one V per page, use the chunk allocator,
-    // otherwise, use the simple allocator.  Note we can only support
-    // ChunkAllocator on Tango.
+    // otherwise, use the simple allocator.
     //
-    version(Tango)
+    static if((V).sizeof + ((void*).sizeof * 3) + uint.sizeof >= 4095 / 2)
     {
-        static if((V).sizeof + ((void*).sizeof * 3) + uint.sizeof >= 4095 / 2)
-        {
-            alias SimpleAllocator!(V) DefaultAllocator;
-        }
-        else
-        {
-            alias ChunkAllocator!(V, (4095 - ((void *).sizeof * 3) - uint.sizeof) / (V).sizeof) DefaultAllocator;
-        }
+        alias SimpleAllocator!(V) DefaultAllocator;
     }
     else
     {
-        alias SimpleAllocator!(V) DefaultAllocator;
+        alias ChunkAllocator!(V, (4095 - ((void *).sizeof * 3) - uint.sizeof) / (V).sizeof) DefaultAllocator;
     }
 }
