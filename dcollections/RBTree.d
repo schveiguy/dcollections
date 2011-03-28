@@ -585,7 +585,7 @@ struct RBNode(V)
             return n.left.rightmost;
     }
 
-    Node dup(Node delegate(V v) alloc)
+    Node dup(scope Node delegate(V v) alloc)
     {
         //
         // duplicate this and all child nodes

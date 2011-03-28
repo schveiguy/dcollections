@@ -118,7 +118,7 @@ struct Link(V)
     // this node is copied to the root node, and subsequent nodes are allocated
     // using the createFunction
     //
-    Node dup(Node delegate(V v) createFunction, Node root = null)
+    Node dup(scope Node delegate(V v) createFunction, Node root = null)
     {
         //
         // create a duplicate of this and all nodes after this.
