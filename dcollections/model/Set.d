@@ -62,23 +62,6 @@ interface Set(V) : Addable!V, Iterator!V, Purgeable!V
             remove(v, wasRemoved);
         return this;
     }
-
-    /**
-     * Remove all the values that are in the given range.  Sets numRemoved to
-     * the number of elements removed.
-     * returns this.
-     * TODO: rename to remove
-     */
-    auto removeRange(R)(R range, out uint numRemoved) if (isInputRange!R && is(ElementType!R == V))
-    {
-        auto len = length;
-        bool wasRemoved;
-        foreach(v; range)
-            remove(v, wasRemoved);
-        numRemoved = len - length;
-        return this;
-    }
-
     }
 
     /**

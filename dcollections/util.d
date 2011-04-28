@@ -67,7 +67,7 @@ final class TransformIterator(V, U=V) : Iterator!(V)
     /**
      * Returns the length that the source provides.
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _src.length;
     }
@@ -133,7 +133,7 @@ final class TransformKeyedIterator(K, V, J=K, U=V) : KeyedIterator!(K, V)
     /**
      * Returns the length that the source provides.
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _src.length;
     }
@@ -229,11 +229,11 @@ final class ChainIterator(V) : Iterator!(V)
      * returns NO_LENGTH_SUPPORT if a single iterator in the chain does not support
      * length
      */
-    @property uint length() const
+    @property size_t length() const
     {
         if(_supLength)
         {
-            uint result = 0;
+            size_t result = 0;
             foreach(it; _chain)
                 result += it.length;
             return result;
@@ -288,11 +288,11 @@ final class ChainKeyedIterator(K, V) : KeyedIterator!(K, V)
      *
      * returns NO_LENGTH_SUPPORT if any iterators in the chain return -1 for length
      */
-    @property uint length() const
+    @property size_t length() const
     {
         if(_supLength)
         {
-            uint result = 0;
+            size_t result = 0;
             foreach(it; _chain)
                 result += it.length;
             return result;
@@ -366,7 +366,7 @@ final class FilterIterator(V) : Iterator!(V)
     /**
      * Returns NO_LENGTH_SUPPORT
      */
-    @property uint length() const
+    @property size_t length() const
     {
         //
         // cannot know what the filter delegate/function will decide.
@@ -438,7 +438,7 @@ final class FilterKeyedIterator(K, V) : KeyedIterator!(K, V)
     /**
      * Returns NO_LENGTH_SUPPORT
      */
-    @property uint length() const
+    @property size_t length() const
     {
         //
         // cannot know what the filter delegate/function will decide.
@@ -517,7 +517,7 @@ final class ArrayIterator(V) : Iterator!(V)
     /**
      * Returns the array length
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _array.length;
     }
@@ -553,7 +553,7 @@ final class AAIterator(K, V) : KeyedIterator!(K, V)
     /**
      * Returns the length of the wrapped AA
      */
-    uint length()
+    size_t length()
     {
         return _array.length;
     }
@@ -579,14 +579,14 @@ final class AAIterator(K, V) : KeyedIterator!(K, V)
 V[] toArray(V)(Iterator!(V) it)
 {
     V[] result;
-    uint len = it.length;
+    auto len = it.length;
     if(len != NO_LENGTH_SUPPORT)
     {
         //
         // can optimize a bit
         //
         result.length = len;
-        int i = 0;
+        size_t i = 0;
         foreach(v; it)
             result[i++] = v;
     }
@@ -654,7 +654,7 @@ struct LengthTracker(T)
      * Get the difference in length from when the LengthTracker value was
      * created.
      */
-    @property int delta()
+    @property ptrdiff_t delta()
     {
         return t.length - origlen;
     }

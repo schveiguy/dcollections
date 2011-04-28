@@ -83,7 +83,7 @@ version(unittest)
  * 
  * void setup(parameters p) -> initializes the hash with the given parameters.
  *
- * uint count -> count of the elements in the hash
+ * size_t count -> count of the elements in the hash
  *
  * position -> must be a struct/class with the following member:
  *   ptr -> must define the following member:
@@ -110,10 +110,10 @@ version(unittest)
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  *
- * uint removeAll(V v) -> remove all instances of the given value, returning
+ * size_t removeAll(V v) -> remove all instances of the given value, returning
  * how many were removed.
  *
- * uint countAll(V v) -> returns the number of instances of the given value in
+ * size_t countAll(V v) -> returns the number of instances of the given value in
  * the hash.
  *
  * void copyTo(ref Hash h) -> make a duplicate copy of this hash into the

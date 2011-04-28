@@ -36,7 +36,7 @@ private import dcollections.DefaultAllocator;
 struct HashDefaults
 {
     enum float loadFactor = .75;
-    enum uint tableSize = 31;
+    enum size_t tableSize = 31;
 }
 
 /**
@@ -46,7 +46,7 @@ struct HashDefaults
  * The implementation consists of a table of linked lists.  The table index
  * that an element goes in is based on the hash code.
  */
-struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDefaults.loadFactor, uint startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator, bool allowDuplicates=false, bool doUpdate=true)
+struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDefaults.loadFactor, size_t startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator, bool allowDuplicates=false, bool doUpdate=true)
 {
     /**
      * alias for Node
@@ -71,7 +71,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     /**
      * count of elements in the table
      */
-    uint count;
+    size_t count;
 
     // setup does nothing
     void setup() {}
@@ -83,7 +83,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     {
         Hash *owner;
         Node ptr;
-        int idx;
+        ptrdiff_t idx;
 
         /**
          * Returns the position that comes after p.
@@ -114,7 +114,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
             //
             // iterated past the bucket, go to the next valid bucket
             //
-            while(p.idx < cast(int)table.length && p.ptr is null)
+            while(p.idx < cast(ptrdiff_t)table.length && p.ptr is null)
             {
                 if(++p.idx < table.length)
                     p.ptr = table[p.idx];
@@ -224,7 +224,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
      * Resize the hash table to the given capacity.  Normally only called
      * privately.
      */
-    void resize(uint capacity)
+    void resize(size_t capacity)
     {
         if(capacity > table.length)
         {
@@ -271,7 +271,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
             float ft = table.length;
 
             if(fc / ft > loadFactor)
-                resize(2 * cast(uint)(fc / loadFactor) + 1);
+                resize(2 * cast(size_t)(fc / loadFactor) + 1);
         }
     }
 
@@ -388,7 +388,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
      *
      * returns the number of elements removed
      */
-    uint intersect(Iterator!(V) subset)
+    size_t intersect(Iterator!(V) subset)
     {
         if(count == 0)
             return 0;
@@ -396,7 +396,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         // start out removing all nodes, then filter out ones that are in the
         // set.
         //
-        uint result = count;
+        auto result = count;
         auto tmp = new Node[table.length];
 
         foreach(ref v; subset)
@@ -465,10 +465,10 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         /**
          * count the number of times a given value appears in the hash
          */
-        uint countAll(V v)
+        size_t countAll(V v)
         {
             position p = find(v);
-            uint result = 0;
+            size_t result = 0;
             if(p.idx != table.length)
             {
                 auto bucket = table[p.idx];
@@ -487,10 +487,10 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         /**
          * remove all the instances of v that appear in the hash
          */
-        uint removeAll(V v)
+        size_t removeAll(V v)
         {
             position p = find(v);
-            uint result = 0;
+            size_t result = 0;
             if(p.idx != table.length)
             {
                 auto bucket = table[p.idx];
@@ -610,7 +610,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
 /**
  * used to define a Hash that does not perform updates
  */
-template HashNoUpdate(V, alias hashFunction, float loadFactor=HashDefaults.loadFactor, uint startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator)
+template HashNoUpdate(V, alias hashFunction, float loadFactor=HashDefaults.loadFactor, size_t startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator)
 {
     // note the second hashFunction isn't used because doUpdates is false
     alias Hash!(V, hashFunction, hashFunction, loadFactor, startingTableSize, Allocator, false, false) HashNoUpdate;
@@ -619,7 +619,7 @@ template HashNoUpdate(V, alias hashFunction, float loadFactor=HashDefaults.loadF
 /**
  * used to define a Hash that takes duplicates
  */
-template HashDup(V, alias hashFunction, float loadFactor=HashDefaults.loadFactor, uint startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator)
+template HashDup(V, alias hashFunction, float loadFactor=HashDefaults.loadFactor, size_t startingTableSize=HashDefaults.tableSize, alias Allocator=DefaultAllocator)
 {
     // note the second hashFunction isn't used because doUpdates is false
     alias Hash!(V, hashFunction, hashFunction, loadFactor, startingTableSize, Allocator, true, false) HashDup;

@@ -43,6 +43,8 @@ There are several outstanding bugs in dmd that are blocking some features of
 dcollections.  Two of the major ones are 4174 and 3659.  There are some
 workarounds in place, but you may run into some of these.
 
+Bug 5870 is impossible to create a workaround for, however, it only occurs when -debug is enabled, so if you are compiling with -debug you may run into this one.
+
 CONCEPTS
 
 Read the concepts.txt document in the distribution to understand some of the

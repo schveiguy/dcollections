@@ -42,7 +42,7 @@ version(unittest)
 
     bool rangeEqual(R, V, K)(R range, V[K] arr)
     {
-        uint len = 0;
+        size_t len = 0;
         while(!range.empty)
         {
             V *x = range.key in arr;
@@ -89,7 +89,7 @@ version(unittest)
  * 
  * void setup(parameters p) -> initializes the tree with the given parameters.
  *
- * uint count -> count of the elements in the tree
+ * size_t count -> count of the elements in the tree
  *
  * node -> must be a struct/class with the following members:
  *   V value -> the value which is pointed to by this position (cannot be a
@@ -494,7 +494,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
 
     private final class KeyIterator : Iterator!(K)
     {
-        @property uint length() const
+        @property size_t length() const
         {
             return this.outer.length;
         }
@@ -562,7 +562,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
     {
         auto tm = new TreeMap;
         tm.set(cast(V[K])[0:1, 1:2, 2:3, 3:4, 4:5]);
-        uint idx = 0;
+        size_t idx = 0;
         foreach(i; tm)
         {
             assert(!std.algorithm.find(tm[], i).empty);
@@ -1306,7 +1306,9 @@ unittest
     class C : I {}
     TreeMap!(C, uint) tm10;
     TreeMap!(I, uint) tm11;
-    TreeMap!(uint, I) tm12;
-    TreeMap!(uint, C) tm13;
+    // these actually aren't tested because of the doUnittest requirement
+    //
+    //TreeMap!(uint, I) tm12;
+    //TreeMap!(uint, C) tm13;
 }
 

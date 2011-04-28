@@ -64,7 +64,7 @@ version(unittest)
  * 
  * void setup(parameters p) -> initializes the tree with the given parameters.
  *
- * uint count -> count of the elements in the tree
+ * size_t count -> count of the elements in the tree
  *
  * node -> must be a struct/class with the following members:
  *   V value -> the value which is pointed to by this position (cannot be a
@@ -92,7 +92,7 @@ version(unittest)
  *
  * void clear() -> removes all elements from the tree, sets count to 0.
  *
- * uint countAll(V v) -> returns the number of elements with the given value.
+ * size_t countAll(V v) -> returns the number of elements with the given value.
  *
  * node removeAll(V v) -> removes all the given values from the tree.
  */
@@ -502,7 +502,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
     /**
      * returns number of elements in the collection
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _tree.count;
     }

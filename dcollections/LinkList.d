@@ -65,7 +65,7 @@ version(unittest) private import std.traits;
  *
  * Node begin -> (get only) The first valid Node.  begin.prev is undefined.
  *
- * uint count -> (get only)  The number of nodes in the list.  This can be
+ * size_t count -> (get only)  The number of nodes in the list.  This can be
  * calculated in O(n) time to allow for more efficient removal of multiple
  * nodes.
  *
@@ -433,7 +433,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * returns number of elements in the collection
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _link.count;
     }

@@ -812,7 +812,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
                 // use the range version instead.
                 auto pre = x._pre;
                 auto post = x._post;
-                int plength = _post.length;
+                auto plength = _post.length;
                 _post.length += numAdded;
                 auto ptr = _post.ptr + plength + pre.length - 1; 
                 // reverse the pre data
@@ -823,7 +823,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
             }
             else if(numAdded > 0)
             {
-                int i = _post.length;
+                auto i = _post.length;
                 _post.length += numAdded;
                 foreach(v; coll)
                 {

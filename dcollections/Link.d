@@ -101,10 +101,10 @@ struct Link(V)
     /**
      * count how many nodes until endNode.
      */
-    uint count(Node endNode = null)
+    size_t count(Node endNode = null)
     {
         Node x = &this;
-        uint c = 0;
+        size_t c = 0;
         while(x !is endNode)
         {
             x = x.next;
@@ -191,7 +191,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * The number of nodes in the list
      */
-    uint count;
+    size_t count;
 
     /**
      * Get the first valid node in the list
@@ -227,6 +227,8 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
 
     /**
      * sort the list according to the given compare function
+     * TODO:  Bug 3051, when fixed should allow us to call this sort instead
+     * of the outer merge sort.
      */
     void sort(alias Less)()
     {
@@ -245,7 +247,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
         // use merge sort, don't update prev pointers until the sort is
         // finished.
         //
-        int K = 1;
+        size_t K = 1;
         while(K < count)
         {
             //
@@ -254,7 +256,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
             Node head = end.next;
             end.next = null;
             Node sortedtail = end;
-            int tmpcount = count;
+            auto tmpcount = count;
 
             while(head !is null)
             {
@@ -268,7 +270,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
                     break;
                 }
                 Node left = head;
-                for(int k = 1; k < K && head.next !is null; k++)
+                for(size_t k = 1; k < K && head.next !is null; k++)
                     head = head.next;
                 Node right = head.next;
 
@@ -277,7 +279,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
                 // left side
                 //
                 head.next = null;
-                int nright = K;
+                auto nright = K;
                 while(true)
                 {
                     if(left is null)
@@ -427,7 +429,7 @@ void mergesort(alias less, V)(ref LinkHead!V lh)
     // use merge sort, don't update prev pointers until the sort is
     // finished.
     //
-    int K = 1;
+    size_t K = 1;
     while(K < lh.count)
     {
         //
@@ -436,7 +438,7 @@ void mergesort(alias less, V)(ref LinkHead!V lh)
         auto head = lh.end.next;
         lh.end.next = null;
         auto sortedtail = lh.end;
-        int tmpcount = lh.count;
+        auto tmpcount = lh.count;
 
         while(head !is null)
         {
@@ -450,7 +452,7 @@ void mergesort(alias less, V)(ref LinkHead!V lh)
                 break;
             }
             auto left = head;
-            for(int k = 1; k < K && head.next !is null; k++)
+            for(size_t k = 1; k < K && head.next !is null; k++)
                 head = head.next;
             auto right = head.next;
 
@@ -459,7 +461,7 @@ void mergesort(alias less, V)(ref LinkHead!V lh)
             // left side
             //
             head.next = null;
-            int nright = K;
+            auto nright = K;
             while(true)
             {
                 if(left is null)

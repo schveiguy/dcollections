@@ -4,7 +4,7 @@ rm -f *.o
 if [ "$1" = 'unittest' ]
 then
     echo 'void main(){}' > unit_test.d
-    if dmd -w -unittest -gc -L--export-dynamic unit_test.d dcollections/*.d dcollections/model/*.d
+    if dmd -w -unittest -gc unit_test.d dcollections/*.d dcollections/model/*.d
     then
         echo running unit tests...
         ./unit_test

@@ -548,7 +548,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
         {
             if(numAdded > 0)
             {
-                int i = _array.length;
+                auto i = _array.length;
                 _array.length += numAdded;
                 foreach(v; coll)
                     _array [i++] = v;
@@ -670,7 +670,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
      * The returned slice begins at index b and ends at, but does not include,
      * index e.
      */
-    range opSlice(uint b, uint e)
+    range opSlice(size_t b, size_t e)
     {
         return _array[b..e];
     }
@@ -736,7 +736,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
                     return this == al._array;
                 else
                 {
-                    int i = 0;
+                    size_t i = 0;
                     foreach(elem; li)
                     {
                         // NOTE this is a workaround for compiler bug 4088
@@ -830,7 +830,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
     /**
      * Get the index of a particular cursor.
      */
-    uint indexOf(cursor c)
+    size_t indexOf(cursor c)
     {
         assert(belongs(c));
         return c.ptr - begin.ptr;

@@ -42,7 +42,7 @@ version(unittest)
 
     bool rangeEqual(R, V, K)(R range, V[K] arr)
     {
-        uint len = 0;
+        size_t len = 0;
         while(!range.empty)
         {
             V *x = range.key in arr;
@@ -80,7 +80,7 @@ version(unittest)
  * template argument V, and must implement the following members (non-function
  * members can be get/set properties unless otherwise specified):
  *
- * uint count -> count of the elements in the hash
+ * size_t count -> count of the elements in the hash
  *
  * position -> must be a struct/class with the following member:
  *   ptr -> must define the following member:
@@ -155,7 +155,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * Function to get the hash of an element
      */
-    static uint _hashFunction(ref element e)
+    static hash_t _hashFunction(ref element e)
     {
         return hashFunction(e.key);
     }
@@ -519,7 +519,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
 
     final private class KeyIterator : Iterator!(K)
     {
-        @property uint length() const
+        @property size_t length() const
         {
             return this.outer.length;
         }
@@ -1149,7 +1149,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         hm.set(cast(V[K])[1:1, 2:2, 3:3, 4:4, 5:5]);
         hm.remove(cast(K[])[2, 4, 5]);
         assert(hm == cast(V[K])[1:1, 3:3]);
-        uint diff = trackLength(hm).remove(cast(K[])[2, 3]).delta;
+        auto diff = trackLength(hm).remove(cast(K[])[2, 3]).delta;
         assert(hm == cast(V[K])[1:1]);
         assert(diff == -1);
     }
@@ -1199,6 +1199,8 @@ unittest
     class C : I {}
     HashMap!(C, uint) hm10;
     HashMap!(I, uint) hm11;
-    HashMap!(uint, C) hm12;
-    HashMap!(uint, I) hm13;
+    // these are disabled due to the doUnittest condition
+    //
+    //HashMap!(uint, C) hm12;
+    //HashMap!(uint, I) hm13;
 }

@@ -641,7 +641,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     /**
      * The number of nodes in the tree
      */
-    uint count;
+    size_t count;
 
     /**
      * The marker Node.  This is the parent of the root Node.
@@ -883,7 +883,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
 
                 // use special algo to get the height while checking for
                 // ownership.
-                uint hta = 0;
+                size_t hta = 0;
                 auto n = a;
                 while(n.parent)
                 {
@@ -892,7 +892,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
                 }
                 if(n !is end)
                     return false;
-                uint htb = 0;
+                size_t htb = 0;
                 n = b;
                 while(b.parent)
                 {
@@ -955,6 +955,9 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
          */
         void printTree(Node n, int indent = 0)
         {
+            if(indent > this.count)
+                // stop from recursing obviously too far
+                return;
             if(n !is null)
             {
                 printTree(n.right, indent + 2);
@@ -982,8 +985,14 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             //
             // check implementation of the tree
             //
+            bool dontPrint = false;
             int recurse(Node n, string path)
             {
+                if(path.length > this.count)
+                {
+                    dontPrint = true;
+                    throw new Exception("Tree structure is incorrect, recursion path has more elements than nodes exist");
+                }
                 if(n is null)
                     return 1;
                 if(n.parent.left !is n && n.parent.right !is n)
@@ -1023,7 +1032,9 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             }
             catch(Exception e)
             {
-                printTree(end.left, 0);
+                writeln("Tree check failed: ", e.msg);
+                if(!dontPrint)
+                    printTree(end.left, 0);
                 throw e;
             }
         }
@@ -1037,10 +1048,10 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
          * Runs in O(m * lg(n)) where m is the number of v instances in the
          * collection, and n is the count of the collection.
          */
-        uint countAll(V v)
+        size_t countAll(V v)
         {
             Node n = find(v);
-            uint retval = 0;
+            size_t retval = 0;
             while(n !is end && compareFunc(n.value, v) == 0)
             {
                 retval++;
@@ -1055,10 +1066,10 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
          * Runs in O(m * lg(n)) where m is the number of v instances in the
          * collection, and n is the count of the collection.
          */
-        uint removeAll(V v)
+        size_t removeAll(V v)
         {
             Node n = find(v);
-            uint retval = 0;
+            size_t retval = 0;
             while(n !is end && compareFunc(n.value, v) == 0)
             {
                 n = remove(n);
@@ -1069,7 +1080,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     }
 
     
-    uint intersect(Iterator!(V) subset)
+    size_t intersect(Iterator!(V) subset)
     {
         // build a new RBTree, only inserting nodes that we already have.
         RBNode!(V) newend;

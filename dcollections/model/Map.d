@@ -83,20 +83,6 @@ interface Map(K, V) : Keyed!(K, V)
             removeAt(k);
         return this;
     }
-
-    /**
-     * Remove a range of keys from the map, getting how many were removed.
-     *
-     * return this.
-     * numRemoved is set to the number of elements removed from the map.
-     * TODO: rename to removeKeys
-     */
-    auto removeRange(R)(R range, out uint numRemoved) if (isInputRange!R && is(isElementType!R == K))
-    {
-        foreach(k; range)
-            removeAt(k);
-    }
-
     }
 
     /**

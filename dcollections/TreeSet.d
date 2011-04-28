@@ -66,7 +66,7 @@ version(unittest)
  * 
  * void setup(parameters p) -> initializes the tree with the given parameters.
  *
- * uint count -> count of the elements in the tree
+ * size_t count -> count of the elements in the tree
  *
  * node -> must be a struct/class with the following members:
  *   V value -> the value which is pointed to by this position (cannot be a
@@ -486,7 +486,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * returns number of elements in the collection
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _tree.count;
     }

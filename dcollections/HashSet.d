@@ -43,7 +43,7 @@ version(unittest)
     bool rangeEqual(V)(HashSet!V.range r, V[] arr)
     {
         //assert(std.algorithm.isSorted(arr));
-        uint len = 0;
+        size_t len = 0;
         for(; !r.empty; ++len, r.popFront())
         {
             //if(std.algorithm.find(assumeSorted(arr), r.front).empty)
@@ -76,7 +76,7 @@ version(unittest)
  * 
  * void setup(parameters p) -> initializes the hash with the given parameters.
  *
- * uint count -> count of the elements in the hash
+ * size_t count -> count of the elements in the hash
  *
  * position -> must be a struct with the following member:
  *   ptr -> must define the following member:
@@ -434,7 +434,7 @@ final class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHa
     {
         auto hs = new HashSet;
         hs.add([1, 2, 3, 4, 5]);
-        uint len = 0;
+        size_t len = 0;
         foreach(i; hs)
         {
             assert(hs.contains(i));
@@ -499,7 +499,7 @@ final class HashSet(V, alias ImplTemp=HashNoUpdate, alias hashFunction=DefaultHa
     /**
      * returns number of elements in the collection
      */
-    @property uint length() const
+    @property size_t length() const
     {
         return _hash.count;
     }
