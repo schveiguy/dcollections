@@ -111,10 +111,17 @@ struct ChunkAllocator(V, uint elemsPerChunk)
             element *x = freeList;
             freeList = x.next;
             //
-            // clear the pointer, this clears the element as if it was
-            // newly allocated
+            // initialize the element.  We do it this way to avoid triggering
+            // any copy hooks such as postblits
             //
-            x.next = null;
+            auto init = cast(ubyte[])typeid(V).init();
+            if(init.ptr is null) // null ptr means initialize to 0
+                x.next = null; // we already know the other bytes are 0
+            else
+            {
+                auto buf = (cast(ubyte *)x)[0..(V).sizeof];
+                buf[] = init[];
+            }
             numFree--;
             return cast(V*)x;
         }
@@ -235,7 +242,7 @@ struct ChunkAllocator(V, uint elemsPerChunk)
             //
             if(cur !is used)
             {
-                if(used !is null && used.numFree != 0)
+                if(used !is null)
                 {
                     //
                     // first, unlink cur from its current location
@@ -264,10 +271,11 @@ struct ChunkAllocator(V, uint elemsPerChunk)
             //
             // cur no longer has any elements in use, it can be deleted.
             //
-            if(cur.next is cur)
+            if(cur is fresh || cur.next is cur)
             {
                 //
-                // only one element, don't free it.
+                // cur is either fresh or is the only element in the
+                // used chain
                 //
             }
             else
@@ -294,6 +302,10 @@ struct ChunkAllocator(V, uint elemsPerChunk)
      */
     void freeAll()
     {
+        if(fresh is null)
+        {
+            fresh = used;
+        }
         used = null;
 
         //
@@ -302,7 +314,17 @@ struct ChunkAllocator(V, uint elemsPerChunk)
         if(fresh !is null)
         {
             nextFresh = 0;
-            fresh.freeList = null;
+            // need to re-initialize the data elements
+            auto chunkinit = cast(ubyte[])typeid(chunk).init();
+            if(chunkinit.ptr is null)
+                // all the data is zero, just write 0s to the chunk
+                memset(fresh, 0, chunk.sizeof);
+            else
+            {
+                // copy the entire init array
+                auto buf = (cast(ubyte *)fresh)[0..chunk.sizeof];
+                buf[] = chunkinit[];
+            }
         }
     }
 }
