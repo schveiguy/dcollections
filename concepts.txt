@@ -50,7 +50,7 @@ some collections only allow slicing when one of the slice parameters is begin
 or end.  The LinkList and all the Hash-based containers are of this flavor.
 The other containers support slicing of any two elements, because validation of
 two arbitrary cursors for these containers is a quick operation.  This means
-that even if a slice is logically sound, it will be rejected because it can't
+that even if a slice is logically sound, it might be rejected because it can't
 be verified quickly.  This might seem like a bad limitation, but I'd rather
 start off safe and add unsafe operations later if needed.  I'm hoping that this
 ability is not necessary in real code.
@@ -65,8 +65,8 @@ that such modifications will not invalidate cursors or ranges.  For example
 sorting a linked list will most likely invalidate all ranges on that list
 created before sorting.  Removal of either endpoint of a range, or the element
 pointed to by a cursor will invalidate that cursor or range.  Checking for
-invalidation is not possible for performance and overhead reasons, so it is up
-to you to verify the logic of your code.
+invalidation is not implemented for performance and overhead reasons, so it is
+up to you to verify the logic of your code.
 
 Some operations can guarantee they do not invalidate ranges/cursors.
 Operations that modify the containers will eventually specifically state how

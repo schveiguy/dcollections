@@ -977,7 +977,6 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             auto s = cast(Set!(V))o;
             if(s !is null && s.length == length)
             {
-                auto ts = cast(TreeSet)o;
                 if(auto ts = cast(TreeSet)o)
                 {
                     //
