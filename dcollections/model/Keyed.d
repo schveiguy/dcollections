@@ -40,7 +40,7 @@ interface Keyed(K, V) : KeyedIterator!(K, V), KeyPurgeable!(K, V)
     /**
      * access a value based on the key
      */
-    V opIndex(K key);
+    inout(V) opIndex(const(K) key) inout;
 
     /**
      * assign a value based on the key
@@ -64,5 +64,5 @@ interface Keyed(K, V) : KeyedIterator!(K, V), KeyPurgeable!(K, V)
     /**
      * returns true if the collection contains the key
      */
-    bool containsKey(K key);
+    bool containsKey(const(K) key) const;
 }

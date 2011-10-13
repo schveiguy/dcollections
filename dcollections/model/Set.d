@@ -83,7 +83,7 @@ interface Set(V) : Addable!V, Iterator!V, Purgeable!V
      * Returns true if the given value exists in the collection. Guaranteed to
      * be O(lgN) or better.
      */
-    bool contains(V v);
+    bool contains(const(V) v) const;
 
     /**
      * Covariant add (from Addable)
@@ -108,7 +108,7 @@ interface Set(V) : Addable!V, Iterator!V, Purgeable!V
      * would be iterated first.  Therefore, calling get() is
      * guaranteed to be an O(1) operation.
      */
-    @property V get();
+    @property inout(V) get() inout;
 
     /**
      * Remove the most convenient element from the set, and return its value.

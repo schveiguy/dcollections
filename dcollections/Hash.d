@@ -88,68 +88,68 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         /**
          * Returns the position that comes after p.
          */
-        @property position next()
+        @property inout(position) next() inout
         {
-            position p = this;
+            inout(Link!V)* p_ptr = ptr;
+            ptrdiff_t p_idx = idx;
+            //position p = this;
             auto table = owner.table;
 
-            if(p.ptr !is null)
+            if(p_ptr !is null)
             {
-                if(p.ptr.next is table[p.idx])
+                if(p_ptr.next is table[p_idx])
                     //
                     // special case, at the end of a bucket, go to the next
                     // bucket.
                     //
-                    p.ptr = null;
+                    p_ptr = null;
                 else
                 {
                     //
                     // still in the bucket
                     //
-                    p.ptr = p.ptr.next;
-                    return p;
+                    return inout(position)(owner, p_ptr.next, p_idx);
                 }
             }
 
             //
             // iterated past the bucket, go to the next valid bucket
             //
-            while(p.idx < cast(ptrdiff_t)table.length && p.ptr is null)
+            while(p_idx < cast(ptrdiff_t)table.length && p_ptr is null)
             {
-                if(++p.idx < table.length)
-                    p.ptr = table[p.idx];
+                if(++p_idx < table.length)
+                    p_ptr = table[p_idx];
                 else
-                    p.ptr = null;
+                    p_ptr = null;
             }
-            return p;
+            return inout(position)(owner, p_ptr, p_idx);
         }
 
         /**
          * Returns the position that comes before p.
          */
-        @property position prev()
+        @property inout(position) prev() inout
         {
-            position p = this;
+            inout(Link!V)* p_ptr = ptr;
+            ptrdiff_t p_idx = idx;
+            //position p = this;
             auto table = owner.table;
-            if(p.ptr !is null)
+            if(p_ptr !is null)
             {
-                if(p.ptr is table[p.idx])
-                    p.ptr = null;
+                if(p_ptr is table[p_idx])
+                    p_ptr = null;
                 else
-                {
-                    p.ptr = p.ptr.prev;
-                    return p;
-                }
+                    return inout(position)(owner, p_ptr.prev, p_idx);
             }
 
-            while(p.idx > 0 && p.ptr is null)
-                p.ptr = table[--p.idx];
-            if(p.ptr)
+            while(p_idx > 0 && p_ptr is null)
+                p_ptr = table[--p_idx];
+            if(p_ptr)
                 //
                 // go to the end of the new bucket
                 //
-                p.ptr = p.ptr.prev;
-            return p;
+                p_ptr = p_ptr.prev;
+            return inout(position)(owner, p_ptr, p_idx);
         }
     }
 
@@ -157,7 +157,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
      * return true if the given position is a member of this hash.
      * Easy to determine, since we have to store a pointer to the hash anyways.
      */
-    bool belongs(position p)
+    bool belongs(const(position) p) const
     {
         return p.owner is &this;
     }
@@ -278,14 +278,11 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     /**
      * Returns a position that points to the first element in the hash.
      */
-    @property position begin()
+    @property inout(position) begin() inout
     {
         if(count == 0)
             return end;
-        position result;
-        result.ptr = null;
-        result.owner = &this;
-        result.idx = -1;
+        auto result = inout(position)(&this, null, -1);
         //
         // this finds the first valid node
         //
@@ -295,23 +292,20 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     /**
      * Returns a position that points past the last element of the hash.
      */
-    @property position end()
+    @property inout(position) end() inout
     {
-        position result;
-        result.idx = table.length;
-        result.owner = &this;
-        return result;
+        return inout(position)(&this, null, table.length);
     }
 
     // private function used to implement common pieces
-    private Node findInBucket(Node bucket, V v, Node startFrom)
+    private inout(Node) findInBucket(inout(Node) bucket, const(V) v, inout(Node) startFrom) inout
     in
     {
         assert(bucket !is null);
     }
     body
     {
-        Node n;
+        inout(Link!V)* n;
         // this is to work around compiler bug 4088
         static if(is(V == interface))
         {
@@ -335,20 +329,16 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
     /**
      * Find the first instance of a value
      */
-    position find(V v)
+    inout(position) find(const(V) v) inout
     {
         if(count == 0)
             return end;
         auto h = hashFunction(v) % table.length;
         // if bucket is empty, or doesn't contain v, return end
-        Node ptr;
+        inout(Link!V)* ptr;
         if(table[h] is null || (ptr = findInBucket(table[h], v, table[h])) is null)
             return end;
-        position p;
-        p.owner = &this;
-        p.idx = h;
-        p.ptr = ptr;
-        return p;
+        return inout(position)(&this, ptr, h);
     }
 
     /**
@@ -465,21 +455,23 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
         /**
          * count the number of times a given value appears in the hash
          */
-        size_t countAll(V v)
+        size_t countAll(const(V) v) const
         {
-            position p = find(v);
+            auto p = find(v);
+            const(Link!V)* p_ptr = p.ptr;
+            ptrdiff_t p_idx = p.idx;
             size_t result = 0;
-            if(p.idx != table.length)
+            if(p_idx != table.length)
             {
-                auto bucket = table[p.idx];
+                auto bucket = table[p_idx];
                 do
                 {
-                    if(p.ptr.value == v)
+                    if(p_ptr.value == v)
                         result++;
 
-                    p.ptr = p.ptr.next;
+                    p_ptr = p_ptr.next;
                 }
-                while(p.ptr !is bucket)
+                while(p_ptr !is bucket);
             }
             return result;
         }
@@ -531,7 +523,7 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
                     else
                         p.ptr = p.ptr.next;
                 }
-                while(p.ptr !is bucket)
+                while(p.ptr !is bucket);
             }
             return result;
         }
@@ -542,11 +534,12 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
          * determined if the position's bucket is beyond the bucket where v
          * should go), then end is returned.
          */
-        position find(V v, position startFrom)
+        inout(position) find(V v, inout(position) startFrom) inout
         {
             if(count == 0)
                 return end;
             auto h = hashFunction(v) % table.length;
+            inout(Link!V)* ptr = startFrom.ptr;
             if(startFrom.idx < h)
             {
                 // if bucket is empty, return end
@@ -554,16 +547,15 @@ struct Hash(V, alias hashFunction, alias updateFunction, float loadFactor=HashDe
                     return end;
 
                 // start from the bucket that the value would live in
-                startFrom.idx = h;
-                startFrom.ptr = table[h];
+                ptr = table[h];
             }
             else if(startFrom.idx > h)
                 // beyond the bucket, return end
                 return end;
 
-            if((startFrom.ptr = findInBucket(table[h], v, startFrom.ptr)) !is
+            if((ptr = findInBucket(table[h], v, ptr)) !is
                     null)
-                return startFrom;
+                return inout(position)(&this, ptr, h);
             return end;
         }
     }

@@ -139,7 +139,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
     /**
      * Compare function used internally to compare two keys
      */
-    static int _compareFunction(ref element e, ref element e2)
+    static int _compareFunction(ref const(element) e, ref const(element) e2)
     {
         return compareFunc(e.key, e2.key);
     }
@@ -170,7 +170,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * get the value in this element
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeMap.stringof);
             return ptr.value.val;
@@ -179,7 +179,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * get the key in this element
          */
-        @property K key()
+        @property inout(K) key() inout
         {
             assert(!_empty, "Attempting to read the key of an empty cursor of " ~ TreeMap.stringof);
             return ptr.value.key;
@@ -216,7 +216,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * length of the cursor range, which is always either 0 or 1.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -225,7 +225,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
          * trivial save implementation to implement forward range
          * functionality.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -274,7 +274,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * is the range empty?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _begin is _end;
         }
@@ -282,29 +282,23 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * Get a cursor to the first element in the range
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor c;
-            c.ptr = _begin;
-            c._empty = empty;
-            return c;
+            return inout(cursor)(_begin, empty);
         }
 
         /**
          * Get a cursor to the end element in the range
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor c;
-            c.ptr = _end;
-            c._empty = true;
-            return c;
+            return inout(cursor)(_end, true);
         }
 
         /**
          * Get the first value in the range
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeMap.stringof);
             return _begin.value.val;
@@ -323,7 +317,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * Get the key of the front element
          */
-        @property K key()
+        @property inout(K) key() inout
         {
             assert(!empty, "Attempting to read the key of an empty range of " ~ TreeMap.stringof);
             return _begin.value.key;
@@ -332,7 +326,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * Get the last value in the range
          */
-        @property V back()
+        @property inout(V) back() inout
         {
             assert(!empty, "Attempting to read the back of an empty range of " ~ TreeMap.stringof);
             return _end.prev.value.val;
@@ -351,7 +345,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * Get the key of the last element in the range
          */
-        @property K backKey()
+        @property inout(K) backKey() inout
         {
             assert(!empty, "Attempting to read the back key of an empty range of " ~ TreeMap.stringof);
             return _end.prev.value.key;
@@ -378,7 +372,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
         /**
          * Implement save as required by forward ranges now.
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -418,7 +412,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
     /**
      * Determine if a cursor belongs to the treemap
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         // rely on the implementation to tell us
         return _tree.belongs(c.ptr);
@@ -427,7 +421,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
     /**
      * Determine if a range belongs to the treemap
      */
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return _tree.belongs(r._begin) && _tree.belongs(r._end);
     }
@@ -628,24 +622,18 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
     /**
      * returns a cursor to the first element in the collection.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
-        cursor it;
-        it.ptr = _tree.begin;
-        it._empty = (_tree.count == 0);
-        return it;
+        return inout(cursor)(_tree.begin, _tree.count == 0);
     }
 
     /**
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
-        cursor it;
-        it.ptr = _tree.end;
-        it._empty = true;
-        return it;
+        return inout(cursor)(_tree.end, true);
     }
 
     /**
@@ -706,24 +694,9 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
     /**
      * get a slice of all the elements in this collection.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result._begin = _tree.begin;
-        result._end = _tree.end;
-        return result;
-    }
-
-    /*
-     * Create a range without checks to make sure b and e are part of the
-     * collection.
-     */
-    private range _slice(cursor b, cursor e)
-    {
-        range result;
-        result._begin = b.ptr;
-        result._end = e.ptr;
-        return result;
+        return inout(range)(_tree.begin, _tree.end);
     }
 
     /**
@@ -735,13 +708,13 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      * before e.  Determining that b and e are part of the collection is a
      * matter of traversing the tree.
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         int order;
         if(_tree.positionCompare(b.ptr, e.ptr, order) && order <= 0)
         {
             // both cursors are part of the tree map and are correctly ordered.
-            return _slice(b, e);
+            return inout(range)(b.ptr, e.ptr);
         }
         throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
     }
@@ -762,7 +735,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      *
      * runs in O(lgn) time.
      */
-    range opSlice(K b, K e)
+    inout(range) opSlice(const(K) b, const(K) e) inout
     {
         if(compareFunc(b, e) <= 0)
         {
@@ -772,7 +745,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
             // of the tree, we just verified that!
             if(!belem.empty && !eelem.empty)
             {
-                return _slice(belem, eelem);
+                return inout(range)(belem.ptr, eelem.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
@@ -783,7 +756,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      *
      * runs in O(lgn) time.
      */
-    range opSlice(K b, cursor e)
+    inout(range) opSlice(const(K) b, inout(cursor) e) inout
     {
         auto belem = elemAt(b);
         if(!belem.empty)
@@ -791,7 +764,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
             int order;
             if(_tree.positionCompare(belem.ptr, e.ptr, order) && order <= 0)
             {
-                return _slice(belem, e);
+                return inout(range)(belem.ptr, e.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
@@ -802,7 +775,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      *
      * runs in O(lgn) time.
      */
-    range opSlice(cursor b, K e)
+    inout(range) opSlice(inout(cursor) b, const(K) e) inout
     {
         auto eelem = elemAt(e);
         if(!eelem.empty)
@@ -810,7 +783,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
             int order;
             if(_tree.positionCompare(b.ptr, eelem.ptr, order) && order <= 0)
             {
-                return _slice(b, eelem);
+                return inout(range)(b.ptr, eelem.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeMap.stringof);
@@ -905,14 +878,10 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      *
      * Runs in O(lg(n)) time.
      */
-    cursor elemAt(K k)
+    inout(cursor) elemAt(const(K) k) inout
     {
-        cursor it;
-        element tmp;
-        tmp.key = k;
-        it.ptr = _tree.find(tmp);
-        it._empty = (it.ptr == _tree.end);
-        return it;
+        auto ptr = _tree.find(const(element)(k, V.init));
+        return inout(cursor)(ptr, ptr == _tree.end);
     }
 
     static if(doUnittest) unittest
@@ -1046,9 +1015,9 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      *
      * Runs in O(lg(n)) time.
      */
-    V opIndex(K key)
+    inout(V) opIndex(const(K) key) inout
     {
-        cursor it = elemAt(key);
+        auto it = elemAt(key);
         if(it.empty)
             throw new Exception("Index out of range");
         return it.front;
@@ -1164,7 +1133,7 @@ final class TreeMap(K, V, alias ImplTemp=RBTree, alias compareFunc=DefaultCompar
      *
      * Runs in O(lg(n)) time.
      */
-    bool containsKey(K key)
+    bool containsKey(const(K) key) const
     {
         return !elemAt(key).empty;
     }

@@ -168,7 +168,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         /**
          * get the value at this position
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ HashMultiset.stringof);
             return position.ptr.value;
@@ -195,7 +195,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         /**
          * length of the cursor range, which is always either 0 or 1.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -204,7 +204,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
          * opIndex costs nothing, and it allows more algorithms to accept
          * cursors.
          */
-        @property V opIndex(size_t idx)
+        inout(V) opIndex(size_t idx) inout
         {
             assert(idx < length, "Attempt to access invalid index on cursor");
             return position.ptr.value;
@@ -214,7 +214,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
          * trivial save implementation to implement forward range
          * functionality.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -265,7 +265,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         /**
          * is the range empty?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _begin is _end;
         }
@@ -273,29 +273,23 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         /**
          * Get a cursor to the first element in the range
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor c;
-            c.position = _begin;
-            c._empty = empty;
-            return c;
+            return inout(cursor)(_begin, empty);
         }
 
         /**
          * Get a cursor to the end element in the range
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor c;
-            c.position = _end;
-            c._empty = true;
-            return c;
+            return inout(cursor)(_end, true);
         }
 
         /**
          * Get the first value in the range
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!empty, "Attempting to read front of an empty range of " ~ HashMultiset.stringof);
             return _begin.ptr.value;
@@ -304,7 +298,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         /**
          * Get the last value in the range
          */
-        @property V back()
+        @property inout(V) back() inout
         {
             assert(!empty, "Attempting to read back of an empty range of " ~ HashMultiset.stringof);
             return _end.prev.ptr.value;
@@ -331,7 +325,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         /**
          * Implement save as required by forward ranges now.
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -366,7 +360,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
     /**
      * Determine if a cursor belongs to the hashmultiset
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         // rely on the implementation to tell us
         return _hash.belongs(c.position);
@@ -375,7 +369,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
     /**
      * Determine if a range belongs to the hashmultiset
      */
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return _hash.belongs(r._begin) && _hash.belongs(r._end);
     }
@@ -537,23 +531,18 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
     /**
      * returns a cursor to the first element in the collection.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
-        cursor it;
-        it.position = _hash.begin;
-        return it;
+        return inout(cursor)(_hash.begin, _hash.count == 0);
     }
 
     /**
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    cursor end()
+    inout(cursor) end() inout
     {
-        cursor it;
-        it.position = _hash.end;
-        it._empty = true;
-        return it;
+        return inout(cursor)(_hash.end, true);
     }
 
     /**
@@ -607,19 +596,16 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
     /**
      * get a slice of all the elements in this hashmap.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result._begin = _hash.begin;
-        result._end = _hash.end;
-        return result;
+        return inout(range)(_hash.begin, _hash.end);
     }
 
     /**
      * get a slice of the elements between the two cursors.  Runs on average
      * O(1) time.
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         // for hash multiset, we only support ranges that begin on the first
         // cursor, or end on the last cursor.  This is because to check that b
@@ -629,10 +615,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
         //if((b == begin && belongs(e)) || (e == end && belongs(b)))
         if((begin == b && belongs(e)) || (end == e && belongs(b)))
         {
-            range result;
-            result._begin = b.position;
-            result._end = e.position;
-            return result;
+            return inout(range)(b.position, e.position);
         }
         throw new Exception("invalid slice parameters to " ~ HashMultiset.stringof);
     }
@@ -672,12 +655,10 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
      *
      * Runs in average O(1) time.
      */
-    cursor elemAt(V v)
+    inout(cursor) elemAt(V v) inout
     {
-        cursor it;
-        it.position = _hash.find(v);
-        it._empty = it.position is _hash.end;
-        return it;
+        auto pos = _hash.find(v);
+        return inout(cursor)(pos, pos == _hash.end);
     }
 
     static if(doUnittest) unittest
@@ -692,7 +673,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
      *
      * Runs in average O(1) time.
      */
-    bool contains(V v)
+    bool contains(V v) const
     {
         return !elemAt(v).empty;
     }
@@ -703,16 +684,14 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
      *
      * Returns end if no more instances of v exist in the collection.
      */
-    cursor elemAt(cursor start, V v)
+    inout(cursor) elemAt(inout(cursor) start, V v) inout
     {
         if(start.position == _hash.end)
         {
-            start._empty = true;
-            return start;
+            return inout(cursor)(start.position, true);
         }
-        start.position = _hash.find(v, start.position.next);
-        start._empty = start.position is _hash.end;
-        return start;
+        auto pos = _hash.find(v, start.position.next);
+        return inout(cursor)(pos, pos == _hash.end);
     }
 
     static if(doUnittest) unittest
@@ -826,7 +805,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
      * Runs on average in O(m * 1) time, where m is the number of elements
      * that are v.
      */
-    size_t count(V v)
+    size_t count(const(V) v) const
     {
         return _hash.countAll(v);
     }
@@ -872,7 +851,7 @@ final class HashMultiset(V, alias ImplTemp=HashDup, alias hashFunction=DefaultHa
      * get the most convenient element in the set.  This is the element that
      * would be iterated first.
      */
-    V get()
+    inout(V) get() inout
     {
         return begin.front;
     }

@@ -94,7 +94,7 @@ version(unittest)
  *
  * void clear() -> removes all elements from the tree, sets count to 0.
  */
-class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = DefaultCompare) : Set!(V)
+class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = DefaultCompare!V) : Set!(V)
 {
     version(unittest)
     {
@@ -137,7 +137,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * get the value in this element
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeSet.stringof);
             return ptr.value;
@@ -164,7 +164,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * length of the cursor range, which is always either 0 or 1.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -173,7 +173,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          * opIndex costs nothing, and it allows more algorithms to accept
          * cursors.
          */
-        @property V opIndex(size_t idx)
+        inout(V) opIndex(size_t idx) inout
         {
             assert(idx < length, "Attempt to access invalid index on cursor");
             return ptr.value;
@@ -183,7 +183,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
          * trivial save implementation to implement forward range
          * functionality.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -230,7 +230,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * is the range empty?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _begin is _end;
         }
@@ -238,29 +238,23 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * Get a cursor to the first element in the range
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor c;
-            c.ptr = _begin;
-            c._empty = empty;
-            return c;
+            return inout(cursor)(_begin, empty);
         }
 
         /**
          * Get a cursor to the end element in the range
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor c;
-            c.ptr = _end;
-            c._empty = true;
-            return c;
+            return inout(cursor)(_end, true);
         }
 
         /**
          * Get the first value in the range
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeSet.stringof);
             return _begin.value;
@@ -269,7 +263,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * Get the last value in the range
          */
-        @property V back()
+        @property inout(V) back() inout
         {
             assert(!empty, "Attempting to read the back of an empty range of " ~ TreeSet.stringof);
             return _end.prev.value;
@@ -296,7 +290,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
         /**
          * Implement save as required by forward ranges now.
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -329,7 +323,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * Determine if a cursor belongs to the collection
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         // rely on the implementation to tell us
         return _tree.belongs(c.ptr);
@@ -338,7 +332,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * Determine if a range belongs to the collection
      */
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return _tree.belongs(r._begin) && (r.empty || _tree.belongs(r._end));
     }
@@ -494,24 +488,18 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * returns a cursor to the first element in the collection.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
-        cursor it;
-        it.ptr = _tree.begin;
-        it._empty = (_tree.count == 0);
-        return it;
+        return inout(cursor)(_tree.begin, _tree.count == 0);
     }
 
     /**
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
-        cursor it;
-        it.ptr = _tree.end;
-        it._empty = true;
-        return it;
+        return inout(cursor)(_tree.end, true);
     }
 
     /**
@@ -567,24 +555,9 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
     /**
      * get a slice of all the elements in this collection.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result._begin = _tree.begin;
-        result._end = _tree.end;
-        return result;
-    }
-
-    /*
-     * Create a range without checks to make sure b and e are part of the
-     * collection.
-     */
-    private range _slice(cursor b, cursor e)
-    {
-        range result;
-        result._begin = b.ptr;
-        result._end = e.ptr;
-        return result;
+        return inout(range)(_tree.begin, _tree.end);
     }
 
     /**
@@ -594,13 +567,13 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      * is possible to determine ordering, even for cursors with equal values,
      * in O(lgn) time.
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         int order;
         if(_tree.positionCompare(b.ptr, e.ptr, order) && order <= 0)
         {
             // both cursors are part of the tree map and are correctly ordered.
-            return _slice(b, e);
+            return inout(range)(b.ptr, e.ptr);
         }
         throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
     }
@@ -617,7 +590,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * runs in O(lgn) time.
      */
-    range opSlice(V b, V e)
+    inout(range) opSlice(const(V) b, const(V) e) inout
     {
         if(compareFunction(b, e) <= 0)
         {
@@ -627,7 +600,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             // of the tree, we just verified that!
             if(!belem.empty && !eelem.empty)
             {
-                return _slice(belem, eelem);
+                return inout(range)(belem.ptr, eelem.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
@@ -638,7 +611,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * runs in O(lgn) time.
      */
-    range opSlice(V b, cursor e)
+    inout(range) opSlice(const(V) b, inout(cursor) e) inout
     {
         auto belem = elemAt(b);
         if(!belem.empty)
@@ -646,7 +619,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             int order;
             if(_tree.positionCompare(belem.ptr, e.ptr, order) && order <= 0)
             {
-                return _slice(belem, e);
+                return inout(range)(belem.ptr, e.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
@@ -657,7 +630,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * runs in O(lgn) time.
      */
-    range opSlice(cursor b, V e)
+    inout(range) opSlice(inout(cursor) b, const(V) e) inout
     {
         auto eelem = elemAt(e);
         if(!eelem.empty)
@@ -665,7 +638,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
             int order;
             if(_tree.positionCompare(b.ptr, eelem.ptr, order) && order <= 0)
             {
-                return _slice(b, eelem);
+                return inout(range)(b.ptr, eelem.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeSet.stringof);
@@ -762,12 +735,10 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * Runs in O(lg(n)) time.
      */
-    cursor elemAt(V v)
+    inout(cursor) elemAt(const(V) v) inout
     {
-        cursor it;
-        it.ptr = _tree.find(v);
-        it._empty = it.ptr is _tree.end;
-        return it;
+        auto ptr = _tree.find(v);
+        return inout(cursor)(ptr, ptr is _tree.end);
     }
 
     static if(doUnittest) unittest
@@ -783,7 +754,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      *
      * Runs in O(lg(n)) time.
      */
-    bool contains(V v)
+    bool contains(const(V) v) const
     {
         return !elemAt(v).empty;
     }
@@ -1042,7 +1013,7 @@ class TreeSet(V, alias ImplTemp = RBNoUpdatesTree, alias compareFunction = Defau
      * would be iterated first.  Therefore, calling remove(get()) is
      * guaranteed to be less than an O(n) operation.
      */
-    V get()
+    inout(V) get() inout
     {
         return begin.front;
     }

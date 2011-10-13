@@ -162,10 +162,8 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
     /**
      * Returns the element at the front of the list, or the oldest element
      * added.  If the list is empty, calling front is undefined.
-     *
-     * TODO: should be inout
      */
-    V front();
+    inout(V) front() inout;
 
     /**
      * Returns the element at the end of the list, or the most recent element
@@ -173,7 +171,7 @@ interface List(V) : Addable!V, Iterator!V, Purgeable!V
      *
      * TODO: should be inout
      */
-    V back();
+    inout(V) back() inout;
 
     /**
      * Takes the element at the end of the list, and return its value.  This

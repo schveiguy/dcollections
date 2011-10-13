@@ -96,7 +96,7 @@ version(unittest)
  *
  * node removeAll(V v) -> removes all the given values from the tree.
  */
-final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultCompare) : Multiset!(V)
+final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=DefaultCompare!V) : Multiset!(V)
 {
     version(unittest)
     {
@@ -145,7 +145,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         /**
          * get the value in this element
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ TreeMultiset.stringof);
             return ptr.value;
@@ -172,7 +172,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         /**
          * length of the cursor range, which is always either 0 or 1.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -181,7 +181,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
          * opIndex costs nothing, and it allows more algorithms to accept
          * cursors.
          */
-        @property V opIndex(size_t idx)
+        inout(V) opIndex(size_t idx) inout
         {
             assert(idx < length, "Attempt to access invalid index on cursor");
             return ptr.value;
@@ -191,7 +191,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
          * trivial save implementation to implement forward range
          * functionality.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -239,7 +239,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         /**
          * is the range empty?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _begin is _end;
         }
@@ -247,29 +247,23 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         /**
          * Get a cursor to the first element in the range
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor c;
-            c.ptr = _begin;
-            c._empty = empty;
-            return c;
+            return inout(cursor)(_begin, empty);
         }
 
         /**
          * Get a cursor to the end element in the range
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor c;
-            c.ptr = _end;
-            c._empty = true;
-            return c;
+            return inout(cursor)(_end, true);
         }
 
         /**
          * Get the first value in the range
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!empty, "Attempting to read front of an empty range cursor of " ~ TreeMultiset.stringof);
             return _begin.value;
@@ -278,7 +272,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         /**
          * Get the last value in the range
          */
-        @property V back()
+        @property inout(V) back() inout
         {
             assert(!empty, "Attempting to read the back of an empty range of " ~ TreeMultiset.stringof);
             return _end.prev.value;
@@ -305,7 +299,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         /**
          * Implement save as required by forward ranges now.
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -339,7 +333,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
     /**
      * Determine if a cursor belongs to the collection
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         // rely on the implementation to tell us
         return _tree.belongs(c.ptr);
@@ -348,7 +342,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
     /**
      * Determine if a range belongs to the collection
      */
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return _tree.belongs(r._begin) && (r.empty || _tree.belongs(r._end));
     }
@@ -510,24 +504,18 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
     /**
      * returns a cursor to the first element in the collection.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
-        cursor it;
-        it.ptr = _tree.begin;
-        it._empty = (_tree.count == 0);
-        return it;
+        return inout(cursor)(_tree.begin, _tree.count == 0);
     }
 
     /**
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
-        cursor it;
-        it.ptr = _tree.end;
-        it._empty = true;
-        return it;
+        return inout(cursor)(_tree.end, true);
     }
 
     /**
@@ -587,24 +575,9 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
     /**
      * get a slice of all the elements in this collection.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result._begin = _tree.begin;
-        result._end = _tree.end;
-        return result;
-    }
-
-    /*
-     * Create a range without checks to make sure b and e are part of the
-     * collection.
-     */
-    private range _slice(cursor b, cursor e)
-    {
-        range result;
-        result._begin = b.ptr;
-        result._end = e.ptr;
-        return result;
+        return inout(range)(_tree.begin, _tree.end);
     }
 
     /**
@@ -614,13 +587,13 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      * is possible to determine ordering, even for cursors with equal values,
      * in O(lgn) time.
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         int order;
         if(_tree.positionCompare(b.ptr, e.ptr, order) && order <= 0)
         {
             // both cursors are part of the tree map and are correctly ordered.
-            return _slice(b, e);
+            return inout(range)(b.ptr, e.ptr);
         }
         throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
     }
@@ -637,7 +610,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      *
      * runs in O(lgn) time.
      */
-    range opSlice(V b, V e)
+    inout opSlice(const(V) b, const(V) e) inout
     {
         if(compareFunction(b, e) <= 0)
         {
@@ -647,7 +620,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
             // of the tree, we just verified that!
             if(!belem.empty && !eelem.empty)
             {
-                return _slice(belem, eelem);
+                return inout(range)(belem.ptr, eelem.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
@@ -658,7 +631,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      *
      * runs in O(lgn) time.
      */
-    range opSlice(V b, cursor e)
+    inout(range) opSlice(const(V) b, inout(cursor) e) inout
     {
         auto belem = elemAt(b);
         if(!belem.empty)
@@ -666,7 +639,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
             int order;
             if(_tree.positionCompare(belem.ptr, e.ptr, order) && order <= 0)
             {
-                return _slice(belem, e);
+                return inout(range)(belem.ptr, e.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
@@ -677,7 +650,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      *
      * runs in O(lgn) time.
      */
-    range opSlice(cursor b, V e)
+    inout(range) opSlice(inout(cursor) b, const(V) e) inout
     {
         auto eelem = elemAt(e);
         if(!eelem.empty)
@@ -685,7 +658,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
             int order;
             if(_tree.positionCompare(b.ptr, eelem.ptr, order) && order <= 0)
             {
-                return _slice(b, eelem);
+                return inout(range)(b.ptr, eelem.ptr);
             }
         }
         throw new Exception("invalid slice parameters to " ~ TreeMultiset.stringof);
@@ -783,12 +756,10 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      *
      * Runs in O(lg(n)) time.
      */
-    cursor elemAt(V v)
+    inout(cursor) elemAt(const(V) v) inout
     {
-        cursor it;
-        it.ptr = _tree.find(v);
-        it._empty = it.ptr == _tree.end;
-        return it;
+        auto ptr = _tree.find(v);
+        return inout(cursor)(ptr, ptr == _tree.end);
     }
 
     static if(doUnittest) unittest
@@ -798,15 +769,13 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
         assert(tms.elemAt(6).empty);
     }
 
-    range allElemsAt(V v)
+    inout(range) allElemsAt(const(V) v) inout
     {
-        range r;
-        auto elem = _tree.find(v);
-        r._begin = elem;
+        auto beg = _tree.find(v);
+        _tree.ioNode elem = beg;
         while(elem !is _tree.end && elem.value == v)
             elem = elem.next;
-        r._end = elem;
-        return r;
+        return inout(range)(beg, elem);
     }
 
     static if(doUnittest) unittest
@@ -822,7 +791,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      *
      * Runs in O(lg(n)) time.
      */
-    bool contains(V v)
+    bool contains(const(V) v) const
     {
         return !elemAt(v).empty;
     }
@@ -930,7 +899,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      *
      * Runs in O(m lg(n)) time, where m is the number of elements that are v.
      */
-    size_t count(V v)
+    size_t count(const(V) v) const
     {
         return _tree.countAll(v);
     }
@@ -974,7 +943,7 @@ final class TreeMultiset(V, alias ImplTemp = RBDupTree, alias compareFunction=De
      * would be iterated first.  Therefore, calling remove(get()) is
      * guaranteed to be less than an O(n) operation.
      */
-    @property V get()
+    @property inout(V) get() inout
     {
         return begin.front;
     }

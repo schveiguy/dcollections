@@ -80,7 +80,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * get the value pointed to
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ Deque.stringof);
             return _pre ? *(ptr-1) : *ptr;
@@ -114,7 +114,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * returns true if this cursor does not point to a valid element.
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _empty;
         }
@@ -123,7 +123,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
          * Length is trivial to add, allows cursors to be used in more
          * algorithms.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -132,7 +132,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
          * opIndex costs nothing, and it allows more algorithms to accept
          * cursors.
          */
-        @property V opIndex(size_t idx)
+        inout(V) opIndex(size_t idx) inout
         {
             assert(idx < length, "Attempt to access invalid index on cursor of type " ~ Deque.stringof);
             return front;
@@ -141,7 +141,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * Save property needed to satisfy forwardRange requirements.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -173,7 +173,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
          * Get/set the first element in the range.  Illegal to call this on an
          * empty range.
          */
-        @property ref V front()
+        @property ref inout(V) front() inout
         {
             return _pre.length ? _pre[$-1] : _post[0];
         }
@@ -182,7 +182,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
          * Get/set the last element in the range.  Illegal to call this on an
          * empty range.
          */
-        @property ref V back()
+        @property ref inout(V) back() inout
         {
             return _post.length ? _post[$-1] : _pre[0];
         }
@@ -212,7 +212,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * Get the item at the given index.
          */
-        ref V opIndex(size_t key)
+        ref inout(V) opIndex(size_t key) inout
         {
             if(_pre.length > key)
                 return _pre[$-1-key];
@@ -224,31 +224,28 @@ class Deque(V) : Keyed!(size_t, V), List!V
          * Slice a range according to two indexes.  This is required for random
          * access ranges.
          */
-        range opSlice(size_t low, size_t hi)
+        inout(range) opSlice(size_t low, size_t hi) inout
         {
             assert(low <= hi, "invalid parameters used to slice " ~ Deque.stringof);
-            range result;
             if(low < _pre.length)
             {
                 if(hi < _pre.length)
-                    result._pre = _pre[$-hi..$-low];
+                    return inout(range)(_pre[$-hi..$-low], null);
                 else
                 {
-                    result._pre = _pre[0..$-low];
-                    result._post = _post[0..hi-_pre.length];
+                    return inout(range)(_pre[0..$-low], _post[0..hi-_pre.length]);
                 }
             }
             else
             {
-                result._post = _post[low-_pre.length..hi-_pre.length];
+                return inout(range)(null, _post[low-_pre.length..hi-_pre.length]);
             }
-            return result;
         }
 
         /**
          * The length of the range.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _pre.length + _post.length;
         } 
@@ -256,7 +253,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * Does this range contain any elements?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return length == 0;
         }
@@ -264,7 +261,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * Required save function to satisfy isForwardRange
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -272,24 +269,20 @@ class Deque(V) : Keyed!(size_t, V), List!V
         /**
          * Get a cursor that points to the beginning of this range.
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor result;
-            result._pre = _pre.length ? true : false;
-            result.ptr = result._pre ? _pre.ptr + _pre.length : _post.ptr;
-            result._empty = (length == 0);
-            return result;
+            if(_pre.length)
+               return inout(cursor)(_pre.ptr + _pre.length, true, false);
+            else
+               return inout(cursor)(_post.ptr, false, _post.length == 0);
         }
 
         /**
          * Get a cursor that points to the end of this range.
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor result;
-            result.ptr = _post.ptr + _post.length;
-            result._empty = true;
-            return result;
+            return inout(cursor)(_post.ptr + _post.length, false, true);
         }
     }
 
@@ -352,7 +345,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
     /**
      * return a cursor that points to the first element in the list.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
         return this[].begin;
     }
@@ -361,7 +354,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      * return a cursor that points to just beyond the last element in the
      * list.  The cursor will be empty, so you cannot call front on it.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
         return this[].end;
     }
@@ -671,24 +664,21 @@ class Deque(V) : Keyed!(size_t, V), List!V
     /**
      * get a cursor at the given index
      */
-    cursor elemAt(size_t idx)
+    inout(cursor) elemAt(size_t idx) inout
     in
     {
         assert(idx < length);
     }
     body
     {
-        cursor it;
         if(idx < _pre.length)
         {
-            it._pre = true;
-            it.ptr = _pre.ptr + (_pre.length - idx);
+            return inout(cursor)(_pre.ptr + (_pre.length - idx), true);
         }
         else
         {
-            it.ptr = _post.ptr + (idx - _pre.length);
+            return inout(cursor)(_post.ptr + (idx - _pre.length), false);
         }
-        return it;
     }
 
     static if(doUnittest) unittest
@@ -705,7 +695,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
     /**
      * get the value at the given index.
      */
-    V opIndex(size_t key)
+    inout(V) opIndex(const(size_t) key) inout
     {
         return elemAt(key).front;
     }
@@ -791,7 +781,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      *
      * Runs in O(1) time
      */
-    bool containsKey(size_t key)
+    bool containsKey(const(size_t) key) const
     {
         return key < length;
     }
@@ -1002,7 +992,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      * The returned slice begins at index b and ends at, but does not include,
      * index e.
      */
-    range opSlice(size_t b, size_t e)
+    inout(range) opSlice(size_t b, size_t e) inout
     {
         assert(b <= length && e <= length);
         range result;
@@ -1011,25 +1001,23 @@ class Deque(V) : Keyed!(size_t, V), List!V
         {
             if(e < prelen)
             {
-                result._pre = _pre[prelen-e..prelen-b];
+                return inout(range)(_pre[prelen-e..prelen-b], null);
             }
             else
             {
-                result._pre = _pre[0..prelen-b];
-                result._post = _post[0..e-prelen];
+                return inout(range)(_pre[0..prelen-b], _post[0..e-prelen]);
             }
         }
         else
         {
-            result._post = _post[b-prelen..e-prelen];
+            return inout(range)(null, _post[b-prelen..e-prelen]);
         }
-        return result;
     }
 
     /**
      * Slice an array given the cursors
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         // Convert b and e to indexes, then use the index function to do the
         // hard work.
@@ -1043,12 +1031,9 @@ class Deque(V) : Keyed!(size_t, V), List!V
      * the original array list just like appending to an array will not affect
      * the original.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result._pre = _pre;
-        result._post = _post;
-        return result;
+        return inout(range)(_pre, _post);
     }
 
     static if(doUnittest) unittest
@@ -1163,7 +1148,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      *  Look at the element at the front of the Deque.
      *  TODO: this should be inout
      */
-    @property V front()
+    @property inout(V) front() inout
     {
         return _pre.length ? _pre[$-1] : _post[0];
     }
@@ -1172,7 +1157,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      * Look at the element at the end of the Deque.
      * TODO: this should be inout
      */
-    @property V back()
+    @property inout(V) back() inout
     {
         return _post.length ? _post[$-1] : _pre[0];
     }
@@ -1208,7 +1193,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
     /**
      * Get the index of a particular cursor.
      */
-    size_t indexOf(cursor c)
+    size_t indexOf(const(cursor) c) const
     {
         assert(belongs(c));
         if(c._pre)
@@ -1226,7 +1211,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
      * part of the container.  If the cursor is the same as the end cursor,
      * true is also returned.
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         if(c._pre)
         {
@@ -1245,7 +1230,7 @@ class Deque(V) : Keyed!(size_t, V), List!V
         }
     }
 
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         // ensure that r's pre and post are fully enclosed by our pre and post
         if(r._pre.length > 0)

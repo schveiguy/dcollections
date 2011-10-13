@@ -85,7 +85,7 @@ struct RBNode(V)
     /**
      * Get the left child
      */
-    @property Node left()
+    @property inout(Node) left() inout
     {
         return _left;
     }
@@ -93,7 +93,7 @@ struct RBNode(V)
     /**
      * Get the right child
      */
-    @property Node right()
+    @property inout(Node) right() inout
     {
         return _right;
     }
@@ -101,7 +101,7 @@ struct RBNode(V)
     /**
      * Get the parent
      */
-    @property Node parent()
+    @property inout(Node) parent() inout
     {
         return _parent;
     }
@@ -528,9 +528,9 @@ struct RBNode(V)
     /**
      * Return the leftmost descendant of this node.
      */
-    @property Node leftmost()
+    @property inout(Node) leftmost() inout
     {
-        Node result = &this;
+        inout(RBNode)* result = &this;
         while(result._left !is null)
             result = result._left;
         return result;
@@ -539,9 +539,9 @@ struct RBNode(V)
     /**
      * Return the rightmost descendant of this node
      */
-    @property Node rightmost()
+    @property inout(Node) rightmost() inout
     {
-        Node result = &this;
+        inout(RBNode)* result = &this;
         while(result._right !is null)
             result = result._right;
         return result;
@@ -553,9 +553,9 @@ struct RBNode(V)
      * You should never call this on the marker node, as it is assumed that
      * there is a valid next node.
      */
-    @property Node next()
+    @property inout(Node) next() inout
     {
-        Node n = &this;
+        inout(RBNode)* n = &this;
         if(n.right is null)
         {
             while(!n.isLeftNode)
@@ -572,9 +572,9 @@ struct RBNode(V)
      * You should never call this on the leftmost node of the tree as it is
      * assumed that there is a valid previous node.
      */
-    @property Node prev()
+    @property inout(Node) prev() inout
     {
-        Node n = &this;
+        inout(RBNode)* n = &this;
         if(n.left is null)
         {
             while(n.isLeftNode)
@@ -624,9 +624,11 @@ struct RBNode(V)
 struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=DefaultAllocator, bool allowDuplicates=false, bool doUpdates=true)
 {
     /**
-     * Convenience alias
+     * Convenience aliases
      */
     alias RBNode!(V).Node Node;
+    alias inout(RBNode!V)* ioNode;
+    alias const(RBNode!V)* cNode;
 
     /**
      * alias for the allocator
@@ -646,7 +648,10 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     /**
      * The marker Node.  This is the parent of the root Node.
      */
-    Node end;
+    @property ioNode end() inout
+    {
+        return &_end;
+    }
 
     /*
      * the actual marker node, stored in the struct because it never changes.
@@ -658,7 +663,6 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
      */
     void setup()
     {
-        end = &_end;
     }
 
     /**
@@ -744,7 +748,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     /**
      * Return the lowest-valued Node in the tree
      */
-    @property Node begin()
+    @property ioNode begin() inout
     {
         return end.leftmost;
     }
@@ -774,7 +778,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
      * Find a Node in the tree with a given value.  Returns end if no such
      * Node exists.
      */
-    Node find(V v)
+    ioNode find(const(V) v) inout
     {
         static if(allowDuplicates)
         {
@@ -782,8 +786,8 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
             // find the left-most v, this allows the pointer to traverse
             // through all the v's.
             //
-            Node cur = end;
-            Node n = end.left;
+            ioNode cur = end;
+            ioNode n = end.left;
             while(n !is null)
             {
                 int cmpresult = compareFunc(n.value, v);
@@ -802,7 +806,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
         }
         else
         {
-            Node n = end.left;
+            ioNode n = end.left;
             int cmpresult;
             while(n !is null && (cmpresult = compareFunc(n.value, v)) != 0)
             {
@@ -820,7 +824,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
     /**
      * Returns true if n is a node from this tree.  Runs in O(lgn) time.
      */
-    bool belongs(Node n)
+    bool belongs(cNode n) const
     {
         // check for null
         if(!n)
@@ -842,7 +846,7 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
      *
      * This is used in slicing operations.
      */
-    bool positionCompare(Node a, Node b, out int order)
+    bool positionCompare(cNode a, cNode b, out int order) const
     {
         if(a is null || b is null)
             return false; // one or both of these don't belong
@@ -1048,9 +1052,9 @@ struct RBTree(V, alias compareFunc, alias updateFunction, alias Allocator=Defaul
          * Runs in O(m * lg(n)) where m is the number of v instances in the
          * collection, and n is the count of the collection.
          */
-        size_t countAll(V v)
+        size_t countAll(const(V) v) const
         {
-            Node n = find(v);
+            auto n = find(v);
             size_t retval = 0;
             while(n !is end && compareFunc(n.value, v) == 0)
             {

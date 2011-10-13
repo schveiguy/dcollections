@@ -107,7 +107,7 @@ version(unittest)
  *
  * void clear() -> removes all elements from the hash, sets count to 0.
  */
-final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) : Map!(K, V)
+final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash!K) : Map!(K, V)
 {
     version(unittest) private enum doUnittest = isIntegral!K && is(V == uint);
     else private enum doUnittest = false;
@@ -155,7 +155,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * Function to get the hash of an element
      */
-    static hash_t _hashFunction(ref element e)
+    static hash_t _hashFunction(ref const(element) e)
     {
         return hashFunction(e.key);
     }
@@ -189,7 +189,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * get the value at this cursor
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ HashMap.stringof);
             return position.ptr.value.val;
@@ -198,7 +198,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * get the key at this cursor
          */
-        @property K key()
+        @property inout(K) key() inout
         {
             assert(!_empty, "Attempting to read the key of an empty cursor of " ~ HashMap.stringof);
             return position.ptr.value.key;
@@ -235,7 +235,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * length of the cursor range, which is always either 0 or 1.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -244,7 +244,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
          * trivial save implementation to implement forward range
          * functionality.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -297,7 +297,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * is the range empty?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _begin is _end;
         }
@@ -305,29 +305,23 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * Get a cursor to the first element in the range
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor c;
-            c.position = _begin;
-            c._empty = empty;
-            return c;
+            return inout(cursor)(_begin, empty);
         }
 
         /**
          * Get a cursor to the end element in the range
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor c;
-            c.position = _end;
-            c._empty = true;
-            return c;
+            return inout(cursor)(_end, true);
         }
 
         /**
          * Get the first value in the range
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!empty, "Attempting to read front of an empty range of " ~ HashMap.stringof);
             return _begin.ptr.value.val;
@@ -346,7 +340,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * Get the key of the front element
          */
-        @property K key()
+        @property inout(K) key() inout
         {
             assert(!empty, "Attempting to read the key of an empty range of " ~ HashMap.stringof);
             return _begin.ptr.value.key;
@@ -355,7 +349,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * Get the last value in the range
          */
-        @property V back()
+        @property inout(V) back() inout
         {
             assert(!empty, "Attempting to read back of an empty range of " ~ HashMap.stringof);
             return _end.prev.ptr.value.val;
@@ -374,7 +368,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * Get the key of the last element
          */
-        @property K backKey()
+        @property inout(K) backKey() inout
         {
             assert(!empty, "Attempting to read the back key of an empty range of " ~ HashMap.stringof);
             return _end.prev.ptr.value.key;
@@ -401,7 +395,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         /**
          * Implement save as required by forward ranges now.
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -441,7 +435,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * Determine if a cursor belongs to the hashmap
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         // rely on the implementation to tell us
         return _hash.belongs(c.position);
@@ -450,7 +444,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * Determine if a range belongs to the hashmap
      */
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return _hash.belongs(r._begin) && _hash.belongs(r._end);
     }
@@ -656,23 +650,18 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * returns a cursor to the first element in the collection.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
-        cursor it;
-        it.position = _hash.begin;
-        return it;
+        return inout(cursor)(_hash.begin, _hash.count == 0);
     }
 
     /**
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
-        cursor it;
-        it.position = _hash.end;
-        it._empty = true;
-        return it;
+        return inout(cursor)(_hash.end, true);
     }
 
     /**
@@ -734,12 +723,9 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * get a slice of all the elements in this hashmap.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result._begin = _hash.begin;
-        result._end = _hash.end;
-        return result;
+        return inout(range)(_hash.begin, _hash.end);
     }
 
     /**
@@ -750,7 +736,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
      * opSlice returns quickly, and not knowing the implementation, we cannot
      * know if determining the order of two cursors is an O(n) operation.
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         // for hashmap, we only support ranges that begin on the first cursor,
         // or end on the last cursor.
@@ -758,10 +744,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
         //if((b == begin && belongs(e)) || (e == end && belongs(b)))
         if((begin == b && belongs(e)) || (end == e && belongs(b)))
         {
-            range result;
-            result._begin = b.position;
-            result._end = e.position;
-            return result;
+            return inout(range)(b.position, e.position);
         }
         throw new Exception("invalid slice parameters to " ~ HashMap.stringof);
     }
@@ -799,14 +782,10 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
      *
      * Runs in average O(1) time.
      */
-    cursor elemAt(K k)
+    inout(cursor) elemAt(const(K) k) inout
     {
-        cursor it;
-        element tmp;
-        tmp.key = k;
-        it.position = _hash.find(tmp);
-        it._empty = (it.position == _hash.end);
-        return it;
+        auto pos = _hash.find(const(element)(k, V.init));
+        return inout(cursor)(pos, pos == _hash.end);
     }
 
     static if(doUnittest) unittest
@@ -823,9 +802,9 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
      *
      * Runs on average in O(1) time.
      */
-    V opIndex(K key)
+    inout(V) opIndex(const(K) key) inout
     {
-        cursor it = elemAt(key);
+        auto it = elemAt(key);
         if(it.empty)
             throw new Exception("Index out of range");
         return it.front;
@@ -991,7 +970,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
      *
      * Runs on average in O(1) time.
      */
-    bool containsKey(K key)
+    bool containsKey(const(K) key) const
     {
         return !elemAt(key).empty;
     }
@@ -1008,7 +987,7 @@ final class HashMap(K, V, alias ImplTemp=Hash, alias hashFunction=DefaultHash) :
     /**
      * return an iterator that can be used to read all the keys
      */
-    Iterator!(K) keys()
+    Iterator!K keys()
     {
         return _keys;
     }

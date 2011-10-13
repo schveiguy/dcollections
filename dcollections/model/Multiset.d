@@ -86,9 +86,8 @@ interface Multiset(V) : Addable!V, Iterator!V, Purgeable!V
      * iterator.  This will be faster than finding a specific element because
      * it's guaranteed to be O(1), where finding a specific element is only
      * guaranteed to be O(lgN).
-     * TODO: this should be inout
      */
-    @property V get();
+    @property inout(V) get() inout;
 
     /**
      * Remove the most convenient element in the multiset and return its
@@ -102,5 +101,5 @@ interface Multiset(V) : Addable!V, Iterator!V, Purgeable!V
      * O(lgn * m) or better, where n is the number of elements in the multiset,
      * and m is the number of v elements in the multiset.
      */
-    size_t count(V v);
+    size_t count(const(V) v) const;
 }

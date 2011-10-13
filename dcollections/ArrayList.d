@@ -70,7 +70,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
         /**
          * get the value pointed to
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ ArrayList.stringof);
             return *ptr;
@@ -101,7 +101,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
         /**
          * returns true if this cursor does not point to a valid element.
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _empty;
         }
@@ -110,7 +110,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
          * Length is trivial to add, allows cursors to be used in more
          * algorithms.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -119,7 +119,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
          * opIndex costs nothing, and it allows more algorithms to accept
          * cursors.
          */
-        @property V opIndex(size_t idx)
+        inout(V) opIndex(size_t idx) inout
         {
             assert(idx < length, "Attempt to access invalid index on cursor");
             return *ptr;
@@ -128,7 +128,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
         /**
          * Save property needed to satisfy forwardRange requirements.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -222,7 +222,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
     /**
      * return a cursor that points to the first element in the list.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
         return _array.begin;
     }
@@ -231,7 +231,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
      * return a cursor that points to just beyond the last element in the
      * list.  The cursor will be empty, so you cannot call front on it.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
         return _array.end;
     }
@@ -427,18 +427,20 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
     /**
      * get a cursor at the given index
      */
-    cursor elemAt(size_t idx)
+    inout(cursor) elemAt(size_t idx) inout
+    in
     {
         assert(idx < _array.length);
-        cursor it;
-        it.ptr = _array.ptr + idx;
-        return it;
+    }
+    body
+    {
+        return inout(cursor)(_array.ptr + idx);
     }
 
     /**
      * get the value at the given index.
      */
-    V opIndex(size_t key)
+    inout(V) opIndex(const(size_t) key) inout
     {
         return _array[key];
     }
@@ -522,7 +524,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
      *
      * Runs in O(1) time
      */
-    bool containsKey(size_t key)
+    bool containsKey(const(size_t) key) const
     {
         return key < length;
     }
@@ -670,7 +672,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
      * The returned slice begins at index b and ends at, but does not include,
      * index e.
      */
-    range opSlice(size_t b, size_t e)
+    inout(range) opSlice(size_t b, size_t e) inout
     {
         return _array[b..e];
     }
@@ -678,7 +680,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
     /**
      * Slice an array given the cursors
      */
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         if(e.ptr >= b.ptr && e.ptr <= end.ptr && b.ptr >= begin.ptr)
             return b.ptr[0..(e.ptr-b.ptr)];
@@ -692,7 +694,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
      * the original array list just like appending to an array will not affect
      * the original.
      */
-    range opSlice()
+    inout(range) opSlice() inout
     {
         return _array;
     }
@@ -792,18 +794,16 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
 
     /**
      *  Look at the element at the front of the ArrayList.
-     *  TODO: this should be inout
      */
-    @property V front()
+    @property inout(V) front() inout
     {
         return _array[0];
     }
 
     /**
      * Look at the element at the end of the ArrayList.
-     * TODO: this should be inout
      */
-    @property V back()
+    @property inout(V) back() inout
     {
         return _array[$-1];
     }
@@ -830,7 +830,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
     /**
      * Get the index of a particular cursor.
      */
-    size_t indexOf(cursor c)
+    size_t indexOf(const(cursor) c) const
     {
         assert(belongs(c));
         return c.ptr - begin.ptr;
@@ -841,7 +841,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
      * part of the container.  If the cursor is the same as the end cursor,
      * true is also returned.
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         auto last = end;
         if(c.ptr == last.ptr && !c.empty)
@@ -850,7 +850,7 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
         return c.ptr >= _array.ptr && c.ptr <= last.ptr;
     }
 
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return(r.ptr >= _array.ptr && r.ptr + r.length <= _array.ptr + _array.length);
     }
@@ -961,23 +961,17 @@ final class ArrayList(V) : Keyed!(size_t, V), List!(V)
 /**
  * Get the begin cursor of an ArrayList range.
  */
-@property ArrayList!(T).cursor begin(T)(T[] r)
+@property inout(ArrayList!(T).cursor) begin(T)(inout(T[]) r)
 {
-    ArrayList!(T).cursor c;
-    c.ptr = r.ptr;
-    c._empty = r.empty;
-    return c;
+    return inout(ArrayList!(T).cursor)(r.ptr, r.empty);
 }
 
 /**
  * Get the end cursor of an ArrayList range.
  */
-@property ArrayList!T.cursor end(T)(T[] r)
+@property inout(ArrayList!T.cursor) end(T)(inout(T[]) r)
 {
-    ArrayList!T.cursor c;
-    c.ptr = r.ptr + r.length;
-    c._empty = true;
-    return c;
+    return inout(ArrayList!(T).cursor)(r.ptr + r.length, true);
 }
 
 unittest

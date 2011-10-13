@@ -113,7 +113,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * get the value pointed to by this cursor
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!_empty, "Attempting to read the value of an empty cursor of " ~ LinkList.stringof);
             return ptr.value;
@@ -131,7 +131,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * return true if the range is empty
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _empty;
         }
@@ -149,7 +149,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * length of the cursor range, which is always either 0 or 1.
          */
-        @property size_t length()
+        @property size_t length() const
         {
             return _empty ? 0 : 1;
         }
@@ -158,7 +158,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
          * opIndex costs nothing, and it allows more algorithms to accept
          * cursors.
          */
-        @property V opIndex(size_t idx)
+        inout(V) opIndex(size_t idx) inout
         {
             assert(idx < length, "Attempt to access invalid index on cursor");
             return ptr.value;
@@ -168,7 +168,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
          * trivial save implementation to implement forward range
          * functionality.
          */
-        @property cursor save()
+        @property inout(cursor) save() inout
         {
             return this;
         }
@@ -224,7 +224,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * is the range empty?
          */
-        @property bool empty()
+        @property bool empty() const
         {
             return _begin is _end;
         }
@@ -232,31 +232,23 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * Get a cursor to the first element in the range
          */
-        @property cursor begin()
+        @property inout(cursor) begin() inout
         {
-            cursor c;
-            c.ptr = _begin;
-            c.owner = owner;
-            c._empty = empty;
-            return c;
+            return inout(cursor)(_begin, empty, owner);
         }
 
         /**
          * Get a cursor to the end element in the range
          */
-        @property cursor end()
+        @property inout(cursor) end() inout
         {
-            cursor c;
-            c.ptr = _end;
-            c.owner = owner;
-            c._empty = true;
-            return c;
+            return inout(cursor)(_end, true, owner);
         }
 
         /**
          * Get the first value in the range
          */
-        @property V front()
+        @property inout(V) front() inout
         {
             assert(!empty, "Attempting to read front of an empty range of " ~ LinkList.stringof);
             return _begin.value;
@@ -275,7 +267,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * Get the last value in the range
          */
-        @property V back()
+        @property inout(V) back() inout
         {
             assert(!empty, "Attempting to read front of an empty range of " ~ LinkList.stringof);
             return _end.prev.value;
@@ -312,7 +304,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         /**
          * Implement save as required by forward ranges now.
          */
-        @property range save()
+        @property inout(range) save() inout
         {
             return this;
         }
@@ -350,7 +342,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * Determine if a cursor belongs to the container
      */
-    bool belongs(cursor c)
+    bool belongs(const(cursor) c) const
     {
         return c.owner is this;
     }
@@ -358,7 +350,7 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * Determine if a range belongs to the container
      */
-    bool belongs(range r)
+    bool belongs(const(range) r) const
     {
         return r.owner is this;
     }
@@ -441,26 +433,18 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     /**
      * returns a cursor to the first element in the collection.
      */
-    @property cursor begin()
+    @property inout(cursor) begin() inout
     {
-        cursor it;
-        it.owner = this;
-        it.ptr = _link.begin;
-        it._empty = (_link.count == 0);
-        return it;
+        return inout(cursor)(_link.begin, _link.count == 0, this);
     }
 
     /**
      * returns a cursor that points just past the last element in the
      * collection.
      */
-    @property cursor end()
+    @property inout(cursor) end() inout
     {
-        cursor it;
-        it.owner = this;
-        it.ptr = _link.end;
-        it._empty = true;
-        return it;
+        return inout(cursor)(_link.end, true, this);
     }
 
     /**
@@ -512,26 +496,18 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
         assert(ll == cast(V[])[1, 2, 5]);
     }
 
-    range opSlice()
+    inout(range) opSlice() inout
     {
-        range result;
-        result.owner = this;
-        result._begin = _link.begin;
-        result._end = _link.end;
-        return result;
+        return inout(range)(_link.begin, _link.end, this);
     }
 
-    range opSlice(cursor b, cursor e)
+    inout(range) opSlice(inout(cursor) b, inout(cursor) e) inout
     {
         // TODO: fix this when compiler is sane!
         //if((b == begin && belongs(e)) || (e == end && belongs(b)))
         if((begin == b && belongs(e)) || (end == e && belongs(b)))
         {
-            range result;
-            result.owner = this;
-            result._begin = b.ptr;
-            result._end = e.ptr;
-            return result;
+            return inout(range)(b.ptr, e.ptr, this);
         }
         throw new Exception("invalid slice parameters to " ~ LinkList.stringof);
     }
@@ -809,10 +785,8 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
 
     /**
      * return the last element in the list.  Undefined if the list is empty.
-     *
-     * TODO: should be inout
      */
-    @property V back()
+    @property inout(V) back() inout
     {
         assert(length != 0, "Attempting to get last element of empty " ~ LinkList.stringof);
         return _link.end.prev.value;
@@ -820,9 +794,8 @@ final class LinkList(V, alias ImplTemp = LinkHead) : List!(V)
     
     /**
      * return the first element in the list.  Undefined if the list is empty.
-     * TODO: should be inout
      */
-    @property V front()
+    @property inout(V) front() inout
     {
         assert(length != 0, "Attempting to get first element of empty " ~ LinkList.stringof);
         return _link.begin.value;

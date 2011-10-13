@@ -101,9 +101,9 @@ struct Link(V)
     /**
      * count how many nodes until endNode.
      */
-    size_t count(Node endNode = null)
+    size_t count(Node endNode = null) const
     {
-        Node x = &this;
+        const(Link!V)* x = &this;
         size_t c = 0;
         while(x !is endNode)
         {
@@ -196,7 +196,7 @@ struct LinkHead(V, alias Allocator=DefaultAllocator)
     /**
      * Get the first valid node in the list
      */
-    @property Node begin()
+    @property inout(Node) begin() inout
     {
         return end.next;
     }

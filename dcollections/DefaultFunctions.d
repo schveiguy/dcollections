@@ -32,7 +32,7 @@ module dcollections.DefaultFunctions;
 /**
  * Define the default compare
  */
-int DefaultCompare(V)(ref V v1, ref V v2)
+int DefaultCompare(V)(ref const(V) v1, ref const(V) v2)
 {
     return typeid(V).compare(&v1, &v2);
 }
@@ -53,7 +53,7 @@ bool DefaultLess(V)(ref V v1, ref V v2)
 /**
  * Define the default hash function
  */
-hash_t DefaultHash(V)(ref V v)
+hash_t DefaultHash(V)(ref const(V) v)
 {
     return typeid(V).getHash(&v);
 }
