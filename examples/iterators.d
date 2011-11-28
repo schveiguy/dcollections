@@ -31,7 +31,7 @@ void main()
     for(int i = 0; i < 10; i++)
         x.add(i + 1);
 
-    printk!(uint, int)(x, "original list");
+    printk!(size_t, int)(x, "original list");
 
     //
     // use a filter iterator to filter only elements you want.
@@ -66,20 +66,20 @@ void main()
     // one can use the keyed transform iterator to transform keyed iterators
     // to normal iterators
     //
-    print!(long)(new TransformKeyedIterator!(int, long, uint, int)(x, function void(ref uint idx, ref int v, ref int ignored, ref long result){ result = 0x1_0000_0000L * idx + v;}), "indexes and values combined");
+    print!(long)(new TransformKeyedIterator!(int, long, size_t, int)(x, function void(ref size_t idx, ref int v, ref int ignored, ref long result){ result = 0x1_0000_0000L * idx + v;}), "indexes and values combined");
 
     //
     // chained keyed iterator
     //
-    printk!(uint, int)(new ChainKeyedIterator!(uint, int)(x, x, x),  "prints elements 3 times (keyed)");
+    printk!(size_t, int)(new ChainKeyedIterator!(size_t, int)(x, x, x),  "prints elements 3 times (keyed)");
 
     //
     // keyed filter iterators
     //
-    printk!(uint, int)(new FilterKeyedIterator!(uint, int)(x, function bool(ref uint idx, ref int v){return idx % 2 == 0;}),  "prints values at even indexes");
+    printk!(size_t, int)(new FilterKeyedIterator!(size_t, int)(x, function bool(ref size_t idx, ref int v){return idx % 2 == 0;}),  "prints values at even indexes");
 
     //
     // add all elements to an AA
     //
-    writefln("converted to an AA: %s", toAA!(uint, int)(x));
+    writefln("converted to an AA: %s", toAA!(size_t, int)(x));
 }
