@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Dcollections : Collection package for D" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Dcollections</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/schveiguy/dcollections">View on GitHub</a>
+
+          <h1 id="project_title">Dcollections</h1>
+          <h2 id="project_tagline">Collection package for D</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/schveiguy/dcollections/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/schveiguy/dcollections/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>Welcome to dcollections</h1>
+
+<p><em>(note that some links still point back at dsource, which I will fix when I move that data/pages over to github).</em></p>
+
+<p>dcollections is an implementation of collection classes inspired by Tango, Java, and C++.  The goal of dcollections is to provide an efficient collections implementation that uses as many D ideas as possible.</p>
+
+<p>Dcollections 1.0 has been released and will no longer be maintained (anyone interested in continuing development, please send me a message, and I will link to your fork).  It is located in the D1 branch.  </p>
+
+<p>Dcollections 2.0 has gone into beta.  Version 2.0 is built for D2, and will not work with D1.  The version numbers will be 2.0a, 2.0b, etc. until it comes out of beta, and then it will be just called 2.0.  The current beta release 2.0c is available in <a href="http://www.dsource.org/projects/dcollections/browser/downloads/dcollections-2.0c.tgz?format=raw">tarball</a> and <a href="http://www.dsource.org/projects/dcollections/browser/downloads/dcollections-2.0c.zip?format=raw%20zip">zip</a> formats.</p>
+
+<h3>License</h3>
+
+<p>dcollections 1.0 is Open Source software distributed under the BSD License.  See the full license <a href="http://www.dsource.org/projects/dcollections/wiki/LibraryLicense">here</a>.</p>
+
+<p>dcollections 2.0 is Open Source software distributed under the Boost License.  See the full license <a href="http://www.dsource.org/projects/dcollections/wiki/LibraryLicenseBoost">here</a>.</p>
+
+<h3>Features</h3>
+
+<ul>
+<li>Hash, RBTree, Link, Array, and Deque implementations for appropriate containers.</li>
+<li>List, Set, Map, and Multiset containers provided.</li>
+<li>Able to swap out underlying implementation of a container, or customize implementation.</li>
+<li>Minimized heap activity.  All cursors and ranges are struct-based.</li>
+<li>Safe slicing.</li>
+<li>Removal while traversing.</li>
+<li>Removal of elements does not invalidate cursors or ranges when possible.</li>
+<li>Cursors and ranges can be kept for later use (such as O(1) removal if supported by the container).</li>
+<li>Interfaces for implementation-independent code.</li>
+<li>Concatenation and appending for lists.</li>
+<li>dup functions.</li>
+<li>Set/Map intersection.</li>
+<li>Filter, transform, and chain iterators.</li>
+<li>Custom allocators.</li>
+</ul><p>See the full <a href="http://www.dsource.org/projects/dcollections/wiki/ChangeLog">change log</a></p>
+
+<h3>Documentation</h3>
+
+<p>At this point, documentation does not exist online.  You must run ddoc on the source to get a documentation output.  I am planning on adding dcollections to dub, and use vibe.d's doc generation system (which should become official ddoc eventually).</p>
+
+<p>There is no tutorial, and may never be :(  Unfortunately I have very little time.  It is on the list of things to do.</p>
+
+<h3>TODO</h3>
+
+<p>In no specific order:</p>
+
+<ul>
+<li>Add debug-mode code to allow ranges and cursors to check validity for testing.</li>
+<li>Remove workarounds when compiler is fixed.</li>
+<li>Figure out how to make const cursors/ranges work (need tail-const for this).</li>
+<li>Look into how to have shared containers.</li>
+<li>tutorial</li>
+</ul>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Dcollections maintained by <a href="https://github.com/schveiguy">schveiguy</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
