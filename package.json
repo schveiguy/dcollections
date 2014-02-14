@@ -1,0 +1,16 @@
+﻿{
+    "name": "dcollections",
+    "description": "dcollections is an implementation of collection classes inspired by Tango, Java, and C++.",
+    "homepage": "https://github.com/schveiguy/dcollections",
+    "copyright": "Copyright © 2010-2014, Steven Schveighoffer",
+    "license": "Boost",
+    "targetType": "library",
+    "targetName": "dcollections",
+    "sourcePaths": ["dcollections"],
+    "importPaths": ["."],
+    "authors": [
+        "Steven Schveighoffer"
+    ],
+    "dependencies": {
+    }
+}
