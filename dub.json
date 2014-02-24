@@ -1,0 +1,85 @@
+{
+    "name": "dcollections",
+    "description": "dcollections is an implementation of collection classes inspired by Tango, Java, and C++. The goal of dcollections is to provide an efficient collections implementation that uses as many D ideas as possible.",
+    "targetName": "dcollections",
+    "authors": [
+        "Steven Schveighoffer",
+    ],
+    "license": "BSL-1.0",
+    "version": "~master",
+    "homepage": "https://github.com/schveiguy/dcollections",
+    "copyright": "Copyright (c) Steven Schveighoffer 2008 - 2014.",
+    "targetType": "staticLibrary",
+    "sourcePaths": [
+        "dcollections",
+    ],
+
+    "configurations": [
+        {
+            "name": "cursors",
+            "targetName": "cursors",
+            "targetType": "executable",
+            "mainSourceFile": "examples/cursors.d",
+            "sourceFiles": [
+                "examples/cursors.d",
+            ],
+            "targetPath" : "bin"
+        },
+
+        {
+            "name": "iterators",
+            "targetName": "iterators",
+            "targetType": "executable",
+            "mainSourceFile": "examples/iterators.d",
+            "sourceFiles": [
+                "examples/iterators.d",
+            ],
+            "targetPath" : "bin"
+        },
+
+        {
+            "name": "lists",
+            "targetName": "lists",
+            "targetType": "executable",
+            "mainSourceFile": "examples/lists.d",
+            "sourceFiles": [
+                "examples/lists.d",
+            ],
+            "targetPath" : "bin"
+        },
+
+        {
+            "name": "maps",
+            "targetName": "maps",
+            "targetType": "executable",
+            "mainSourceFile": "examples/maps.d",
+            "sourceFiles": [
+                "examples/maps.d",
+            ],
+            "targetPath" : "bin"
+        },
+
+        {
+            "name": "multisets",
+            "targetName": "multisets",
+            "targetType": "executable",
+            "mainSourceFile": "examples/multisets.d",
+            "sourceFiles": [
+                "examples/multisets.d",
+            ],
+            "targetPath" : "bin"
+        },
+
+        {
+            "name": "sets",
+            "targetName": "sets",
+            "targetType": "executable",
+            "mainSourceFile": "examples/sets.d",
+            "sourceFiles": [
+                "examples/sets.d",
+            ],
+            "targetPath" : "bin"
+        },
+
+    ]
+}
